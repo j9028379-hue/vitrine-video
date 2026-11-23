@@ -107,7 +107,10 @@ object PostRenderVerifier {
             priceDisplayed = priceDisplayed,
             usedHardwareEncoder = usedHardwareEncoder,
             renderDurationMs = renderDurationMs,
-            peakHeapMb = usedHeapMb
+            peakHeapMb = usedHeapMb,
+            colorMode = plan.colorGrading.mode,
+            addedTintApplied = plan.colorGrading.shouldRenderAddedTint,
+            decorativeBorderApplied = plan.colorGrading.shouldRenderDecorativeBorder
         )
     }
 }

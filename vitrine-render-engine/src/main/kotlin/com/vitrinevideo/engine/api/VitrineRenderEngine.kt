@@ -11,12 +11,19 @@ import com.vitrinevideo.engine.capabilities.UnsupportedCapabilityException
 import com.vitrinevideo.engine.capture.GuidedCaptureSession
 import com.vitrinevideo.engine.capture.GuidedCaptureValidationException
 import com.vitrinevideo.engine.capture.GuidedCaptureValidator
+import com.vitrinevideo.engine.capture.SceneCaptureDescriptor
 import com.vitrinevideo.engine.export.ExportVerificationException
 import com.vitrinevideo.engine.export.Media3RenderPipeline
 import com.vitrinevideo.engine.export.PostRenderVerifier
+import com.vitrinevideo.engine.form.AssembledTemplateJob
+import com.vitrinevideo.engine.form.TemplateFormValidationException
+import com.vitrinevideo.engine.form.TemplateJobAssembler
 import com.vitrinevideo.engine.interpreter.AudioMixConfig
 import com.vitrinevideo.engine.interpreter.RenderPlan
 import com.vitrinevideo.engine.interpreter.UniversalJsonInterpreter
+import com.vitrinevideo.engine.pkg.LoadedTemplatePackage
+import com.vitrinevideo.engine.pkg.TemplatePackageException
+import com.vitrinevideo.engine.pkg.TemplatePackageLoader
 import com.vitrinevideo.engine.timeline.PreFlightException
 import com.vitrinevideo.engine.timeline.PreFlightValidator
 import java.io.File
@@ -56,6 +63,92 @@ class VitrineRenderEngine(
         val audioProfile = request.audioProfileJsonFile?.let { UniversalJsonInterpreter.parseAudioProfile(it) }
         PreFlightValidator.validate(context, request, plan, audioProfile, config)
         return plan to request
+    }
+
+    /**
+     * Universally assembles and validates a RenderJob directly from a verified [LoadedTemplatePackage],
+     * merchant responses, and real CameraX captures (zero template hardcoding).
+     */
+    fun validatePackageJob(
+        pkg: LoadedTemplatePackage,
+        sessionId: String,
+        responses: Map<String, String>,
+        captures: List<SceneCaptureDescriptor>,
+        outputDir: File,
+        rotationDbFile: File,
+        visitedScreens: List<Int> = emptyList()
+    ): AssembledTemplateJob {
+        val assembled = TemplateJobAssembler.assemble(
+            pkg = pkg,
+            sessionId = sessionId,
+            rawResponses = responses,
+            captures = captures,
+            outputDir = outputDir,
+            rotationDbFile = rotationDbFile,
+            visitedScreens = visitedScreens
+        )
+        PreFlightValidator.validate(context, assembled.renderRequest, pkg.renderPlan, pkg.audioProfile, config)
+        return assembled
+    }
+
+    /**
+     * End-to-end universal render from an imported [LoadedTemplatePackage] + responses + CameraX captures.
+     */
+    fun renderPackage(
+        pkg: LoadedTemplatePackage,
+        sessionId: String,
+        responses: Map<String, String>,
+        captures: List<SceneCaptureDescriptor>,
+        outputDir: File,
+        rotationDbFile: File,
+        visitedScreens: List<Int> = emptyList(),
+        listener: RenderListener? = null
+    ): RenderOutcome {
+        return try {
+            listener?.onProgress(RenderProgress(RenderStage.PREFLIGHT, 2, "Assemblage et validation du RenderJob"))
+            val assembled = TemplateJobAssembler.assemble(
+                pkg = pkg,
+                sessionId = sessionId,
+                rawResponses = responses,
+                captures = captures,
+                outputDir = outputDir,
+                rotationDbFile = rotationDbFile,
+                visitedScreens = visitedScreens
+            )
+            File(outputDir.apply { mkdirs() }, "job.json").writeText(assembled.jobJson.toString(2))
+            renderGuidedSession(assembled.guidedSession, listener)
+        } catch (e: TemplateFormValidationException) {
+            fail(outputDir, "FORM_AND_JOB_CONTRACT", e.code, e.message ?: "Réponses ou captures invalides", listener)
+        } catch (e: TemplatePackageException) {
+            fail(outputDir, "TEMPLATE_PACKAGE", e.code, e.message ?: "Paquet gabarit invalide", listener)
+        } catch (t: Throwable) {
+            failFromThrowable(outputDir, t, listener)
+        }
+    }
+
+    /**
+     * End-to-end universal render directly from a template ZIP file.
+     */
+    fun renderZipPackage(
+        templateZip: File,
+        packageStorageRoot: File,
+        sessionId: String,
+        responses: Map<String, String>,
+        captures: List<SceneCaptureDescriptor>,
+        outputDir: File,
+        rotationDbFile: File,
+        visitedScreens: List<Int> = emptyList(),
+        listener: RenderListener? = null
+    ): RenderOutcome {
+        return try {
+            listener?.onProgress(RenderProgress(RenderStage.PREFLIGHT, 1, "Import et vérification SHA-256 du paquet ZIP"))
+            val pkg = TemplatePackageLoader.importZip(templateZip, packageStorageRoot)
+            renderPackage(pkg, sessionId, responses, captures, outputDir, rotationDbFile, visitedScreens, listener)
+        } catch (e: TemplatePackageException) {
+            fail(outputDir, "TEMPLATE_PACKAGE", e.code, e.message ?: "Paquet ZIP invalide", listener)
+        } catch (t: Throwable) {
+            failFromThrowable(outputDir, t, listener)
+        }
     }
 
     /**
@@ -185,7 +278,7 @@ class VitrineRenderEngine(
                 musicId = selectedTrackNumber,
                 musicCredit = selectedTrackCredit
             )
-            File(request.outputDir, "resultat.json").writeText(result.toJson().toString(2))
+            File(request.outputDir, "resultat.json").writeText(result.toSchemaResultJson().toString(2))
             File(request.outputDir, "controle.json").writeText(report.toJson().toString(2))
             selectedTrackCredit?.let { File(request.outputDir, "CREDITS.txt").writeText(it) }
 
@@ -263,7 +356,8 @@ class VitrineRenderEngine(
         )
         runCatching {
             outputDir.mkdirs()
-            File(outputDir, "erreur.json").writeText(err.toJson().toString(2))
+            File(outputDir, "erreur.json").writeText(err.toSchemaErrorJson().toString(2))
+            File(outputDir, "erreur_detail.json").writeText(err.toJson().toString(2))
         }
         val failure = RenderOutcome.Failure(err)
         listener?.onFailed(failure)

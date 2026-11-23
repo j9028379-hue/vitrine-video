@@ -12,6 +12,8 @@ import com.vitrinevideo.engine.interpreter.TextEntryAnim
 import com.vitrinevideo.engine.interpreter.TextOverlaySpec
 import com.vitrinevideo.engine.timeline.TimelineEngine
 import java.io.File
+import java.util.concurrent.atomic.AtomicLong
+import java.util.concurrent.atomic.AtomicReference
 import kotlin.math.abs
 import kotlin.math.ceil
 import kotlin.math.max
@@ -73,10 +75,38 @@ class VitrineBitmapTextOverlay(
 
     private val blitPaint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG)
 
-    private val resolvedWindows: List<ResolvedTextWindow> = spec.windows.mapNotNull { w ->
-        TextFieldResolver.layoutWindow(w, spec, responses) { txt, sz ->
-            fillPaint.textSize = sz
-            fillPaint.measureText(txt)
+    private val pendingResponses = AtomicReference<Map<String, String>?>(null)
+    private val overlayVersion = AtomicLong(0L)
+    private var appliedVersion = 0L
+
+    @Volatile
+    private var resolvedWindows: List<ResolvedTextWindow> = layoutAllWindows(responses)
+
+    private fun layoutAllWindows(resp: Map<String, String>): List<ResolvedTextWindow> =
+        spec.windows.mapNotNull { w ->
+            TextFieldResolver.layoutWindow(w, spec, resp) { txt, sz ->
+                fillPaint.textSize = sz
+                fillPaint.measureText(txt)
+            }
+        }
+
+    /**
+     * Thread-safe live text update for unlimited local previews without restarting ExoPlayer or rebuilding GlEffects.
+     */
+    fun updateResponses(newResponses: Map<String, String>) {
+        pendingResponses.set(HashMap(newResponses))
+        overlayVersion.incrementAndGet()
+    }
+
+    private fun syncPendingResponsesOnGlThread() {
+        val v = overlayVersion.get()
+        if (v != appliedVersion) {
+            val next = pendingResponses.getAndSet(null)
+            if (next != null) {
+                resolvedWindows = layoutAllWindows(next)
+                lastRenderedKey = null
+            }
+            appliedVersion = v
         }
     }
 
@@ -134,12 +164,14 @@ class VitrineBitmapTextOverlay(
     }
 
     override fun getOverlaySettings(presentationTimeUs: Long): OverlaySettings {
+        syncPendingResponsesOnGlThread()
         val frame = timeline.usToFrame(presentationTimeUs)
         val hasActive = resolvedWindows.any { frame in it.spec.startFrame until it.spec.endFrameExcluded }
         return if (hasActive) activeOverlaySettings else hiddenOverlaySettings
     }
 
     override fun getBitmap(presentationTimeUs: Long): Bitmap {
+        syncPendingResponsesOnGlThread()
         val frame = timeline.usToFrame(presentationTimeUs)
         val active = resolvedWindows.filter { frame in it.spec.startFrame until it.spec.endFrameExcluded }
         if (active.isEmpty()) {
@@ -152,7 +184,7 @@ class VitrineBitmapTextOverlay(
                     frame - it.spec.startFrame >= spec.fadeFrames &&
                     (it.spec.exitFadeFrames <= 0 || it.spec.endFrameExcluded - frame > it.spec.exitFadeFrames))
         }
-        val key = if (isStatic) "STATIC_${active.joinToString("_") { it.spec.fieldKey }}" else "FRAME_$frame"
+        val key = if (isStatic) "V${appliedVersion}_STATIC_${active.joinToString("_") { it.spec.fieldKey }}" else "V${appliedVersion}_FRAME_$frame"
 
         if (key == lastRenderedKey) return bandBitmap
         lastRenderedKey = key
@@ -180,9 +212,10 @@ class VitrineBitmapTextOverlay(
             spec.defaultStyle.lineSpacingPx.toFloat() * (sz / spec.defaultStyle.fontSizePx.toFloat())
         }
 
-        var nonSpaceCount = 0
+        var charShiftCount = 0
+        val centerOffsetLines = max(0, rw.lines.size - 2) / 2.0f
         rw.lines.forEachIndexed { li, line ->
-            val y = (rw.baseY - bandTopPx.toFloat()) + li * lineStep
+            val y = (rw.baseY - bandTopPx.toFloat()) + (li - centerOffsetLines) * lineStep
             val lineW = fillPaint.measureText(line)
             val startX = (bandBitmap.width - lineW) * 0.5f
 
@@ -191,29 +224,27 @@ class VitrineBitmapTextOverlay(
                 var xCursor = startX
                 for (ch in line) {
                     val glyph = getOrCreateGlyph(ch, sz)
-                    if (ch != ' ') {
-                        val tf = WaveCurveEvaluator.evaluateCharTransform(
-                            wave = spec.wave,
-                            startFrame = rw.spec.startFrame,
-                            frame = frame,
-                            lineIndex = li,
-                            nonSpaceCharIndexBefore = nonSpaceCount,
-                            fontSizePx = sz,
-                            emRefPx = spec.defaultStyle.emRefPx
-                        )
-                        nonSpaceCount++
-                        if (tf.scale > 0.001f) {
-                            val cx = xCursor + glyph.advancePx * 0.5f
-                            val cy = y - sz * 0.34f
-                            bandCanvas.save()
-                            bandCanvas.translate(cx + tf.dxPx, cy + tf.dyPx)
-                            bandCanvas.rotate(tf.rotationDeg)
-                            bandCanvas.scale(tf.scale, tf.scale)
-                            val drawLeft = -glyph.advancePx * 0.5f - glyph.padLeftPx
-                            val drawTop = sz * 0.34f - glyph.baselineInBmpY
-                            bandCanvas.drawBitmap(glyph.bitmap, drawLeft, drawTop, blitPaint)
-                            bandCanvas.restore()
-                        }
+                    val tf = WaveCurveEvaluator.evaluateCharTransform(
+                        wave = spec.wave,
+                        startFrame = rw.spec.startFrame,
+                        frame = frame,
+                        lineIndex = li,
+                        nonSpaceCharIndexBefore = charShiftCount,
+                        fontSizePx = sz,
+                        emRefPx = spec.defaultStyle.emRefPx
+                    )
+                    charShiftCount++
+                    if (ch != ' ' && tf.scale > 0.001f) {
+                        val cx = xCursor + glyph.advancePx * 0.5f
+                        val cy = y - sz * 0.34f
+                        bandCanvas.save()
+                        bandCanvas.translate(cx + tf.dxPx, cy + tf.dyPx)
+                        bandCanvas.rotate(tf.rotationDeg)
+                        bandCanvas.scale(tf.scale, tf.scale)
+                        val drawLeft = -glyph.advancePx * 0.5f - glyph.padLeftPx
+                        val drawTop = sz * 0.34f - glyph.baselineInBmpY
+                        bandCanvas.drawBitmap(glyph.bitmap, drawLeft, drawTop, blitPaint)
+                        bandCanvas.restore()
                     }
                     xCursor += glyph.advancePx
                 }
@@ -294,6 +325,17 @@ class VitrineBitmapTextOverlay(
         ): OverlayEffect {
             val fontFile = if (spec.fontRelativePath.isNotEmpty()) File(resourcesDir, spec.fontRelativePath) else null
             return OverlayEffect(listOf(VitrineBitmapTextOverlay(plan, spec, responses, fontFile)))
+        }
+
+        fun createDynamicOverlay(
+            plan: RenderPlan,
+            spec: TextOverlaySpec,
+            responses: Map<String, String>,
+            resourcesDir: File
+        ): Pair<VitrineBitmapTextOverlay, OverlayEffect> {
+            val fontFile = if (spec.fontRelativePath.isNotEmpty()) File(resourcesDir, spec.fontRelativePath) else null
+            val overlay = VitrineBitmapTextOverlay(plan, spec, responses, fontFile)
+            return overlay to OverlayEffect(listOf(overlay))
         }
 
         fun parseColor(spec: String, fallback: Int): Int {

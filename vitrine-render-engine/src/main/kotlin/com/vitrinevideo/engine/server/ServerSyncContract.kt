@@ -193,4 +193,135 @@ object ServerSessionPayloadBuilder {
             put("responses", JSONObject(session.responses))
         }
     }
+
+    fun buildAuthorizeLocalExportJson(
+        session: GuidedCaptureSession,
+        clientExportId: String
+    ): JSONObject = JSONObject().apply {
+        put("client_export_id", clientExportId)
+        put("session_id", session.sessionId)
+        put("template_id", session.templateId)
+        put("template_version", session.templateVersion)
+        put("responses", JSONObject(session.responses))
+    }
+
+    fun buildConfirmLocalExportJson(
+        exportId: String,
+        outputSha256: String,
+        sizeBytes: Long,
+        renderDurationMs: Long,
+        usedHardwareEncoder: Boolean
+    ): JSONObject = JSONObject().apply {
+        put("export_id", exportId)
+        put("output_sha256", outputSha256)
+        put("size_bytes", sizeBytes)
+        put("render_duration_ms", renderDurationMs)
+        put("used_hardware_encoder", usedHardwareEncoder)
+    }
+
+    fun buildFailOrFallbackJson(
+        exportId: String,
+        reason: String,
+        requestServerFallback: Boolean,
+        session: GuidedCaptureSession? = null
+    ): JSONObject = JSONObject().apply {
+        put("export_id", exportId)
+        put("reason", reason.take(400))
+        put("request_server_fallback", requestServerFallback)
+        if (requestServerFallback && session != null) {
+            put("responses", JSONObject(session.responses))
+        }
+    }
+}
+
+data class LocalExportAuthorization(
+    val exportId: String,
+    val clientExportId: String,
+    val exportLeaseHmac: String,
+    val expiresAt: String,
+    val musicId: Int?,
+    val musicRelPath: String?,
+    val trackUrl: String?,
+    val creditsRemaining: Int,
+    val idempotentReplay: Boolean = false
+) {
+    companion object {
+        fun fromJson(raw: String): LocalExportAuthorization {
+            val obj = JSONObject(raw)
+            return LocalExportAuthorization(
+                exportId = obj.getString("export_id"),
+                clientExportId = obj.getString("client_export_id"),
+                exportLeaseHmac = obj.getString("export_lease_hmac"),
+                expiresAt = obj.optString("expires_at", ""),
+                musicId = if (obj.isNull("music_id")) null else obj.optInt("music_id"),
+                musicRelPath = obj.optString("music_rel_path", "").takeIf { it.isNotEmpty() },
+                trackUrl = obj.optString("track_url", "").takeIf { it.isNotEmpty() },
+                creditsRemaining = obj.optInt("credits_remaining", 0),
+                idempotentReplay = obj.optBoolean("idempotent", false)
+            )
+        }
+    }
+}
+
+data class LocalExportFailOrFallbackResult(
+    val exportId: String,
+    val status: String,
+    val refunded: Boolean,
+    val fallbackJobId: String? = null,
+    val fallbackSessionId: String? = null,
+    val uploadTargets: Map<String, SceneUploadTarget> = emptyMap()
+) {
+    companion object {
+        fun fromJson(raw: String): LocalExportFailOrFallbackResult {
+            val obj = JSONObject(raw)
+            val urls = obj.optJSONObject("upload_urls")
+            val map = linkedMapOf<String, SceneUploadTarget>()
+            if (urls != null) {
+                val keys = urls.keys()
+                while (keys.hasNext()) {
+                    val sc = keys.next()
+                    val item = urls.getJSONObject(sc)
+                    map[sc] = SceneUploadTarget(
+                        sceneId = sc,
+                        r2Key = item.getString("r2_key"),
+                        presignedPutUrl = item.getString("put_url")
+                    )
+                }
+            }
+            return LocalExportFailOrFallbackResult(
+                exportId = obj.getString("export_id"),
+                status = obj.getString("status"),
+                refunded = obj.optBoolean("refunded", false),
+                fallbackJobId = obj.optString("fallback_job_id", "").takeIf { it.isNotEmpty() },
+                fallbackSessionId = obj.optString("fallback_session_id", "").takeIf { it.isNotEmpty() },
+                uploadTargets = map
+            )
+        }
+    }
+}
+
+data class ProtectedTemplatePackUrls(
+    val templateId: String,
+    val templateVersion: String,
+    val partitionJsonUrl: String,
+    val audioProfileJsonUrl: String?,
+    val fontUrl: String,
+    val fontRelPath: String,
+    val guideJsonUrl: String?
+) {
+    companion object {
+        fun fromJson(raw: String): ProtectedTemplatePackUrls {
+            val obj = JSONObject(raw)
+            val urls = obj.getJSONObject("urls")
+            return ProtectedTemplatePackUrls(
+                templateId = obj.getString("template_id"),
+                templateVersion = obj.getString("template_version"),
+                partitionJsonUrl = urls.getString("partition_json"),
+                audioProfileJsonUrl = urls.optString("audio_profile_json", "").takeIf { it.isNotEmpty() },
+                fontUrl = urls.getString("font_url"),
+                fontRelPath = urls.getString("font_rel_path"),
+                guideJsonUrl = urls.optString("guide_json", "").takeIf { it.isNotEmpty() }
+            )
+        }
+    }
 }

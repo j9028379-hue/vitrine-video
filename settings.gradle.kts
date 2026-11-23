@@ -16,3 +16,4 @@ dependencyResolutionManagement {
 
 rootProject.name = "vitrine-render-engine-root"
 include(":vitrine-render-engine")
+include(":vitrine-video-app")

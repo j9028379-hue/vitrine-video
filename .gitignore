@@ -10,6 +10,7 @@ build/
 *.mov
 *.wav
 *.mp3
+!vitrine-video-app/src/main/assets/mockup/assets/audio/*.mp3
 *.db
 *.sqlite
 *.iml

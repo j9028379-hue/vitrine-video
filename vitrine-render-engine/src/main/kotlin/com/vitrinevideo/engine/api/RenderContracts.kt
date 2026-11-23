@@ -36,6 +36,18 @@ data class RenderResult(
         if (musicId != null) put("music_id", musicId)
         if (musicCredit != null) put("music_credit", musicCredit)
     }
+
+    /**
+     * Strict schema-compliant output matching `schemas/render-result.json` (`additionalProperties: false`).
+     */
+    fun toSchemaResultJson(): JSONObject = JSONObject().apply {
+        put("status", status)
+        put("template_id", templateId)
+        put("run_id", runId)
+        put("sha256", sha256)
+        put("output", outputFileName)
+        if (musicId != null) put("music_id", musicId)
+    }
 }
 
 data class SceneReport(
@@ -61,7 +73,10 @@ data class RenderReport(
     val priceDisplayed: Boolean,
     val usedHardwareEncoder: Boolean,
     val renderDurationMs: Long,
-    val peakHeapMb: Long
+    val peakHeapMb: Long,
+    val colorMode: String = "source_native",
+    val addedTintApplied: Boolean = false,
+    val decorativeBorderApplied: Boolean = false
 ) {
     fun toJson(): JSONObject = JSONObject().apply {
         put("template_id", templateId)
@@ -73,6 +88,12 @@ data class RenderReport(
         put("codec", codec)
         put("sha256", videoSha256)
         put("prix_affiche", priceDisplayed)
+        put("teintes_ajoutees", addedTintApplied)
+        put("etalonnage", JSONObject().apply {
+            put("mode", colorMode)
+            put("teinte_ajoutee", addedTintApplied)
+            put("bordure_decorative", decorativeBorderApplied)
+        })
         put("used_hardware_encoder", usedHardwareEncoder)
         put("render_duration_ms", renderDurationMs)
         put("peak_heap_mb", peakHeapMb)
@@ -108,6 +129,15 @@ data class RenderError(
         if (errorCode != null) put("error_code", errorCode)
         if (!causeClass.isNullOrBlank()) put("cause_class", causeClass)
         if (!causeChain.isNullOrBlank()) put("cause_chain", causeChain.take(1500))
+    }
+
+    /**
+     * Strict schema-compliant output matching `schemas/render-error.json` (`additionalProperties: false`).
+     */
+    fun toSchemaErrorJson(): JSONObject = JSONObject().apply {
+        put("status", status)
+        put("stage", stage)
+        put("message", message.take(500).ifBlank { code })
     }
 }
 

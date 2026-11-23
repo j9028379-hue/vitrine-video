@@ -13,7 +13,9 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const MIGRATION_SQL =
   fs.readFileSync(path.resolve(__dirname, "../migrations/0001_init.sql"), "utf8") +
   "\n" +
-  fs.readFileSync(path.resolve(__dirname, "../migrations/0002_preview_cache_limits.sql"), "utf8");
+  fs.readFileSync(path.resolve(__dirname, "../migrations/0002_preview_cache_limits.sql"), "utf8") +
+  "\n" +
+  fs.readFileSync(path.resolve(__dirname, "../migrations/0003_local_export_auth.sql"), "utf8");
 
 // Real SQLite-backed D1 binding executing actual 0001_init.sql & worker SQL statements
 function createSqliteD1(dbPath) {
@@ -420,6 +422,80 @@ test("Full flow: auth, scoped R2 presigned PUT/GET, debit, worker claim/complete
       body: { session_id: "sess-prev-4", preview_session_id: psId, template_id: "COMMERCE-T3", template_version: "1.0.0", mode: "preview_proxy" },
     });
     assert.equal(pSess4.status, 429);
+
+    // 14. Credit-gated local Android export flow: /pack -> /exports/authorize (idempotent) -> /confirm -> /fail-or-fallback (refund & zero-double-debit fallback)
+    const packRes = await call(env, "GET", "/v1/templates/COMMERCE-T3/1.0.0/pack", {
+      headers: { Authorization: tokenA },
+    });
+    assert.equal(packRes.status, 200);
+    assert.ok(packRes.data.urls.partition_json.includes("X-Amz-Signature="));
+
+    const credBeforeLocal = (await call(env, "GET", "/v1/credits", { headers: { Authorization: tokenA } })).data.credits_balance;
+    const authLoc1 = await call(env, "POST", "/v1/exports/authorize", {
+      headers: { Authorization: tokenA },
+      body: { client_export_id: "cli_exp_01", session_id: "sess_loc_01", template_id: "COMMERCE-T3", template_version: "1.0.0" },
+    });
+    assert.equal(authLoc1.status, 201);
+    assert.equal(authLoc1.data.credits_remaining, credBeforeLocal - 1);
+    assert.ok(authLoc1.data.track_url.includes("X-Amz-Signature="));
+
+    // Double-click replay with same client_export_id must NOT double-debit
+    const authLocReplay = await call(env, "POST", "/v1/exports/authorize", {
+      headers: { Authorization: tokenA },
+      body: { client_export_id: "cli_exp_01", session_id: "sess_loc_01", template_id: "COMMERCE-T3", template_version: "1.0.0" },
+    });
+    assert.equal(authLocReplay.status, 200);
+    assert.equal(authLocReplay.data.idempotent, true);
+    assert.equal(authLocReplay.data.export_id, authLoc1.data.export_id);
+    assert.equal(authLocReplay.data.credits_remaining, credBeforeLocal - 1);
+
+    const confLoc = await call(env, "POST", "/v1/exports/confirm", {
+      headers: { Authorization: tokenA },
+      body: { export_id: authLoc1.data.export_id, output_sha256: "e".repeat(64), size_bytes: 4200000, render_duration_ms: 14500, used_hardware_encoder: true },
+    });
+    assert.equal(confLoc.status, 200);
+    assert.equal(confLoc.data.status, "COMPLETED_LOCAL");
+
+    // Failed local export with refund
+    const authLocFail = await call(env, "POST", "/v1/exports/authorize", {
+      headers: { Authorization: tokenA },
+      body: { client_export_id: "cli_exp_02", session_id: "sess_loc_02", template_id: "COMMERCE-T3", template_version: "1.0.0" },
+    });
+    const balDuringFail = authLocFail.data.credits_remaining;
+    const refundRes = await call(env, "POST", "/v1/exports/fail-or-fallback", {
+      headers: { Authorization: tokenA },
+      body: { export_id: authLocFail.data.export_id, reason: "user_aborted", request_server_fallback: false },
+    });
+    assert.equal(refundRes.data.refunded, true);
+    const balAfterLocRefund = (await call(env, "GET", "/v1/credits", { headers: { Authorization: tokenA } })).data.credits_balance;
+    assert.equal(balAfterLocRefund, balDuringFail + 1);
+
+    // Failed local export with seamless server fallback (0 extra credit debited on /submit!)
+    const authLocFb = await call(env, "POST", "/v1/exports/authorize", {
+      headers: { Authorization: tokenA },
+      body: { client_export_id: "cli_exp_03", session_id: "sess_loc_03", template_id: "COMMERCE-T3", template_version: "1.0.0" },
+    });
+    const balAfterFbAuth = authLocFb.data.credits_remaining;
+    const fbRes = await call(env, "POST", "/v1/exports/fail-or-fallback", {
+      headers: { Authorization: tokenA },
+      body: { export_id: authLocFb.data.export_id, reason: "codec_5001", request_server_fallback: true, responses: { nom: "Shop FB" } },
+    });
+    assert.equal(fbRes.data.status, "FALLBACK_QUEUED");
+    assert.ok(fbRes.data.upload_urls.S1.put_url.includes("X-Amz-Signature="));
+    const fbSubmit = await call(env, "POST", `/v1/sessions/${fbRes.data.fallback_session_id}/submit`, {
+      headers: { Authorization: tokenA },
+      body: {
+        captures: ["S1", "S2", "S3", "S4"].map((sc) => ({
+          scene_id: sc,
+          r2_key: fbRes.data.upload_urls[sc].r2_key,
+          sha256: "9".repeat(64),
+        })),
+      },
+    });
+    assert.equal(fbSubmit.status, 200);
+    assert.equal(fbSubmit.data.status, "QUEUED");
+    const balAfterFbSubmit = (await call(env, "GET", "/v1/credits", { headers: { Authorization: tokenA } })).data.credits_balance;
+    assert.equal(balAfterFbSubmit, balAfterFbAuth);
   } finally {
     fs.rmSync(tmpDir, { recursive: true, force: true });
   }

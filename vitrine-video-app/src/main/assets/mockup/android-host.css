@@ -1,0 +1,77 @@
+/* Android WebView host adjustments — preserves 100% of the founder's mockup UI */
+body {
+  background: #FFF9F6 !important;
+  padding: 0 !important;
+  overflow: hidden !important;
+}
+
+.stage {
+  width: 100vw;
+  height: 100vh;
+  gap: 0 !important;
+  justify-content: center;
+}
+
+.phone-holder {
+  border-radius: 0 !important;
+}
+
+.phone-holder::after {
+  display: none !important;
+}
+
+.device {
+  border-radius: 0 !important;
+}
+
+.caption {
+  display: none !important;
+}
+
+/* Allow smooth scrolling on questions screen even when Android soft keyboard opens */
+#s-questions .scroll {
+  overflow-y: auto !important;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Non-operational templates/sectors marked clearly without altering founder artwork */
+.card[data-coming-soon="true"],
+.format-card[data-coming-soon="true"] {
+  opacity: 0.72;
+  position: relative;
+}
+
+.card[data-coming-soon="true"]::after,
+.format-card[data-coming-soon="true"]::after {
+  content: attr(data-soon-label);
+  position: absolute;
+  top: 10px;
+  right: 12px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: #0A1550;
+  color: #FFFFFF;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.3px;
+  pointer-events: none;
+}
+
+.format-card[data-format="t3"] {
+  border: 2px solid #FF6A00 !important;
+  box-shadow: 0 12px 28px rgba(255, 95, 0, 0.16) !important;
+}
+
+.vitrine-scene-saved-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 5px 12px;
+  border-radius: 999px;
+  background: #E8F8EF;
+  color: #0D7A3E;
+  font-size: 13px;
+  font-weight: 800;
+  margin: 0 auto 2px;
+}

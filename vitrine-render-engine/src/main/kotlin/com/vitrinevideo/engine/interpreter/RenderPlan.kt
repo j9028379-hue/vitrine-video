@@ -49,6 +49,7 @@ data class SceneSpec(
     val startFrame: Int,
     val endFrameExcluded: Int,
     val role: String = "",
+    val raccordMode: String = "",
     val shots: List<CutSegmentSpec>
 )
 
@@ -122,6 +123,25 @@ data class TextWindowSpec(
     val overrideStyle: TextStyleSpec? = null
 )
 
+data class ColorGradingSpec(
+    val mode: String = "source_native",
+    val addedTint: Boolean = false,
+    val decorativeBorder: Boolean = false,
+    val tintHex: String? = null,
+    val tintOpacity: Double = 0.0,
+    val borderColorHex: String? = null,
+    val borderWidthPx: Int = 0
+) {
+    val isNativeColorPreserved: Boolean
+        get() = mode == "source_native" && !addedTint
+
+    val shouldRenderAddedTint: Boolean
+        get() = addedTint && tintOpacity > 0.0 && !tintHex.isNullOrBlank()
+
+    val shouldRenderDecorativeBorder: Boolean
+        get() = decorativeBorder && borderWidthPx > 0
+}
+
 data class BandExportSpec(
     val topPx: Int,
     val heightPx: Int
@@ -131,7 +151,10 @@ data class TextOverlaySpec(
     val fontFamily: String,
     val fontWeight: Int,
     val fontRelativePath: String,
+    val fontSha256: String = "",
     val colorHex: String,
+    val alignment: String = "centre",
+    val absentPriceRule: String = "",
     val defaultStyle: TextStyleSpec,
     val endSectionStyle: TextStyleSpec?,
     val endSectionStartFrame: Int?,
@@ -182,6 +205,7 @@ data class AudioProfileSpec(
 data class RenderPlan(
     val templateId: String,
     val version: String,
+    val statusLabel: String = "",
     val fps: Int,
     val width: Int,
     val height: Int,
@@ -190,6 +214,7 @@ data class RenderPlan(
     val transitions: List<TransitionSpec>,
     val textOverlay: TextOverlaySpec?,
     val colorMode: String,
+    val colorGrading: ColorGradingSpec = ColorGradingSpec(mode = colorMode),
     val audioProfileId: String,
     val requiredCapabilities: Set<CapabilityId>,
     val unknownCapabilities: List<String>

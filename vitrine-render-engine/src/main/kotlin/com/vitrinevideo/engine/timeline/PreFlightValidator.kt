@@ -111,6 +111,13 @@ object PreFlightValidator {
             if (!fontFile.exists()) {
                 throw PreFlightException("FONT_MISSING", "Police requise introuvable: ${fontFile.path}")
             }
+            val expectedFontSha = plan.textOverlay?.fontSha256.orEmpty()
+            if (expectedFontSha.isNotEmpty()) {
+                val actualFontSha = sha256File(fontFile)
+                if (!actualFontSha.equals(expectedFontSha, ignoreCase = true)) {
+                    throw PreFlightException("FONT_SHA_MISMATCH", "Empreinte police invalide pour $fontRel")
+                }
+            }
         }
 
         // 7. Validate all captures (order, uniqueness, SHA-256, MediaExtractor track + duration)
@@ -225,12 +232,37 @@ object PreFlightValidator {
 
     private fun verifyManifestHashes(manifestFile: File, rootDir: File) {
         val json = JSONObject(manifestFile.readText())
+        val rootCanonical = rootDir.canonicalFile
+        val filesArr = json.optJSONArray("files") ?: json.optJSONArray("fichiers")
+        if (filesArr != null) {
+            for (i in 0 until filesArr.length()) {
+                val entry = filesArr.getJSONObject(i)
+                val rel = entry.optString("path", "").ifBlank { entry.getString("chemin") }
+                val expectedSha = entry.getString("sha256")
+                val expectedBytes = entry.optLong("bytes", -1L)
+                val target = resolveSafeRelative(rootCanonical, rel)
+                if (!target.exists()) {
+                    throw PreFlightException("MANIFEST_FILE_MISSING", "Fichier du manifeste absent: $rel")
+                }
+                if (expectedBytes >= 0L && target.length() != expectedBytes) {
+                    throw PreFlightException(
+                        "MANIFEST_SIZE_MISMATCH",
+                        "Taille invalide pour $rel: attendu=$expectedBytes, réel=${target.length()}"
+                    )
+                }
+                val actual = sha256File(target)
+                if (!actual.equals(expectedSha, ignoreCase = true)) {
+                    throw PreFlightException("MANIFEST_HASH_MISMATCH", "Altération détectée sur $rel")
+                }
+            }
+            return
+        }
         val filesObj = json.optJSONObject("fichiers") ?: return
         val keys = filesObj.keys()
         while (keys.hasNext()) {
             val rel = keys.next()
             val expected = filesObj.getString(rel)
-            val target = File(rootDir, rel)
+            val target = resolveSafeRelative(rootCanonical, rel)
             if (!target.exists()) {
                 throw PreFlightException("MANIFEST_FILE_MISSING", "Fichier du manifeste absent: $rel")
             }
@@ -239,6 +271,18 @@ object PreFlightValidator {
                 throw PreFlightException("MANIFEST_HASH_MISMATCH", "Altération détectée sur $rel")
             }
         }
+    }
+
+    private fun resolveSafeRelative(rootCanonical: File, relPath: String): File {
+        if (File(relPath).isAbsolute || relPath.contains("..")) {
+            throw PreFlightException("UNSAFE_RELATIVE_PATH", "Chemin relatif non autorisé: $relPath")
+        }
+        val target = File(rootCanonical, relPath).canonicalFile
+        val rootPrefix = rootCanonical.path.trimEnd(File.separatorChar) + File.separatorChar
+        if (target.path != rootCanonical.path && !target.path.startsWith(rootPrefix)) {
+            throw PreFlightException("UNSAFE_RELATIVE_PATH", "Évasion de répertoire interdite: $relPath")
+        }
+        return target
     }
 
     fun sha256File(file: File): String {

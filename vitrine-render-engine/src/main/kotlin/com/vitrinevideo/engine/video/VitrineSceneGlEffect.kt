@@ -193,6 +193,17 @@ private class VitrineSceneShaderProgram(
 
         val tr = state.activeTransition
         val mask = if (tr != null && hasHoldFrame) TransitionGeometry.evaluate(tr, frame) else null
+        val grading = plan.colorGrading
+        main.setIntUniform("uApplyTint", if (grading.shouldRenderAddedTint) 1 else 0)
+        main.setFloatsUniform("uTintColor", floatArrayOf(0f, 0f, 0f, grading.tintOpacity.toFloat().coerceIn(0f, 1f)))
+        main.setIntUniform("uApplyBorder", if (grading.shouldRenderDecorativeBorder) 1 else 0)
+        main.setFloatsUniform(
+            "uBorderNorm",
+            floatArrayOf(
+                grading.borderWidthPx.toFloat() / max(1, outWidth).toFloat(),
+                grading.borderWidthPx.toFloat() / max(1, outHeight).toFloat()
+            )
+        )
         val zeroRect = floatArrayOf(0f, 0f, 0f, 0f)
         if (mask == null) {
             main.setIntUniform("uTransMode", 0)
@@ -347,7 +358,9 @@ private class VitrineSceneShaderProgram(
 
             vec4 sampleCropped(vec2 localUv, float cx, float cy, float zoom, float panX, float panY) {
                 vec2 span = uAspectScale / max(zoom, 0.01);
-                vec2 uv = vec2(cx + panX, cy + panY) + (localUv - vec2(0.5)) * span;
+                vec2 halfSpan = 0.5 * span;
+                vec2 center = clamp(vec2(cx + panX, cy + panY), halfSpan, max(halfSpan, vec2(1.0) - halfSpan));
+                vec2 uv = center + (localUv - vec2(0.5)) * span;
                 uv = clamp(uv, vec2(0.0), vec2(1.0));
                 return texture2D(uTexSampler, vec2(uv.x, 1.0 - uv.y));
             }
@@ -389,36 +402,52 @@ private class VitrineSceneShaderProgram(
             uniform vec4 uTransRect1;
             uniform vec4 uTransRect2;
             uniform vec4 uTransRect3;
+            uniform int uApplyTint;
+            uniform vec4 uTintColor;
+            uniform int uApplyBorder;
+            uniform vec2 uBorderNorm;
             varying vec2 vTexSamplingCoord;
 
             bool pointInRect(vec2 p, vec4 r) {
                 return p.x >= r.x && p.x <= (r.x + r.z) && p.y >= r.y && p.y <= (r.y + r.w);
             }
 
+            vec4 finalizeColorGrading(vec4 baseColor, vec2 topDownUv) {
+                vec4 outCol = baseColor;
+                if (uApplyTint == 1) {
+                    outCol.rgb = mix(outCol.rgb, uTintColor.rgb, clamp(uTintColor.a, 0.0, 1.0));
+                }
+                if (uApplyBorder == 1) {
+                    if (topDownUv.x < uBorderNorm.x || topDownUv.x > (1.0 - uBorderNorm.x) ||
+                        topDownUv.y < uBorderNorm.y || topDownUv.y > (1.0 - uBorderNorm.y)) {
+                        outCol = vec4(1.0, 1.0, 1.0, 1.0);
+                    }
+                }
+                return outCol;
+            }
+
             void main() {
                 vec2 topDownUv = vec2(vTexSamplingCoord.x, 1.0 - vTexSamplingCoord.y);
                 vec4 incoming = sampleScenePixel(topDownUv);
-                if (uTransMode == 0) {
-                    gl_FragColor = incoming;
-                    return;
+                vec4 composed = incoming;
+                if (uTransMode != 0) {
+                    vec4 hold = texture2D(uHoldSampler, vTexSamplingCoord);
+                    if (uTransMode == 2) {
+                        composed = mix(hold, incoming, clamp(uTransParam, 0.0, 1.0));
+                    } else if (uTransMode == 3) {
+                        float edgeX = uTransDiag.x + (uTransDiag.y - uTransDiag.x) * topDownUv.y;
+                        composed = topDownUv.x <= edgeX ? incoming : hold;
+                    } else {
+                        int count = int(uTransParam + 0.5);
+                        bool inside = false;
+                        if (count >= 1 && pointInRect(topDownUv, uTransRect0)) inside = true;
+                        if (count >= 2 && pointInRect(topDownUv, uTransRect1)) inside = true;
+                        if (count >= 3 && pointInRect(topDownUv, uTransRect2)) inside = true;
+                        if (count >= 4 && pointInRect(topDownUv, uTransRect3)) inside = true;
+                        composed = inside ? incoming : hold;
+                    }
                 }
-                vec4 hold = texture2D(uHoldSampler, vTexSamplingCoord);
-                if (uTransMode == 2) {
-                    gl_FragColor = mix(hold, incoming, clamp(uTransParam, 0.0, 1.0));
-                    return;
-                }
-                if (uTransMode == 3) {
-                    float edgeX = uTransDiag.x + (uTransDiag.y - uTransDiag.x) * topDownUv.y;
-                    gl_FragColor = topDownUv.x <= edgeX ? incoming : hold;
-                    return;
-                }
-                int count = int(uTransParam + 0.5);
-                bool inside = false;
-                if (count >= 1 && pointInRect(topDownUv, uTransRect0)) inside = true;
-                if (count >= 2 && pointInRect(topDownUv, uTransRect1)) inside = true;
-                if (count >= 3 && pointInRect(topDownUv, uTransRect2)) inside = true;
-                if (count >= 4 && pointInRect(topDownUv, uTransRect3)) inside = true;
-                gl_FragColor = inside ? incoming : hold;
+                gl_FragColor = finalizeColorGrading(composed, topDownUv);
             }
         """
     }

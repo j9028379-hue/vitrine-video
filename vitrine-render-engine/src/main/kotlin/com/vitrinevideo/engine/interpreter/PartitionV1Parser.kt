@@ -23,6 +23,7 @@ object PartitionV1Parser {
 
         val templateId = json.getString("template_id")
         val version = json.optString("version", "1.0.0")
+        val statusLabel = json.optString("statut", "")
         val fps = json.getInt("fps")
         val dims = json.getJSONArray("dimensions")
         require(dims.length() == 2) { "dimensions must contain [width, height]" }
@@ -30,19 +31,45 @@ object PartitionV1Parser {
         val height = dims.getInt(1)
         val totalFrames = json.getInt("images")
 
-        // Color grading check
-        val colorMode = json.optJSONObject("etalonnage")?.optString("mode", "source_native") ?: "source_native"
+        // Typed color grading parsing (`mode`, `teinte_ajoutee`, `bordure_decorative`)
+        val colorObj = json.optJSONObject("etalonnage")
+        val colorMode = colorObj?.optString("mode", "source_native") ?: "source_native"
+        val addedTint = colorObj?.optBoolean("teinte_ajoutee", false) ?: false
+        val decorativeBorder = colorObj?.optBoolean("bordure_decorative", false) ?: false
+        val colorGrading = ColorGradingSpec(
+            mode = colorMode,
+            addedTint = addedTint,
+            decorativeBorder = decorativeBorder,
+            tintHex = colorObj?.optString("teinte_couleur", "")?.ifBlank { null },
+            tintOpacity = colorObj?.optDouble("teinte_opacite", 0.0) ?: 0.0,
+            borderColorHex = colorObj?.optString("bordure_couleur", "")?.ifBlank { null },
+            borderWidthPx = colorObj?.optInt("bordure_largeur_px", 0) ?: 0
+        )
+
         if (colorMode == "source_native") {
             required += CapabilityId.COLOR_SOURCE_NATIVE
         } else {
-            unknown += "color.$colorMode"
+            unknown += "color.mode:$colorMode"
+        }
+        // Only reject activated variants whose rendering behavior is not yet specified/implemented
+        if (addedTint) {
+            unknown += "color.teinte_ajoutee=true"
+        }
+        if (decorativeBorder) {
+            unknown += "color.bordure_decorative=true"
         }
 
         // Parse grid/raccords & optional per-frame cuts (e.g. T5 effets.coupes)
         val raccordsArr = json.optJSONArray("raccords") ?: JSONArray()
         val gridByStartFrame = mutableMapOf<Int, GridLayoutSpec>()
+        val raccordModeByStartFrame = mutableMapOf<Int, String>()
         for (i in 0 until raccordsArr.length()) {
             val r = raccordsArr.getJSONObject(i)
+            val imgsOpt = r.optJSONArray("images")
+            val rMode = r.optString("mode", "")
+            if (imgsOpt != null && imgsOpt.length() > 0 && rMode.isNotEmpty()) {
+                raccordModeByStartFrame[imgsOpt.getInt(0)] = rMode
+            }
             if (r.has("cadrages") && r.has("coupes_cases")) {
                 required += CapabilityId.VIDEO_GRID_2X2_SINGLE_SOURCE
                 val imgs = r.getJSONArray("images")
@@ -99,6 +126,7 @@ object PartitionV1Parser {
                 startFrame = debut,
                 endFrameExcluded = finExclue,
                 role = role,
+                raccordMode = raccordModeByStartFrame[debut].orEmpty(),
                 shots = sceneCuts
             )
         }
@@ -137,6 +165,7 @@ object PartitionV1Parser {
         return RenderPlan(
             templateId = templateId,
             version = version,
+            statusLabel = statusLabel,
             fps = fps,
             width = width,
             height = height,
@@ -145,6 +174,7 @@ object PartitionV1Parser {
             transitions = transitions,
             textOverlay = textOverlay,
             colorMode = colorMode,
+            colorGrading = colorGrading,
             audioProfileId = audioProfileId,
             requiredCapabilities = required,
             unknownCapabilities = unknown
@@ -210,7 +240,10 @@ object PartitionV1Parser {
         val weight = t.optInt("graisse", 400)
         val rawFontPath = t.optString("fonte_fichier", t.optString("fonte", ""))
         val fontRelPath = if (rawFontPath.startsWith("assets/")) "docs/$rawFontPath" else rawFontPath
+        val fontSha256 = t.optString("fonte_sha256", "")
         val colorHex = t.optString("couleur", "#FFFFFF")
+        val alignment = t.optString("alignement", "centre")
+        val absentPriceRule = t.optString("prix_absent", "")
 
         val styleObj = t.optJSONObject("style")
         val defaultStyle = if (styleObj != null) {
@@ -357,7 +390,10 @@ object PartitionV1Parser {
             fontFamily = family,
             fontWeight = weight,
             fontRelativePath = fontRelPath,
+            fontSha256 = fontSha256,
             colorHex = colorHex,
+            alignment = alignment,
+            absentPriceRule = absentPriceRule,
             defaultStyle = defaultStyle,
             endSectionStyle = endStyle,
             endSectionStartFrame = endSectionStart,

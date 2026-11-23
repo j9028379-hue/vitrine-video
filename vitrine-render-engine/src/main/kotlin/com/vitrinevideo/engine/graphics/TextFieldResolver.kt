@@ -120,6 +120,27 @@ object TextFieldResolver {
                 words.subList(bestIdx, words.size).joinToString(" ")
             )
         }
+        if (maxLines == 3 && words.size >= 3) {
+            var bestSplit: List<String>? = null
+            var bestMax = Float.MAX_VALUE
+            for (i in 1 until words.size - 1) {
+                for (j in i + 1 until words.size) {
+                    val l1 = words.subList(0, i).joinToString(" ")
+                    val l2 = words.subList(i, j).joinToString(" ")
+                    val l3 = words.subList(j, words.size).joinToString(" ")
+                    val m = maxOf(
+                        measureWidth(l1, fontSizePx),
+                        measureWidth(l2, fontSizePx),
+                        measureWidth(l3, fontSizePx)
+                    )
+                    if (m < bestMax) {
+                        bestMax = m
+                        bestSplit = listOf(l1, l2, l3)
+                    }
+                }
+            }
+            if (bestSplit != null) return bestSplit
+        }
         // Greedy line wrapping up to maxLines
         val out = mutableListOf<String>()
         var current = StringBuilder()

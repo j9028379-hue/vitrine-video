@@ -80,5 +80,23 @@ class ServerSyncContractTest {
         assertTrue(desc.localAudioProtected)
         assertEquals(900, desc.totalFrames)
         assertEquals(1, desc.scenesJson.length())
+
+        val authPayload = ServerSessionPayloadBuilder.buildAuthorizeLocalExportJson(session, "cli-exp-1")
+        assertEquals("cli-exp-1", authPayload.getString("client_export_id"))
+        assertEquals("COMMERCE-T3", authPayload.getString("template_id"))
+
+        val authResp = LocalExportAuthorization.fromJson(
+            """{"export_id":"exp_123","client_export_id":"cli-exp-1","export_lease_hmac":"sig123","expires_at":"2026-11-24T00:00:00Z","music_id":3,"music_rel_path":"audio/pistes/03.mp3","track_url":"https://r2.example/03.mp3","credits_remaining":4}"""
+        )
+        assertEquals("exp_123", authResp.exportId)
+        assertEquals(3, authResp.musicId)
+        assertEquals(4, authResp.creditsRemaining)
+
+        val fallbackResp = LocalExportFailOrFallbackResult.fromJson(
+            """{"export_id":"exp_123","status":"FALLBACK_QUEUED","refunded":false,"fallback_job_id":"job_fb_1","fallback_session_id":"sess_fb_1","upload_urls":{"S1":{"r2_key":"uploads/m/sess_fb_1/S1.mp4","put_url":"https://r2/put"}}}"""
+        )
+        assertEquals("FALLBACK_QUEUED", fallbackResp.status)
+        assertEquals("job_fb_1", fallbackResp.fallbackJobId)
+        assertEquals(1, fallbackResp.uploadTargets.size)
     }
 }

@@ -17,7 +17,9 @@ const T3_CAPTURES = "/home/user/vitrine-engine-test-harness/app/src/main/assets/
 const MIGRATION_SQL =
   fs.readFileSync(path.join(__dirname, "cloudflare-worker/migrations/0001_init.sql"), "utf8") +
   "\n" +
-  fs.readFileSync(path.join(__dirname, "cloudflare-worker/migrations/0002_preview_cache_limits.sql"), "utf8");
+  fs.readFileSync(path.join(__dirname, "cloudflare-worker/migrations/0002_preview_cache_limits.sql"), "utf8") +
+  "\n" +
+  fs.readFileSync(path.join(__dirname, "cloudflare-worker/migrations/0003_local_export_auth.sql"), "utf8");
 
 function createSqliteD1(dbPath) {
   const pyHelper = `

@@ -77,7 +77,7 @@ class Media3RenderPipeline(
             )
             val maxAvailMs = if (cap.durationUs > 0L) (cap.durationUs / 1000L) else Long.MAX_VALUE
             shots.map { shot ->
-                val durUs = timeline.frameToUs(shot.outEndFrameExcluded - shot.outStartFrame)
+                val durUs = timeline.frameToUs(shot.outEndFrameExcluded) - timeline.frameToUs(shot.outStartFrame)
                 val clipStartMs = (timeline.frameToUs(shot.sourceInFrame) / 1000L).coerceAtLeast(0L)
                 val rawEndMs = (timeline.frameToUs(shot.sourceOutFrame) / 1000L).coerceAtLeast(clipStartMs + 1L)
                 val clipEndMs = min(rawEndMs, maxAvailMs).coerceAtLeast(clipStartMs + 1L)

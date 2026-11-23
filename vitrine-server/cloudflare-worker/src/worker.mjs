@@ -7,7 +7,7 @@
 // 3. Tier 3 (Final Export, 720x1280 @ 30fps): 1 credit atomic debit + auto-refund on fail, priority=100,
 //    triggers immediate R2 rush cleanup + 48h lifecycle expiration to stay within 10 GB R2 free tier.
 
-import { issueDeviceToken, sha256Hex, verifyDeviceToken, verifyWorkerHmac } from "./crypto.mjs";
+import { hmacSha256Hex, issueDeviceToken, sha256Hex, verifyDeviceToken, verifyWorkerHmac } from "./crypto.mjs";
 import { computeCreditsForAmountXof, verifyPaymentWebhook } from "./payments.mjs";
 import { signR2Url } from "./r2_signer.mjs";
 
@@ -372,16 +372,24 @@ export default {
 
         // Refund 1 credit ONLY for paid final_export jobs
         if (jobMode === "final_export") {
+          const refKey = job.prepaid_export_id || job.job_id;
           const refRes = await env.DB.prepare(
             "INSERT OR IGNORE INTO credit_ledger (ledger_id, merchant_id, delta, reason, ref_id) VALUES (?, ?, 1, 'RENDER_REFUND', ?)"
           )
-            .bind(`ref_${job.job_id}`, job.merchant_id, job.job_id)
+            .bind(`ref_${refKey}`, job.merchant_id, refKey)
             .run();
           if ((refRes.meta?.changes ?? 1) > 0) {
             await env.DB.prepare(
               "UPDATE merchants SET credits_balance = credits_balance + 1, updated_at = datetime('now') WHERE merchant_id = ?"
             )
               .bind(job.merchant_id)
+              .run();
+          }
+          if (job.prepaid_export_id) {
+            await env.DB.prepare(
+              "UPDATE local_exports SET status = 'REFUNDED', updated_at = datetime('now') WHERE export_id = ?"
+            )
+              .bind(job.prepaid_export_id)
               .run();
           }
         }
@@ -422,11 +430,269 @@ export default {
       return jsonRes(descriptor, 200, { "Cache-Control": "private, max-age=3600" });
     }
 
+    // Protected template pack (signed short-lived R2 GET URLs; stored AES-encrypted on-device, never public)
+    const packMatch = path.match(/^\/v1\/templates\/([^/]+)\/([^/]+)\/pack$/);
+    if (request.method === "GET" && packMatch) {
+      const tpl = TEMPLATE_REGISTRY[`${packMatch[1]}@${packMatch[2]}`];
+      if (!tpl) return jsonRes({ error: "template_not_found" }, 404);
+      const base = {
+        accountId: env.CLOUDFLARE_ACCOUNT_ID,
+        accessKeyId: env.R2_ACCESS_KEY_ID,
+        secretAccessKey: env.R2_SECRET_ACCESS_KEY,
+        bucketName: env.R2_ASSETS_BUCKET_NAME || "vitrine-assets-private",
+        method: "GET",
+        expiresSec: 300,
+      };
+      return jsonRes({
+        template_id: tpl.template_id,
+        template_version: tpl.version,
+        urls: {
+          partition_json: await signR2Url({ ...base, objectKey: tpl.partition_r2_key }),
+          audio_profile_json: tpl.audio_profile_r2_key
+            ? await signR2Url({ ...base, objectKey: tpl.audio_profile_r2_key })
+            : null,
+          font_url: await signR2Url({ ...base, objectKey: tpl.font_r2_key }),
+          font_rel_path: tpl.font_rel_path,
+          guide_json: tpl.guide_r2_key
+            ? await signR2Url({ ...base, objectKey: tpl.guide_r2_key })
+            : null,
+        },
+      });
+    }
+
     if (request.method === "GET" && path === "/v1/credits") {
       const m = await env.DB.prepare("SELECT credits_balance FROM merchants WHERE merchant_id = ?")
         .bind(merchantId)
         .first();
       return jsonRes({ merchant_id: merchantId, credits_balance: m?.credits_balance ?? 0 });
+    }
+
+    // Credit-gated local Android export authorization (atomic debit + cyclic audio track lease)
+    if (request.method === "POST" && path === "/v1/exports/authorize") {
+      const body = await request.json().catch(() => null);
+      const tpl = TEMPLATE_REGISTRY[`${body?.template_id}@${body?.template_version || "1.0.0"}`];
+      if (!tpl) return jsonRes({ error: "unsupported_template" }, 400);
+      const clientExportId = String(body?.client_export_id || "").trim();
+      const sessionId = String(body?.session_id || "").trim();
+      if (clientExportId.length < 4 || sessionId.length < 4) {
+        return jsonRes({ error: "invalid_export_request" }, 400);
+      }
+
+      const existing = await env.DB.prepare(
+        "SELECT * FROM local_exports WHERE merchant_id = ? AND client_export_id = ?"
+      )
+        .bind(merchantId, clientExportId)
+        .first();
+      if (existing) {
+        const track = tpl.tracks.find((t) => t.numero === existing.music_id) || tpl.tracks[0] || null;
+        const trackUrl = track
+          ? await signR2Url({
+              accountId: env.CLOUDFLARE_ACCOUNT_ID,
+              accessKeyId: env.R2_ACCESS_KEY_ID,
+              secretAccessKey: env.R2_SECRET_ACCESS_KEY,
+              bucketName: env.R2_ASSETS_BUCKET_NAME || "vitrine-assets-private",
+              objectKey: track.r2_key,
+              method: "GET",
+              expiresSec: 600,
+            })
+          : null;
+        const mNow = await env.DB.prepare("SELECT credits_balance FROM merchants WHERE merchant_id = ?")
+          .bind(merchantId)
+          .first();
+        return jsonRes({
+          export_id: existing.export_id,
+          client_export_id: existing.client_export_id,
+          export_lease_hmac: existing.export_lease_hmac,
+          expires_at: existing.expires_at,
+          music_id: existing.music_id,
+          music_rel_path: track ? track.rel_path : null,
+          track_url: trackUrl,
+          credits_remaining: mNow?.credits_balance ?? 0,
+          idempotent: true,
+        });
+      }
+
+      const debit = await env.DB.prepare(
+        "UPDATE merchants SET credits_balance = credits_balance - 1, updated_at = datetime('now') WHERE merchant_id = ? AND credits_balance >= 1"
+      )
+        .bind(merchantId)
+        .run();
+      if ((debit.meta?.changes ?? 0) === 0) {
+        const mBal = await env.DB.prepare("SELECT credits_balance FROM merchants WHERE merchant_id = ?")
+          .bind(merchantId)
+          .first();
+        return jsonRes({ error: "insufficient_credits", credits_balance: mBal?.credits_balance ?? 0 }, 402);
+      }
+
+      const exportId = `exp_${crypto.randomUUID()}`;
+      await env.DB.prepare(
+        "INSERT OR IGNORE INTO credit_ledger (ledger_id, merchant_id, delta, reason, ref_id) VALUES (?, ?, -1, 'LOCAL_EXPORT_DEBIT', ?)"
+      )
+        .bind(`deb_${exportId}`, merchantId, exportId)
+        .run();
+
+      let track = null;
+      if (tpl.audio_profile_id && tpl.tracks.length > 0) {
+        const rot = await env.DB.prepare(
+          "SELECT last_track_num FROM music_rotation_state WHERE profile_id = ?"
+        )
+          .bind(tpl.audio_profile_id)
+          .first();
+        const nums = tpl.tracks.map((t) => t.numero);
+        const nextNum = rot
+          ? nums[(nums.indexOf(Number(rot.last_track_num)) + 1) % nums.length]
+          : nums[0];
+        track = tpl.tracks.find((t) => t.numero === nextNum) || tpl.tracks[0];
+        await env.DB.prepare(
+          "INSERT INTO music_rotation_state (profile_id, last_track_num) VALUES (?, ?) ON CONFLICT(profile_id) DO UPDATE SET last_track_num = excluded.last_track_num, updated_at = datetime('now')"
+        )
+          .bind(tpl.audio_profile_id, track.numero)
+          .run();
+      }
+
+      const expiresAt = new Date(Date.now() + 900_000).toISOString();
+      const leaseHmac = await hmacSha256Hex(
+        env.DEVICE_TOKEN_HMAC_SECRET,
+        `${exportId}|${merchantId}|${tpl.template_id}|${track?.numero ?? 0}|${expiresAt}`
+      );
+      await env.DB.prepare(
+        "INSERT INTO local_exports (export_id, merchant_id, client_export_id, session_id, template_id, template_version, music_id, export_lease_hmac, status, expires_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'AUTHORIZED_LOCAL', ?)"
+      )
+        .bind(exportId, merchantId, clientExportId, sessionId, tpl.template_id, tpl.version, track?.numero ?? null, leaseHmac, expiresAt)
+        .run();
+
+      const trackUrl = track
+        ? await signR2Url({
+            accountId: env.CLOUDFLARE_ACCOUNT_ID,
+            accessKeyId: env.R2_ACCESS_KEY_ID,
+            secretAccessKey: env.R2_SECRET_ACCESS_KEY,
+            bucketName: env.R2_ASSETS_BUCKET_NAME || "vitrine-assets-private",
+            objectKey: track.r2_key,
+            method: "GET",
+            expiresSec: 600,
+          })
+        : null;
+      const mAfter = await env.DB.prepare("SELECT credits_balance FROM merchants WHERE merchant_id = ?")
+        .bind(merchantId)
+        .first();
+
+      return jsonRes({
+        export_id: exportId,
+        client_export_id: clientExportId,
+        export_lease_hmac: leaseHmac,
+        expires_at: expiresAt,
+        music_id: track?.numero ?? null,
+        music_rel_path: track ? track.rel_path : null,
+        track_url: trackUrl,
+        credits_remaining: mAfter?.credits_balance ?? 0,
+        idempotent: false,
+      }, 201);
+    }
+
+    if (request.method === "POST" && path === "/v1/exports/confirm") {
+      const body = await request.json().catch(() => null);
+      const exp = await env.DB.prepare(
+        "SELECT * FROM local_exports WHERE export_id = ? AND merchant_id = ?"
+      )
+        .bind(String(body?.export_id || ""), merchantId)
+        .first();
+      if (!exp) return jsonRes({ error: "export_not_found" }, 404);
+      if (exp.status === "COMPLETED_LOCAL") {
+        return jsonRes({ export_id: exp.export_id, status: "COMPLETED_LOCAL", idempotent: true });
+      }
+      if (exp.status !== "AUTHORIZED_LOCAL") {
+        return jsonRes({ error: "invalid_export_state", status: exp.status }, 409);
+      }
+      await env.DB.prepare(
+        "UPDATE local_exports SET status = 'COMPLETED_LOCAL', output_sha256 = ?, size_bytes = ?, render_duration_ms = ?, used_hardware_encoder = ?, updated_at = datetime('now') WHERE export_id = ?"
+      )
+        .bind(
+          String(body?.output_sha256 || ""),
+          Number(body?.size_bytes || 0),
+          Number(body?.render_duration_ms || 0),
+          body?.used_hardware_encoder ? 1 : 0,
+          exp.export_id
+        )
+        .run();
+      return jsonRes({ export_id: exp.export_id, status: "COMPLETED_LOCAL", idempotent: false });
+    }
+
+    if (request.method === "POST" && path === "/v1/exports/fail-or-fallback") {
+      const body = await request.json().catch(() => null);
+      const exp = await env.DB.prepare(
+        "SELECT * FROM local_exports WHERE export_id = ? AND merchant_id = ?"
+      )
+        .bind(String(body?.export_id || ""), merchantId)
+        .first();
+      if (!exp) return jsonRes({ error: "export_not_found" }, 404);
+      if (exp.status === "REFUNDED") {
+        return jsonRes({ export_id: exp.export_id, status: "REFUNDED", refunded: true, idempotent: true });
+      }
+      if (exp.status !== "AUTHORIZED_LOCAL") {
+        return jsonRes({ error: "invalid_export_state", status: exp.status }, 409);
+      }
+
+      if (body?.request_server_fallback) {
+        const tpl = TEMPLATE_REGISTRY[`${exp.template_id}@${exp.template_version}`];
+        const fallbackJobId = `job_fb_${crypto.randomUUID()}`;
+        const fallbackSessionId = `sess_fb_${crypto.randomUUID()}`;
+        const rendersBucket = env.R2_RENDERS_BUCKET_NAME || env.RENDERS_BUCKET_NAME || "vitrine-renders-private";
+        const uploadUrls = {};
+        for (const sc of tpl.scenes) {
+          const key = `uploads/${merchantId}/${fallbackSessionId}/${sc}.mp4`;
+          uploadUrls[sc] = {
+            r2_key: key,
+            put_url: await signR2Url({
+              accountId: env.CLOUDFLARE_ACCOUNT_ID,
+              accessKeyId: env.R2_ACCESS_KEY_ID,
+              secretAccessKey: env.R2_SECRET_ACCESS_KEY,
+              bucketName: rendersBucket,
+              objectKey: key,
+              method: "PUT",
+              expiresSec: Number(env.PRESIGNED_PUT_TTL_SEC || 600),
+              contentType: "video/mp4",
+            }),
+          };
+        }
+        await env.DB.prepare(
+          "INSERT INTO render_jobs (job_id, session_id, merchant_id, template_id, template_version, status, responses_json, job_type, priority, prepaid_export_id) VALUES (?, ?, ?, ?, ?, 'PENDING_UPLOAD', ?, 'final_export', 100, ?)"
+        )
+          .bind(fallbackJobId, fallbackSessionId, merchantId, tpl.template_id, tpl.version, JSON.stringify(body?.responses || {}), exp.export_id)
+          .run();
+        await env.DB.prepare(
+          "UPDATE local_exports SET status = 'FALLBACK_QUEUED', fallback_job_id = ?, updated_at = datetime('now') WHERE export_id = ?"
+        )
+          .bind(fallbackJobId, exp.export_id)
+          .run();
+        return jsonRes({
+          export_id: exp.export_id,
+          status: "FALLBACK_QUEUED",
+          refunded: false,
+          fallback_job_id: fallbackJobId,
+          fallback_session_id: fallbackSessionId,
+          upload_urls: uploadUrls,
+        });
+      }
+
+      // Otherwise refund 1 credit atomically
+      await env.DB.prepare(
+        "UPDATE local_exports SET status = 'REFUNDED', updated_at = datetime('now') WHERE export_id = ?"
+      )
+        .bind(exp.export_id)
+        .run();
+      const refRes = await env.DB.prepare(
+        "INSERT OR IGNORE INTO credit_ledger (ledger_id, merchant_id, delta, reason, ref_id) VALUES (?, ?, 1, 'LOCAL_EXPORT_REFUND', ?)"
+      )
+        .bind(`ref_${exp.export_id}`, merchantId, exp.export_id)
+        .run();
+      if ((refRes.meta?.changes ?? 1) > 0) {
+        await env.DB.prepare(
+          "UPDATE merchants SET credits_balance = credits_balance + 1, updated_at = datetime('now') WHERE merchant_id = ?"
+        )
+          .bind(merchantId)
+          .run();
+      }
+      return jsonRes({ export_id: exp.export_id, status: "REFUNDED", refunded: true });
     }
 
     // Create capture/render session (`mode`: 'final_export' | 'preview_proxy')
@@ -583,7 +849,7 @@ export default {
         if ((psUpd.meta?.changes ?? 0) === 0) {
           return jsonRes({ error: "preview_session_quota_exceeded" }, 429);
         }
-      } else if (jobMode === "final_export") {
+      } else if (jobMode === "final_export" && !job.prepaid_export_id) {
         const debit = await env.DB.prepare(
           "UPDATE merchants SET credits_balance = credits_balance - 1, updated_at = datetime('now') WHERE merchant_id = ? AND credits_balance >= 1"
         )
