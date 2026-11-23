@@ -11,7 +11,12 @@ database_name = "vitrine_prod_db"
 database_id = "REPLACE_WITH_D1_DATABASE_ID"
 
 # 2. Cloudflare R2 private buckets (Free tier: 10 GB-mo, 1M Class A, 10M Class B, $0 egress)
-# IMPORTANT: Keep public access DISABLED on both buckets.
+# IMPORTANT:
+# - Keep public access DISABLED on both buckets.
+# - Configure R2 Lifecycle Rules on vitrine-renders-private:
+#     * prefix "uploads/"  -> expire after 1 day (24h)
+#     * prefix "outputs/"  -> expire after 2 days (48h)
+#     * prefix "previews/" -> expire after 1 day (24h)
 [[r2_buckets]]
 binding = "ASSETS_BUCKET"
 bucket_name = "vitrine-assets-private"
@@ -32,6 +37,10 @@ R2_RENDERS_BUCKET_NAME = "vitrine-renders-private"
 PRESIGNED_PUT_TTL_SEC = "600"
 PRESIGNED_GET_TTL_SEC = "900"
 DEFAULT_FREE_CREDITS = "1"
+MAX_SCENE_BYTES = "26214400"
+MAX_PROXY_RENDERS_PER_SESSION = "3"
+MAX_PROXY_RENDERS_PER_HOUR = "12"
+MAX_FINAL_RENDERS_PER_HOUR = "20"
 
 # Required secrets (configure via `wrangler secret put <NAME>`, NEVER commit):
 # - CLOUDFLARE_ACCOUNT_ID

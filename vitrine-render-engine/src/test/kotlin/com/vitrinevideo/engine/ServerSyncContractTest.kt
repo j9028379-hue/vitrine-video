@@ -66,10 +66,19 @@ class ServerSyncContractTest {
         assertEquals("uploads/m_1/sess-001/S1.mp4", submit.getJSONArray("captures").getJSONObject(0).getString("r2_key"))
 
         val poll = ServerJobPollResult.fromJson(
-            """{"job_id":"job_abc123","status":"COMPLETED","music_id":2,"sha256":"${"b".repeat(64)}","download_url":"https://acct.r2.cloudflarestorage.com/Film.mp4?X-Amz-Signature=99"}"""
+            """{"job_id":"job_abc123","mode":"preview_proxy","dedup_cache_hit":true,"status":"COMPLETED","music_id":1,"sha256":"${"b".repeat(64)}","download_url":"https://acct.r2.cloudflarestorage.com/Film.mp4?X-Amz-Signature=99"}"""
         )
         assertEquals(ServerJobStatus.COMPLETED, poll.status)
-        assertEquals(2, poll.musicId)
+        assertEquals(RenderJobMode.PREVIEW_PROXY, poll.mode)
+        assertTrue(poll.dedupCacheHit)
+        assertEquals(1, poll.musicId)
         assertNotNull(poll.downloadUrl)
+
+        val desc = PreviewDescriptor.fromJson(
+            """{"descriptor_version":"1.0","template_id":"COMMERCE-T3","template_version":"1.0.0","local_audio_protected":true,"format":{"width":720,"height":1280,"fps":30,"total_frames":900},"scenes":[{"id":"S1","debut":0,"fin_exclue":180}],"transitions":[],"text_layout":{"couleur":"#FFF8EE"}}"""
+        )
+        assertTrue(desc.localAudioProtected)
+        assertEquals(900, desc.totalFrames)
+        assertEquals(1, desc.scenesJson.length())
     }
 }

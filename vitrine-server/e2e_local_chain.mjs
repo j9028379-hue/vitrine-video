@@ -14,10 +14,10 @@ import { hmacSha256Hex } from "./cloudflare-worker/src/crypto.mjs";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const T3_ASSETS = "/tmp/t3_server_test";
 const T3_CAPTURES = "/home/user/vitrine-engine-test-harness/app/src/main/assets/t3_fixture/captures";
-const MIGRATION_SQL = fs.readFileSync(
-  path.join(__dirname, "cloudflare-worker/migrations/0001_init.sql"),
-  "utf8"
-);
+const MIGRATION_SQL =
+  fs.readFileSync(path.join(__dirname, "cloudflare-worker/migrations/0001_init.sql"), "utf8") +
+  "\n" +
+  fs.readFileSync(path.join(__dirname, "cloudflare-worker/migrations/0002_preview_cache_limits.sql"), "utf8");
 
 function createSqliteD1(dbPath) {
   const pyHelper = `

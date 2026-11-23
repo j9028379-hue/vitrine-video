@@ -1,6 +1,5 @@
-"""Deterministic FFmpeg + NumPy audio engine for VITRINE VIDÉO server renderer.
-Supports capture voice extraction, RMS VAD ducking under speech, peak limiting,
-atomic SQLite cyclic track rotation (1->2->3->4->1), and AAC 48kHz muxing.
+"""Optimized deterministic FFmpeg + NumPy audio engine with SHA-256 track bed caching.
+Pre-normalizes & caches proprietary music beds by SHA-256 so repeated renders skip MP3 decode & loudnorm.
 """
 
 from __future__ import annotations
@@ -12,20 +11,27 @@ import subprocess
 from typing import Any
 import numpy as np
 
+from cache_manager import LayeredArtifactCache, file_sha256
+
 
 SAMPLE_RATE = 48000
 
 
 def select_and_commit_track(
-    db_path: Path, profile: dict[str, Any], job_id: str
+    db_path: Path, profile: dict[str, Any], job_id: str, advance_rotation: bool = True
 ) -> tuple[dict[str, Any], int]:
-    """Atomic SQLite cyclic rotation 1 -> 2 -> 3 -> 4 -> 1."""
-    db_path.parent.mkdir(parents=True, exist_ok=True)
+    """Atomic SQLite cyclic rotation 1 -> 2 -> 3 -> 4 -> 1 (skipped in preview mode)."""
     tracks = profile["pistes"]
     approved = [int(x) for x in profile.get("pistes_approuvees", [t["numero"] for t in tracks])]
+    if not advance_rotation:
+        chosen_num = approved[0]
+        track = next(t for t in tracks if int(t["numero"]) == chosen_num)
+        return track, chosen_num
+
+    db_path.parent.mkdir(parents=True, exist_ok=True)
     prof_id = profile["id"]
 
-    conn = sqlite3.connect(str(db_path))
+    conn = sqlite3.connect(str(db_path), timeout=30.0)
     try:
         conn.execute(
             """
@@ -155,6 +161,37 @@ def _db_to_lin(db: float) -> float:
     return float(10.0 ** (db / 20.0))
 
 
+def _load_normalized_music_bed(
+    music_path: Path,
+    music_start_s: float,
+    duration_s: float,
+    total_samples: int,
+    cache: LayeredArtifactCache | None,
+) -> tuple[np.ndarray, bool]:
+    track_sha = file_sha256(music_path)
+    if cache is not None:
+        a_key = cache.audio_key(track_sha, music_start_s, duration_s)
+        cached = cache.get_file("audio", a_key, "npy")
+        if cached is not None:
+            arr = np.load(str(cached))
+            if len(arr) >= total_samples:
+                return arr[:total_samples].copy(), True
+
+    music_raw = _decode_pcm_f32(music_path, start_s=music_start_s, duration_s=duration_s)
+    music = np.zeros((total_samples, 2), dtype=np.float32)
+    m_len = min(len(music_raw), total_samples)
+    music[:m_len] = music_raw[:m_len]
+    m_li, _ = _measure_loudnorm(music)
+    music *= _db_to_lin(-18.0 - m_li)
+
+    if cache is not None:
+        tmp_npy = cache.root / "audio" / f".tmp_{a_key}.npy"
+        np.save(str(tmp_npy), music)
+        cache.put_file_atomic("audio", a_key, "npy", tmp_npy)
+        tmp_npy.unlink(missing_ok=True)
+    return music, False
+
+
 def mix_and_mux(
     silent_video_path: Path,
     clips_by_scene: dict[str, Path],
@@ -166,6 +203,8 @@ def mix_and_mux(
     db_path: Path,
     job_id: str,
     final_mp4_path: Path,
+    cache: LayeredArtifactCache | None = None,
+    preview_mode: bool = False,
 ) -> dict[str, Any]:
     duration_s = total_frames / float(fps)
     total_samples = int(round(duration_s * SAMPLE_RATE))
@@ -173,24 +212,14 @@ def mix_and_mux(
     if profile is None:
         subprocess.run(
             [
-                "ffmpeg",
-                "-v",
-                "error",
-                "-y",
-                "-i",
-                str(silent_video_path),
-                "-c:v",
-                "copy",
-                "-an",
-                "-movflags",
-                "+faststart",
-                str(final_mp4_path),
+                "ffmpeg", "-v", "error", "-y", "-i", str(silent_video_path),
+                "-c:v", "copy", "-an", "-movflags", "+faststart", str(final_mp4_path),
             ],
             check=True,
         )
-        return {"music_id": None, "credit": None, "audible_scenes": []}
+        return {"music_id": None, "credit": None, "audible_scenes": [], "audio_cache_hit": False}
 
-    track, music_num = select_and_commit_track(db_path, profile, job_id)
+    track, music_num = select_and_commit_track(db_path, profile, job_id, advance_rotation=not preview_mode)
     music_path = resources_root / track["fichier"]
     if not music_path.exists():
         raise FileNotFoundError(f"Music track missing: {music_path}")
@@ -213,11 +242,15 @@ def mix_and_mux(
                     audible_scenes.append(sid)
 
     if audible_scenes:
-        li, tp = _measure_loudnorm(voice)
-        voice *= _db_to_lin(min(-18.7 - li, -3.0 - tp))
+        if preview_mode:
+            # Fast RMS normalization in preview mode (saves ~1s subprocess)
+            rms_v = float(np.sqrt(np.mean(voice ** 2)) + 1e-8)
+            voice *= min(_db_to_lin(-18.7) / (rms_v * 3.0), _db_to_lin(-3.0) / (float(np.abs(voice).max()) + 1e-8))
+        else:
+            li, tp = _measure_loudnorm(voice)
+            voice *= _db_to_lin(min(-18.7 - li, -3.0 - tp))
 
-    # Build 10ms RMS voice activity envelope for ducking
-    hop = SAMPLE_RATE // 100  # 480 samples = 10ms
+    hop = SAMPLE_RATE // 100
     usable = (total_samples // hop) * hop
     rms = np.sqrt((voice[:usable].reshape(-1, hop, 2) ** 2).mean(axis=(1, 2)))
     active = rms > 0.005
@@ -236,19 +269,13 @@ def mix_and_mux(
                 ramp_out = np.clip((t_end + release - tt) / release, 0.0, 1.0)
                 env = np.maximum(env, np.minimum(ramp_in, ramp_out))
 
-    music_start = float(track.get("debut_s", 0.0))
-    music_raw = _decode_pcm_f32(music_path, start_s=music_start, duration_s=duration_s)
-    music = np.zeros((total_samples, 2), dtype=np.float32)
-    m_len = min(len(music_raw), total_samples)
-    music[:m_len] = music_raw[:m_len]
-
-    m_li, _ = _measure_loudnorm(music)
-    music *= _db_to_lin(-18.0 - m_li)
+    music, audio_cache_hit = _load_normalized_music_bed(
+        music_path, float(track.get("debut_s", 0.0)), duration_s, total_samples, cache
+    )
     fond_db = float(cfg.get("fond_db", -3.0))
     duck_db = float(cfg.get("sous_parole_db", -10.0))
     music *= np.power(10.0, (fond_db + (duck_db - fond_db) * env) / 20.0)[:, None]
 
-    # Gentle end fade-out (0.6s)
     fade_samples = min(total_samples, int(0.6 * SAMPLE_RATE))
     if fade_samples > 0:
         music[-fade_samples:] *= np.linspace(1.0, 0.0, fade_samples, dtype=np.float32)[:, None]
@@ -260,44 +287,23 @@ def mix_and_mux(
         mix *= ceiling / peak
     mix = np.clip(mix, -0.99, 0.99).astype(np.float32)
 
+    aac_bitrate = "64k" if preview_mode else "128k"
     subprocess.run(
         [
-            "ffmpeg",
-            "-v",
-            "error",
-            "-y",
-            "-i",
-            str(silent_video_path),
-            "-f",
-            "f32le",
-            "-ar",
-            str(SAMPLE_RATE),
-            "-ac",
-            "2",
-            "-i",
-            "-",
-            "-map",
-            "0:v:0",
-            "-map",
-            "1:a:0",
-            "-c:v",
-            "copy",
-            "-c:a",
-            "aac",
-            "-b:a",
-            "128k",
-            "-ar",
-            str(SAMPLE_RATE),
-            "-ac",
-            "2",
-            "-shortest",
-            "-movflags",
-            "+faststart",
-            str(final_mp4_path),
+            "ffmpeg", "-v", "error", "-y", "-i", str(silent_video_path),
+            "-f", "f32le", "-ar", str(SAMPLE_RATE), "-ac", "2", "-i", "-",
+            "-map", "0:v:0", "-map", "1:a:0",
+            "-c:v", "copy", "-c:a", "aac", "-b:a", aac_bitrate, "-ar", str(SAMPLE_RATE), "-ac", "2",
+            "-shortest", "-movflags", "+faststart", str(final_mp4_path),
         ],
         input=mix.tobytes(),
         check=True,
     )
 
     credit = str(track["credit"]) + " Adaptation : mixage avec le son des prises, atténuation sous la parole."
-    return {"music_id": music_num, "credit": credit, "audible_scenes": audible_scenes}
+    return {
+        "music_id": music_num,
+        "credit": credit,
+        "audible_scenes": audible_scenes,
+        "audio_cache_hit": audio_cache_hit,
+    }

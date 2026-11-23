@@ -10,10 +10,10 @@ import worker from "../src/worker.mjs";
 import { hmacSha256Hex } from "../src/crypto.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const MIGRATION_SQL = fs.readFileSync(
-  path.resolve(__dirname, "../migrations/0001_init.sql"),
-  "utf8"
-);
+const MIGRATION_SQL =
+  fs.readFileSync(path.resolve(__dirname, "../migrations/0001_init.sql"), "utf8") +
+  "\n" +
+  fs.readFileSync(path.resolve(__dirname, "../migrations/0002_preview_cache_limits.sql"), "utf8");
 
 // Real SQLite-backed D1 binding executing actual 0001_init.sql & worker SQL statements
 function createSqliteD1(dbPath) {
@@ -65,15 +65,33 @@ conn.close()
 
 function createEnv(tmpDir) {
   const sentQueue = [];
+  const deletedR2Keys = [];
   return {
     sentQueue,
+    deletedR2Keys,
     env: {
       DB: createSqliteD1(path.join(tmpDir, "test_d1.sqlite")),
       RENDER_QUEUE: { async send(msg) { sentQueue.push(msg); } },
+      RENDERS_BUCKET: {
+        async delete(keys) { deletedR2Keys.push(...(Array.isArray(keys) ? keys : [keys])); },
+      },
       ASSETS_BUCKET: {
         async get(key) {
           if (key.endsWith("ecrans.json")) {
             return { async text() { return JSON.stringify({ ecrans: [{ numero: 1, scene: 1, etat: "A" }] }); } };
+          }
+          if (key.endsWith("partition.json")) {
+            return {
+              async text() {
+                return JSON.stringify({
+                  format: { largeur: 720, hauteur: 1280, ips: 30, duree_images: 900 },
+                  scenes: [{ id: "S1", debut: 0, fin_exclue: 180, plans: [{ debut: 0, fin_exclue: 180, zoom: 1.0 }] }],
+                  transitions: [],
+                  texte: { couleur: "#FFF8EE", fenetres: [] },
+                  audio: { profil: "afrobeat_demo_commerce", pistes_secretes: ["01-Afrobeat.mp3"] },
+                });
+              },
+            };
           }
           return null;
         },
@@ -107,7 +125,7 @@ async function call(workerEnv, method, pathname, { headers = {}, body = null } =
 test("Full flow: auth, scoped R2 presigned PUT/GET, debit, worker claim/complete, isolation & refund", async () => {
   const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "vitrine_cf_test_"));
   try {
-    const { env, sentQueue } = createEnv(tmpDir);
+    const { env, sentQueue, deletedR2Keys } = createEnv(tmpDir);
 
     // 1. Register merchant A (1 free credit) & merchant B
     const authA = await call(env, "POST", "/v1/auth/device-token", { body: { device_id: "android-device-aaa" } });
@@ -276,6 +294,132 @@ test("Full flow: auth, scoped R2 presigned PUT/GET, debit, worker claim/complete
 
     const credAfterRefund = await call(env, "GET", "/v1/credits", { headers: { Authorization: tokenA } });
     assert.equal(credAfterRefund.data.credits_balance, 5);
+    assert.ok(deletedR2Keys.includes(`uploads/${authA.data.merchant_id}/sess-a-01/S1.mp4`));
+
+    // 11. Tier 1 local preview descriptor exposes ONLY visual geometry (never audio/master JSON)
+    const descRes = await call(env, "GET", "/v1/templates/COMMERCE-T3/1.0.0/preview-descriptor", {
+      headers: { Authorization: tokenA },
+    });
+    assert.equal(descRes.status, 200);
+    assert.equal(descRes.data.local_audio_protected, true);
+    assert.equal(descRes.data.audio, undefined);
+    assert.equal(descRes.data.scenes.length, 1);
+
+    // 12. File size cap rejection (413)
+    const bigSession = await call(env, "POST", "/v1/sessions", {
+      headers: { Authorization: tokenA },
+      body: {
+        session_id: "sess-too-big",
+        template_id: "COMMERCE-T3",
+        template_version: "1.0.0",
+        mode: "preview_proxy",
+        file_sizes: { S1: 99_000_000 },
+      },
+    });
+    assert.equal(bigSession.status, 413);
+
+    // 13. Tier 2 preview_proxy: 0 credits debited, priority queue (final_export preempts preview_proxy),
+    //     SHA-256 dedup cache hit, and session quota cap (max 3 per preview_session_id)
+    const psId = "ps_merchant_a_01";
+    const pSess1 = await call(env, "POST", "/v1/sessions", {
+      headers: { Authorization: tokenA },
+      body: {
+        session_id: "sess-prev-1",
+        preview_session_id: psId,
+        template_id: "COMMERCE-T3",
+        template_version: "1.0.0",
+        mode: "preview_proxy",
+        responses: { nom: "Shop A", prix: "5000" },
+      },
+    });
+    assert.equal(pSess1.status, 201);
+    const prevCaps = (sid) =>
+      ["S1", "S2", "S3", "S4"].map((sc) => ({
+        scene_id: sc,
+        r2_key: `uploads/${authA.data.merchant_id}/${sid}/${sc}.mp4`,
+        sha256: "f".repeat(64),
+        size_bytes: 2_000_000,
+      }));
+    const pSub1 = await call(env, "POST", "/v1/sessions/sess-prev-1/submit", {
+      headers: { Authorization: tokenA },
+      body: { captures: prevCaps("sess-prev-1"), responses: { nom: "Shop A", prix: "5000" } },
+    });
+    assert.equal(pSub1.status, 200);
+    assert.equal(pSub1.data.mode, "preview_proxy");
+    assert.equal(pSub1.data.status, "QUEUED");
+
+    // Enqueue a final_export AFTER the preview_proxy -> worker MUST claim final_export FIRST!
+    const fSessPrio = await call(env, "POST", "/v1/sessions", {
+      headers: { Authorization: tokenA },
+      body: { session_id: "sess-final-prio", template_id: "COMMERCE-T3", template_version: "1.0.0", mode: "final_export" },
+    });
+    assert.equal(fSessPrio.status, 201);
+    const fSubPrio = await call(env, "POST", "/v1/sessions/sess-final-prio/submit", {
+      headers: { Authorization: tokenA },
+      body: { captures: prevCaps("sess-final-prio"), responses: { nom: "Shop A", prix: "5000" } },
+    });
+    assert.equal(fSubPrio.status, 200);
+
+    const tsP1 = String(Math.floor(Date.now() / 1000));
+    const claimP1Body = JSON.stringify({ worker_id: "oracle-ampere-01" });
+    const sigP1 = await hmacSha256Hex(env.WORKER_HMAC_SECRET, `${tsP1}.${claimP1Body}`);
+    const claimedFirst = await call(env, "POST", "/internal/worker/claim", {
+      headers: { "X-Vitrine-Timestamp": tsP1, "X-Vitrine-Signature": sigP1 },
+      body: claimP1Body,
+    });
+    assert.equal(claimedFirst.data.job.job_id, fSubPrio.data.job_id);
+    assert.equal(claimedFirst.data.job.mode, "final_export");
+
+    // Now claim and complete the preview_proxy job (populates render_cache_index)
+    const claimedPrev = await call(env, "POST", "/internal/worker/claim", {
+      headers: { "X-Vitrine-Timestamp": tsP1, "X-Vitrine-Signature": sigP1 },
+      body: claimP1Body,
+    });
+    assert.equal(claimedPrev.data.job.job_id, pSub1.data.job_id);
+    assert.equal(claimedPrev.data.job.mode, "preview_proxy");
+
+    const tsP2 = String(Math.floor(Date.now() / 1000));
+    const compPrevBody = JSON.stringify({ job_id: pSub1.data.job_id, status: "COMPLETED", result: { sha256: "d".repeat(64) } });
+    const sigP2 = await hmacSha256Hex(env.WORKER_HMAC_SECRET, `${tsP2}.${compPrevBody}`);
+    await call(env, "POST", "/internal/worker/complete", {
+      headers: { "X-Vitrine-Timestamp": tsP2, "X-Vitrine-Signature": sigP2 },
+      body: compPrevBody,
+    });
+
+    // Identical preview_proxy submitted in new session -> instant 0-CPU dedup_cache_hit!
+    await call(env, "POST", "/v1/sessions", {
+      headers: { Authorization: tokenA },
+      body: {
+        session_id: "sess-prev-2",
+        preview_session_id: psId,
+        template_id: "COMMERCE-T3",
+        template_version: "1.0.0",
+        mode: "preview_proxy",
+      },
+    });
+    const pSub2 = await call(env, "POST", "/v1/sessions/sess-prev-2/submit", {
+      headers: { Authorization: tokenA },
+      body: { captures: prevCaps("sess-prev-2"), responses: { nom: "Shop A", prix: "5000" } },
+    });
+    assert.equal(pSub2.data.status, "COMPLETED");
+    assert.equal(pSub2.data.dedup_cache_hit, true);
+
+    // 3rd preview succeeds, 4th preview in same preview_session_id is blocked (429)!
+    await call(env, "POST", "/v1/sessions", {
+      headers: { Authorization: tokenA },
+      body: { session_id: "sess-prev-3", preview_session_id: psId, template_id: "COMMERCE-T3", template_version: "1.0.0", mode: "preview_proxy" },
+    });
+    const pSub3 = await call(env, "POST", "/v1/sessions/sess-prev-3/submit", {
+      headers: { Authorization: tokenA },
+      body: { captures: prevCaps("sess-prev-3"), responses: { nom: "Shop A", prix: "7500" } },
+    });
+    assert.equal(pSub3.status, 200);
+
+    const pSess4 = await call(env, "POST", "/v1/sessions", {
+      headers: { Authorization: tokenA },
+      body: { session_id: "sess-prev-4", preview_session_id: psId, template_id: "COMMERCE-T3", template_version: "1.0.0", mode: "preview_proxy" },
+    });
+    assert.equal(pSess4.status, 429);
   } finally {
     fs.rmSync(tmpDir, { recursive: true, force: true });
   }
