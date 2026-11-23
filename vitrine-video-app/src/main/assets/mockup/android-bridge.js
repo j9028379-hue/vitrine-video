@@ -3,9 +3,47 @@
 
   const hasBridge = () => typeof window.VitrineAndroid !== "undefined" && window.VitrineAndroid !== null;
 
+  function enforceFluidAndroidViewport() {
+    const holder = document.getElementById("holder");
+    const device = document.getElementById("device");
+    if (holder) {
+      holder.style.width = "100%";
+      holder.style.height = "100%";
+      holder.style.removeProperty("--r");
+    }
+    if (device) {
+      device.style.transform = "none";
+      device.style.width = "100%";
+      device.style.height = "100%";
+    }
+  }
+
   function getCurrentLang() {
     const flow = window.__vitrineFlow && window.__vitrineFlow.getState();
     return (flow && flow.lang) || document.documentElement.lang || "fr";
+  }
+
+  function getActiveScreenId() {
+    const active = document.querySelector(".screen.is-active");
+    if (active && active.id) return active.id;
+    const flow = window.__vitrineFlow && window.__vitrineFlow.getState();
+    return (flow && flow.screenId) || "s-splash";
+  }
+
+  function notifyActiveScreen() {
+    if (hasBridge() && typeof window.VitrineAndroid.onScreenChanged === "function") {
+      window.VitrineAndroid.onScreenChanged(getActiveScreenId());
+    }
+  }
+
+  function observeActiveScreenChanges() {
+    const screens = document.querySelectorAll(".screen");
+    if (!screens.length || typeof MutationObserver === "undefined") return;
+    const obs = new MutationObserver(() => notifyActiveScreen());
+    screens.forEach((sc) => {
+      obs.observe(sc, { attributes: true, attributeFilter: ["class"] });
+    });
+    notifyActiveScreen();
   }
 
   function updateComingSoonBadges() {
@@ -51,20 +89,30 @@
     };
   }
 
+  function clearFormInputs() {
+    document.querySelectorAll("#s-questions input").forEach((input) => {
+      input.value = "";
+      const field = input.closest(".field");
+      if (field) field.classList.remove("is-error");
+    });
+  }
+
   function applyResponsesToDom(resp) {
-    if (!resp) return;
+    if (!resp || Object.keys(resp).length === 0) {
+      return;
+    }
     const setVal = (id, v) => {
       const el = document.getElementById(id);
-      if (el && typeof v === "string" && v.length > 0) {
+      if (el && typeof v === "string") {
         el.value = v;
       }
     };
-    setVal("q-nom", resp.nom);
-    setVal("q-produit", resp.produit);
-    setVal("q-prix", resp.prix);
-    setVal("q-accroche", resp.demonstration);
-    setVal("q-quartier", resp.quartier);
-    setVal("q-whatsapp", resp.whatsapp);
+    setVal("q-nom", resp.nom || "");
+    setVal("q-produit", resp.produit || "");
+    setVal("q-prix", resp.prix || "");
+    setVal("q-accroche", resp.demonstration || "");
+    setVal("q-quartier", resp.quartier || "");
+    setVal("q-whatsapp", resp.whatsapp || "");
   }
 
   function syncGuideBadge() {
@@ -115,7 +163,24 @@
   }
 
   function initAndroidIntegration() {
+    enforceFluidAndroidViewport();
+    window.addEventListener("resize", () => requestAnimationFrame(enforceFluidAndroidViewport));
+    window.addEventListener("orientationchange", () => setTimeout(enforceFluidAndroidViewport, 150));
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener("resize", () => requestAnimationFrame(enforceFluidAndroidViewport));
+    }
+
     updateComingSoonBadges();
+    observeActiveScreenChanges();
+
+    // Scroll focused form input comfortably into view above soft keyboard
+    document.querySelectorAll("#s-questions input").forEach((input) => {
+      input.addEventListener("focus", () => {
+        setTimeout(() => {
+          input.scrollIntoView({ behavior: "smooth", block: "center" });
+        }, 180);
+      });
+    });
 
     // Sync language changes to Android native overlays
     document.querySelectorAll(".lang-card").forEach((card) => {
@@ -180,7 +245,11 @@
             window.VitrineAndroid.onTemplateSelected("COMMERCE-T3");
             try {
               const saved = JSON.parse(window.VitrineAndroid.getSavedResponsesJson() || "{}");
-              setTimeout(() => applyResponsesToDom(saved), 0);
+              if (Object.keys(saved).length > 0) {
+                setTimeout(() => applyResponsesToDom(saved), 0);
+              } else {
+                setTimeout(clearFormInputs, 0);
+              }
             } catch (_) {}
           }
         },
@@ -194,7 +263,6 @@
       qNext.addEventListener(
         "click",
         () => {
-          // Wait one microtask after app.js validation runs; only save if all required fields pass
           const inputs = Array.from(document.querySelectorAll("#s-questions input"));
           const anyMissing = inputs.some((i) => {
             const field = i.closest(".field");
@@ -255,17 +323,30 @@
       observer.observe(captureRoot, { childList: true });
     }
 
-    // Restore saved responses on startup if checkpoint exists
+    // Restore saved responses on startup ONLY if an unfinished session exists
     if (hasBridge()) {
       try {
         const saved = JSON.parse(window.VitrineAndroid.getSavedResponsesJson() || "{}");
-        applyResponsesToDom(saved);
+        if (Object.keys(saved).length > 0) {
+          applyResponsesToDom(saved);
+        } else {
+          clearFormInputs();
+        }
       } catch (_) {}
       window.VitrineAndroid.onWebReady();
     }
   }
 
   window.VitrineNativeCallback = {
+    applySystemInsets: function (topPx, rightPx, bottomPx, leftPx, kbBottomPx) {
+      const rootStyle = document.documentElement.style;
+      rootStyle.setProperty("--safe-top", Math.max(0, Number(topPx) || 0) + "px");
+      rootStyle.setProperty("--safe-right", Math.max(0, Number(rightPx) || 0) + "px");
+      rootStyle.setProperty("--safe-bottom", Math.max(0, Number(bottomPx) || 0) + "px");
+      rootStyle.setProperty("--safe-left", Math.max(0, Number(leftPx) || 0) + "px");
+      rootStyle.setProperty("--kb-bottom", Math.max(0, Number(kbBottomPx) || 0) + "px");
+      enforceFluidAndroidViewport();
+    },
     goToSceneGuide: function (sceneIdx) {
       const audio = document.getElementById("guide-audio");
       if (audio) {
@@ -276,6 +357,7 @@
         window.__vitrineFlow.setSceneStage(sceneIdx, "guide");
         syncGuideBadge();
       }
+      notifyActiveScreen();
     },
     goToQuestions: function () {
       if (window.__vitrineFlow) {
@@ -284,19 +366,45 @@
         if (hasBridge()) {
           try {
             const saved = JSON.parse(window.VitrineAndroid.getSavedResponsesJson() || "{}");
-            applyResponsesToDom(saved);
+            if (Object.keys(saved).length > 0) {
+              applyResponsesToDom(saved);
+            } else {
+              clearFormInputs();
+            }
           } catch (_) {}
         }
       }
+      notifyActiveScreen();
     },
     goToIntro: function () {
       if (window.__vitrineFlow) {
         window.__vitrineFlow.goTo("s-intro", true);
       }
+      notifyActiveScreen();
+    },
+    resetSessionToBlank: function (targetScreenId) {
+      clearFormInputs();
+      const audio = document.getElementById("guide-audio");
+      if (audio) {
+        audio.pause();
+        audio.currentTime = 0;
+      }
+      document.querySelectorAll(".vitrine-scene-saved-pill, #vitrine-jump-montage").forEach((el) => el.remove());
+      if (window.__vitrineFlow && typeof window.__vitrineFlow.resetToBlank === "function") {
+        window.__vitrineFlow.resetToBlank(targetScreenId || "s-intro");
+      } else if (window.__vitrineFlow) {
+        window.__vitrineFlow.goTo(targetScreenId || "s-intro", true);
+      }
+      notifyActiveScreen();
     },
     restoreResponses: function (jsonStr) {
       try {
-        applyResponsesToDom(JSON.parse(jsonStr));
+        const parsed = JSON.parse(jsonStr);
+        if (parsed && Object.keys(parsed).length > 0) {
+          applyResponsesToDom(parsed);
+        } else {
+          clearFormInputs();
+        }
       } catch (_) {}
     },
     handleAndroidBack: function () {

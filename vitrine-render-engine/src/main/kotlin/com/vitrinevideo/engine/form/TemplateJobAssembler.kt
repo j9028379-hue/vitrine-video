@@ -35,10 +35,18 @@ object TemplateJobAssembler {
         outputDir: File,
         rotationDbFile: File,
         visitedScreens: List<Int> = emptyList(),
-        permissions: CapturePermissionsSnapshot = CapturePermissionsSnapshot()
+        permissions: CapturePermissionsSnapshot = CapturePermissionsSnapshot(),
+        rejectedPreviousSessionIds: Set<String> = emptySet(),
+        rejectedPreviousCaptureSha256s: Set<String> = emptySet()
     ): AssembledTemplateJob {
+        if (sessionId.isBlank()) {
+            throw TemplateFormValidationException(
+                "MISSING_SESSION_ID",
+                "Un creation_id / session_id valide est obligatoire."
+            )
+        }
         val validatedResponses = validateResponses(pkg, rawResponses)
-        val validatedCaptures = validateCaptures(pkg, captures)
+        val validatedCaptures = validateCaptures(pkg, captures, expectedSessionId = sessionId)
         val effectiveScreens = when {
             visitedScreens.isNotEmpty() -> visitedScreens
             !pkg.jobSchemaConstraints?.expectedScreenNumbers.isNullOrEmpty() ->
@@ -84,7 +92,9 @@ object TemplateJobAssembler {
             sessionState = CaptureSessionState.READY_FOR_RENDER,
             permissions = permissions,
             visitedScreens = effectiveScreens,
-            expectedScreenCount = pkg.jobSchemaConstraints?.expectedScreenNumbers?.size?.takeIf { it > 0 }
+            expectedScreenCount = pkg.jobSchemaConstraints?.expectedScreenNumbers?.size?.takeIf { it > 0 },
+            rejectedPreviousSessionIds = rejectedPreviousSessionIds,
+            rejectedPreviousCaptureSha256s = rejectedPreviousCaptureSha256s
         )
 
         val renderRequest = RenderRequest(
@@ -101,12 +111,16 @@ object TemplateJobAssembler {
                     sceneId = it.sceneId,
                     file = File(it.localVideoPath),
                     expectedSha256 = it.sha256,
-                    validated = it.validatedByMerchant
+                    validated = it.validatedByMerchant,
+                    sessionId = it.sessionId
                 )
             },
             manifestJsonFile = pkg.manifestFile,
             visitedScreens = effectiveScreens,
-            expectedScreenCount = pkg.jobSchemaConstraints?.expectedScreenNumbers?.size?.takeIf { it > 0 }
+            expectedScreenCount = pkg.jobSchemaConstraints?.expectedScreenNumbers?.size?.takeIf { it > 0 },
+            sessionId = sessionId,
+            rejectedPreviousSessionIds = rejectedPreviousSessionIds,
+            rejectedPreviousCaptureSha256s = rejectedPreviousCaptureSha256s
         )
 
         return AssembledTemplateJob(jobJson, guidedSession, renderRequest)
@@ -170,7 +184,8 @@ object TemplateJobAssembler {
 
     fun validateCaptures(
         pkg: LoadedTemplatePackage,
-        captures: List<SceneCaptureDescriptor>
+        captures: List<SceneCaptureDescriptor>,
+        expectedSessionId: String? = null
     ): List<SceneCaptureDescriptor> {
         val expectedSceneIds = pkg.renderPlan.scenes.map { it.id }
         val schemaScenes = pkg.jobSchemaConstraints?.requiredSceneIds.orEmpty()
@@ -196,6 +211,12 @@ object TemplateJobAssembler {
 
         for (sc in pkg.renderPlan.scenes) {
             val cap = byScene.getValue(sc.id)
+            if (!expectedSessionId.isNullOrBlank() && cap.sessionId != expectedSessionId) {
+                throw TemplateFormValidationException(
+                    "CROSS_SESSION_CAPTURE_REJECTED",
+                    "Capture ${sc.id} appartient à la session ${cap.sessionId} != $expectedSessionId"
+                )
+            }
             if (cap.templateId != pkg.templateId) {
                 throw TemplateFormValidationException(
                     "CAPTURE_TEMPLATE_MISMATCH",

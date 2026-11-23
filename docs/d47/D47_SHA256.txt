@@ -1,0 +1,3 @@
+4a6c50c952e7e91d4354208b450053f2fa65c528375e18ad229644c262b926a6  VitrineVideo-D47.apk
+MD5 (VitrineVideo-D47.apk) = 10f0c92045ff3e27375deed00556d55a
+SIZE (VitrineVideo-D47.apk) = 36779649 bytes

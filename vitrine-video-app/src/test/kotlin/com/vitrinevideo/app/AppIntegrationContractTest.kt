@@ -7,12 +7,24 @@ import com.vitrinevideo.app.flow.CapturedSceneTake
 import com.vitrinevideo.app.flow.MockupResponseMapper
 import com.vitrinevideo.app.flow.RealSessionGuard
 import com.vitrinevideo.app.flow.RealSessionViolationException
+import com.vitrinevideo.app.flow.CreationSessionStatus
+import com.vitrinevideo.app.flow.SessionLifecycleManager
+import com.vitrinevideo.engine.api.CaptureClip
+import com.vitrinevideo.engine.api.EngineConfig
+import com.vitrinevideo.engine.api.RenderRequest
+import com.vitrinevideo.engine.capture.ProbedMediaMetadata
+import com.vitrinevideo.engine.capture.SceneCaptureDescriptor
+import com.vitrinevideo.engine.capture.VideoMetadataProbe
 import com.vitrinevideo.engine.form.TemplateJobAssembler
+import com.vitrinevideo.engine.interpreter.UniversalJsonInterpreter
 import com.vitrinevideo.engine.pkg.TemplatePackageLoader
+import com.vitrinevideo.engine.timeline.PreFlightException
 import com.vitrinevideo.engine.timeline.PreFlightValidator
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertTrue
+import org.junit.Assert.fail
 import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
@@ -269,5 +281,335 @@ class AppIntegrationContractTest {
             responses = responses,
             takes = takes
         )
+    }
+
+    private fun loadBundledT3Package(subDirName: String) =
+        FileInputStream(File(assetsRoot(), "packages/COMMERCE-T3-1.0.0.zip")).use {
+            TemplatePackageLoader.importZipStream(it, tempFolder.newFolder(subDirName))
+        }
+
+    private fun createTakeInDir(
+        capturesDir: File,
+        sceneIndex: Int,
+        durationSec: Int,
+        payload: String,
+        validated: Boolean = false
+    ): CapturedSceneTake {
+        capturesDir.mkdirs()
+        val f = File(capturesDir, "S${sceneIndex + 1}_take_${System.nanoTime()}.mp4")
+        f.writeText(payload)
+        return makeRealTake(sceneIndex, durationSec, f, validated = validated)
+    }
+
+    private fun sampleResponses(tag: String): Map<String, String> = mapOf(
+        "nom" to "Boutique $tag",
+        "produit" to "Produit $tag",
+        "prix" to "12 000 FCFA",
+        "demonstration" to "Geste $tag clair",
+        "quartier" to "Cotonou",
+        "whatsapp" to "+229 97 00 00 01"
+    )
+
+    private fun stubMetadataProbe(): VideoMetadataProbe = VideoMetadataProbe { file ->
+        val path = file.absolutePath
+        val durUs = when {
+            path.contains("S1") -> 6_000_000L
+            path.contains("S2") -> 8_000_000L
+            path.contains("S3") -> 7_000_000L
+            else -> 9_000_000L
+        }
+        ProbedMediaMetadata(
+            width = 720,
+            height = 1280,
+            rotation = 0,
+            durationUs = durUs,
+            hasVideo = true,
+            hasAudio = true
+        )
+    }
+
+    @Test
+    fun sessionReset_1_newCreationGeneratesFreshUuidAndEmptyDraft() {
+        val filesDir = tempFolder.newFolder("app_files_1")
+        val sm = SessionLifecycleManager(filesDir)
+        sm.initialize()
+
+        assertTrue(sm.creationId.isNotBlank())
+        assertTrue(sm.responses.isEmpty())
+        assertEquals(0, sm.progression.allValidatedTakes().size)
+        assertEquals(CreationSessionStatus.DRAFT, sm.status)
+        assertTrue(sm.currentSessionCaptureDir().isDirectory)
+        assertTrue(sm.currentSessionCaptureDir().absolutePath.contains(sm.creationId))
+
+        val firstId = sm.creationId
+        sm.updateResponses(sampleResponses("Un"))
+        sm.startNewBlankSession()
+        val newId = sm.creationId
+        assertNotEquals(firstId, newId)
+        assertTrue(sm.responses.isEmpty())
+        assertEquals(0, sm.progression.allValidatedTakes().size)
+    }
+
+    @Test
+    fun sessionReset_2_confirmedSuccessDeletesTempScenesAndAnswersWhilePreservingFinalMp4() {
+        val filesDir = tempFolder.newFolder("app_files_2")
+        val pkg = loadBundledT3Package("pkg_reset_2")
+        val sm = SessionLifecycleManager(filesDir)
+        sm.initialize()
+
+        val firstSessionId = sm.creationId
+        val firstCaptureDir = sm.currentSessionCaptureDir()
+        sm.updateResponses(sampleResponses("Session1"))
+
+        val sceneFiles = mutableListOf<File>()
+        val durations = listOf(6, 8, 7, 9)
+        for (i in 0..3) {
+            val take = createTakeInDir(firstCaptureDir, i, durations[i], "session1-scene-$i-bytes")
+            sceneFiles += File(take.filePath)
+            sm.onSceneRecordingCompleted(take)
+            sm.acceptScene(i)
+        }
+
+        val verified = sm.buildVerifiedRenderInputs(pkg)
+        assertEquals(firstSessionId, verified.creationId)
+        assertEquals(4, verified.descriptors.size)
+
+        // Simulate Media3 output written to permanent export folder
+        val permanentExportDir = tempFolder.newFolder("vitrine_exports_2", firstSessionId)
+        val permanentMp4 = File(permanentExportDir, "Film.mp4").apply {
+            writeBytes(ByteArray(2048) { (it % 127).toByte() })
+        }
+
+        sm.onRenderSucceededAndVerified(permanentMp4, "Movies/VitrineVideo/Vitrine_T3_test.mp4")
+
+        // 1. All 4 temporary scene files and session temp directory are deleted
+        sceneFiles.forEach { assertFalse("Temp scene doit être supprimée: ${it.name}", it.exists()) }
+        assertFalse(File(filesDir, "sessions_tmp/$firstSessionId").exists())
+
+        // 2. Permanent final MP4 is untouched
+        assertTrue(permanentMp4.exists())
+        assertEquals(2048L, permanentMp4.length())
+
+        // 3. New blank session started automatically with fresh UUID and empty answers/scenes
+        assertNotEquals(firstSessionId, sm.creationId)
+        assertTrue(sm.responses.isEmpty())
+        assertEquals(0, sm.progression.allValidatedTakes().size)
+        assertTrue(sm.getClosedSessionIds().contains(firstSessionId))
+        assertEquals(4, sm.getConsumedCaptureHashes().size)
+
+        // 4. Restarting app does NOT resurrect old responses or old session ID
+        val reloaded = SessionLifecycleManager(filesDir)
+        reloaded.initialize()
+        assertNotEquals(firstSessionId, reloaded.creationId)
+        assertTrue(reloaded.responses.isEmpty())
+        assertEquals(0, reloaded.progression.allValidatedTakes().size)
+    }
+
+    @Test
+    fun sessionReset_3_secondCreationRejectsOldSceneFilesAndOldSessionId() {
+        val filesDir = tempFolder.newFolder("app_files_3")
+        val pkg = loadBundledT3Package("pkg_reset_3")
+        val sm = SessionLifecycleManager(filesDir)
+        sm.initialize()
+
+        val firstId = sm.creationId
+        val capDir1 = sm.currentSessionCaptureDir()
+        sm.updateResponses(sampleResponses("Premiere"))
+        val durations = listOf(6, 8, 7, 9)
+        val s1TakeBytes = "session1-unique-take-0"
+        for (i in 0..3) {
+            val payload = if (i == 0) s1TakeBytes else "session1-unique-take-$i"
+            val take = createTakeInDir(capDir1, i, durations[i], payload)
+            sm.onSceneRecordingCompleted(take)
+            sm.acceptScene(i)
+        }
+        val permanentMp4 = tempFolder.newFile("permanent_film_3.mp4").apply { writeText("valid-mp4-output") }
+        sm.onRenderSucceededAndVerified(permanentMp4, "Movies/VitrineVideo/Film3.mp4")
+
+        // Second session attempts to reuse identical bytes from session 1
+        val capDir2 = sm.currentSessionCaptureDir()
+        val recycledTake = createTakeInDir(capDir2, 0, 6, s1TakeBytes)
+        try {
+            sm.onSceneRecordingCompleted(recycledTake)
+            fail("La réutilisation du hash d'une session clôturée doit être rejetée")
+        } catch (expected: RealSessionViolationException) {
+            assertEquals("CONSUMED_CAPTURE_HASH_REUSED", expected.code)
+        }
+
+        // Engine PreFlightValidator also blocks both reused session_id and reused capture sha256
+        val freshTake = createTakeInDir(capDir2, 0, 6, "brand-new-s1")
+        val plan = UniversalJsonInterpreter.parsePartition(pkg.partitionFile)
+        val audioProfile = pkg.audioProfileFile?.let { UniversalJsonInterpreter.parseAudioProfile(it) }
+        val reusedReq = RenderRequest(
+            templateId = pkg.templateId,
+            templateVersion = pkg.version,
+            partitionJsonFile = pkg.partitionFile,
+            audioProfileJsonFile = pkg.audioProfileFile,
+            resourcesDir = pkg.packageDir,
+            responses = sampleResponses("Deux"),
+            captures = listOf(
+                CaptureClip(
+                    sceneId = "S1",
+                    file = File(freshTake.filePath),
+                    expectedSha256 = freshTake.sha256,
+                    validated = true,
+                    sessionId = firstId
+                )
+            ),
+            outputDir = tempFolder.newFolder("out_preflight_3"),
+            rotationDbFile = tempFolder.newFile("rot_preflight_3.db"),
+            manifestJsonFile = pkg.manifestFile,
+            sessionId = firstId,
+            rejectedPreviousSessionIds = sm.getClosedSessionIds(),
+            rejectedPreviousCaptureSha256s = sm.getConsumedCaptureHashes()
+        )
+        try {
+            PreFlightValidator.validate(
+                context = null,
+                request = reusedReq,
+                plan = plan,
+                audioProfile = audioProfile,
+                config = EngineConfig(minFreeStorageBytes = 0L),
+                probe = stubMetadataProbe()
+            )
+            fail("PreFlightValidator doit rejeter la réutilisation d'un sessionId clôturé")
+        } catch (expected: PreFlightException) {
+            assertEquals("SESSION_ALREADY_CLOSED", expected.code)
+        }
+    }
+
+    @Test
+    fun sessionReset_4_failedRenderPreservesTempScenesAndAnswersForRetry() {
+        val filesDir = tempFolder.newFolder("app_files_4")
+        val sm = SessionLifecycleManager(filesDir)
+        sm.initialize()
+
+        val sessionId = sm.creationId
+        val capDir = sm.currentSessionCaptureDir()
+        sm.updateResponses(sampleResponses("Retry"))
+        val durations = listOf(6, 8, 7, 9)
+        val sceneFiles = mutableListOf<File>()
+        for (i in 0..3) {
+            val take = createTakeInDir(capDir, i, durations[i], "retry-scene-$i")
+            sceneFiles += File(take.filePath)
+            sm.onSceneRecordingCompleted(take)
+            sm.acceptScene(i)
+        }
+
+        sm.onRenderFailed()
+        assertEquals(CreationSessionStatus.FAILED_PRESERVED, sm.status)
+        sceneFiles.forEach { assertTrue("Les scènes doivent rester présentes après échec", it.exists()) }
+
+        // App restart restores failed session intact so retry succeeds without re-filming
+        val restarted = SessionLifecycleManager(filesDir)
+        restarted.initialize()
+        assertEquals(sessionId, restarted.creationId)
+        assertEquals(CreationSessionStatus.FAILED_PRESERVED, restarted.status)
+        assertEquals("Boutique Retry", restarted.responses["nom"])
+        assertTrue(restarted.progression.isAllScenesValidated())
+    }
+
+    @Test
+    fun sessionReset_5_unfinishedCreationResumesUntilCompletionOrExplicitReset() {
+        val filesDir = tempFolder.newFolder("app_files_5")
+        val sm = SessionLifecycleManager(filesDir)
+        sm.initialize()
+        val id1 = sm.creationId
+        sm.updateResponses(sampleResponses("EnCours"))
+        val take0 = createTakeInDir(sm.currentSessionCaptureDir(), 0, 6, "partial-s1")
+        sm.onSceneRecordingCompleted(take0)
+        sm.acceptScene(0)
+
+        val resumed = SessionLifecycleManager(filesDir)
+        resumed.initialize()
+        assertEquals(id1, resumed.creationId)
+        assertEquals("Boutique EnCours", resumed.responses["nom"])
+        assertTrue(resumed.progression.hasValidatedScene(0))
+        assertFalse(resumed.progression.hasValidatedScene(1))
+
+        resumed.startNewBlankSession()
+        val id2 = resumed.creationId
+        assertNotEquals(id1, id2)
+        assertTrue(resumed.responses.isEmpty())
+        assertFalse(File(take0.filePath).exists())
+    }
+
+    @Test
+    fun sessionReset_6_retakeSingleScenePreservesOtherThreeScenesAndAnswers() {
+        val filesDir = tempFolder.newFolder("app_files_6")
+        val sm = SessionLifecycleManager(filesDir)
+        sm.initialize()
+        sm.updateResponses(sampleResponses("Retake"))
+
+        val capDir = sm.currentSessionCaptureDir()
+        val durations = listOf(6, 8, 7, 9)
+        val files = mutableListOf<File>()
+        for (i in 0..3) {
+            val take = createTakeInDir(capDir, i, durations[i], "retake-orig-$i")
+            files += File(take.filePath)
+            sm.onSceneRecordingCompleted(take)
+            sm.acceptScene(i)
+        }
+
+        // Retake S2 only
+        sm.retakeScene(1)
+        assertFalse("L'ancien fichier S2 doit être supprimé", files[1].exists())
+        assertTrue(files[0].exists())
+        assertTrue(files[2].exists())
+        assertTrue(files[3].exists())
+        assertTrue(sm.progression.hasValidatedScene(0))
+        assertFalse(sm.progression.hasValidatedScene(1))
+        assertTrue(sm.progression.hasValidatedScene(2))
+        assertTrue(sm.progression.hasValidatedScene(3))
+        assertEquals("Boutique Retake", sm.responses["nom"])
+    }
+
+    @Test
+    fun sessionReset_7_crossSessionTemplateJobAssemblerRejectsMismatchedSessionOwnership() {
+        val filesDir = tempFolder.newFolder("app_files_7")
+        val pkg = loadBundledT3Package("pkg_reset_7")
+        val sm = SessionLifecycleManager(filesDir)
+        sm.initialize()
+
+        val otherDir = File(filesDir, "sessions_tmp/other-session-id/captures").apply { mkdirs() }
+        val foreignTake = createTakeInDir(otherDir, 0, 6, "foreign-bytes")
+        val okTake2 = createTakeInDir(sm.currentSessionCaptureDir(), 1, 8, "ok-s2")
+        val okTake3 = createTakeInDir(sm.currentSessionCaptureDir(), 2, 7, "ok-s3")
+        val okTake4 = createTakeInDir(sm.currentSessionCaptureDir(), 3, 9, "ok-s4")
+        val plan = UniversalJsonInterpreter.parsePartition(pkg.partitionFile)
+        val audioProfile = pkg.audioProfileFile?.let { UniversalJsonInterpreter.parseAudioProfile(it) }
+
+        val ownershipReq = RenderRequest(
+            templateId = pkg.templateId,
+            templateVersion = pkg.version,
+            partitionJsonFile = pkg.partitionFile,
+            audioProfileJsonFile = pkg.audioProfileFile,
+            resourcesDir = pkg.packageDir,
+            responses = sampleResponses("Ownership"),
+            captures = listOf(
+                CaptureClip("S1", File(foreignTake.filePath), foreignTake.sha256, validated = true, sessionId = sm.creationId),
+                CaptureClip("S2", File(okTake2.filePath), okTake2.sha256, validated = true, sessionId = sm.creationId),
+                CaptureClip("S3", File(okTake3.filePath), okTake3.sha256, validated = true, sessionId = sm.creationId),
+                CaptureClip("S4", File(okTake4.filePath), okTake4.sha256, validated = true, sessionId = sm.creationId)
+            ),
+            outputDir = tempFolder.newFolder("out_preflight_7"),
+            rotationDbFile = tempFolder.newFile("rot_preflight_7.db"),
+            manifestJsonFile = pkg.manifestFile,
+            sessionId = sm.creationId
+        )
+
+        try {
+            PreFlightValidator.validate(
+                context = null,
+                request = ownershipReq,
+                plan = plan,
+                audioProfile = audioProfile,
+                config = EngineConfig(minFreeStorageBytes = 0L),
+                probe = stubMetadataProbe()
+            )
+            fail("PreFlightValidator doit rejeter une capture issue d'un autre dossier session")
+        } catch (expected: PreFlightException) {
+            assertEquals("CROSS_SESSION_FILE_OWNERSHIP_VIOLATION", expected.code)
+        }
     }
 }

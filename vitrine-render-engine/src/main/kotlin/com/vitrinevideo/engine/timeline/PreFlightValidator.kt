@@ -2,12 +2,12 @@ package com.vitrinevideo.engine.timeline
 
 import android.app.ActivityManager
 import android.content.Context
-import android.media.MediaExtractor
-import android.media.MediaFormat
 import android.os.StatFs
 import com.vitrinevideo.engine.api.CaptureClip
 import com.vitrinevideo.engine.api.EngineConfig
 import com.vitrinevideo.engine.api.RenderRequest
+import com.vitrinevideo.engine.capture.AndroidMediaExtractorProbe
+import com.vitrinevideo.engine.capture.VideoMetadataProbe
 import com.vitrinevideo.engine.interpreter.AudioProfileSpec
 import com.vitrinevideo.engine.interpreter.RenderPlan
 import org.json.JSONObject
@@ -38,13 +38,23 @@ class PreFlightException(val code: String, message: String) : IllegalStateExcept
 
 object PreFlightValidator {
 
+    @JvmOverloads
     fun validate(
         context: Context?,
         request: RenderRequest,
         plan: RenderPlan,
         audioProfile: AudioProfileSpec?,
-        config: EngineConfig
+        config: EngineConfig,
+        probe: VideoMetadataProbe = AndroidMediaExtractorProbe
     ): PreFlightReport {
+        // 0. Session isolation guard
+        if (request.sessionId.isNotBlank() && request.sessionId in request.rejectedPreviousSessionIds) {
+            throw PreFlightException(
+                "SESSION_ALREADY_CLOSED",
+                "La session ${request.sessionId} est déjà clôturée et ne peut pas être réutilisée."
+            )
+        }
+
         // 1. Storage guard
         request.outputDir.mkdirs()
         val statBytes = runCatching { StatFs(request.outputDir.absolutePath).availableBytes }.getOrDefault(0L)
@@ -120,7 +130,7 @@ object PreFlightValidator {
             }
         }
 
-        // 7. Validate all captures (order, uniqueness, SHA-256, MediaExtractor track + duration)
+        // 7. Validate all captures (order, uniqueness, session ownership, SHA-256, video stream + duration)
         val expectedSceneIds = plan.scenes.map { it.id }
         val providedIds = request.captures.map { it.sceneId }
         if (providedIds != expectedSceneIds) {
@@ -131,11 +141,21 @@ object PreFlightValidator {
         }
 
         val seenHashes = mutableSetOf<String>()
+        val seenPaths = mutableSetOf<String>()
+        val rejectedHashesLower = request.rejectedPreviousCaptureSha256s.map { it.lowercase() }.toSet()
         val validatedMap = linkedMapOf<String, ValidatedCapture>()
         val shaPairs = mutableListOf<Pair<String, String>>()
 
         for (cap in request.captures) {
-            val vc = validateSingleCapture(cap, plan, seenHashes)
+            val vc = validateSingleCapture(
+                cap = cap,
+                requestSessionId = request.sessionId,
+                rejectedPreviousHashesLower = rejectedHashesLower,
+                plan = plan,
+                seenHashes = seenHashes,
+                seenPaths = seenPaths,
+                probe = probe
+            )
             validatedMap[cap.sceneId] = vc
             shaPairs += cap.sceneId to vc.sha256
         }
@@ -158,16 +178,45 @@ object PreFlightValidator {
 
     private fun validateSingleCapture(
         cap: CaptureClip,
+        requestSessionId: String,
+        rejectedPreviousHashesLower: Set<String>,
         plan: RenderPlan,
-        seenHashes: MutableSet<String>
+        seenHashes: MutableSet<String>,
+        seenPaths: MutableSet<String>,
+        probe: VideoMetadataProbe
     ): ValidatedCapture {
         if (!cap.validated) {
             throw PreFlightException("CAPTURE_NOT_VALIDATED", "Capture ${cap.sceneId} non validée")
         }
-        if (!cap.file.exists() || cap.file.length() == 0L) {
-            throw PreFlightException("CAPTURE_MISSING", "Fichier capture introuvable ou vide: ${cap.file.path}")
+        if (requestSessionId.isNotBlank()) {
+            if (cap.sessionId.isNotBlank() && cap.sessionId != requestSessionId) {
+                throw PreFlightException(
+                    "CROSS_SESSION_CAPTURE_REJECTED",
+                    "Capture ${cap.sceneId} appartient à une ancienne session (${cap.sessionId} != $requestSessionId)"
+                )
+            }
+            val pathSessionOwner = extractOwnedSessionIdFromPath(cap.file)
+            if (pathSessionOwner != null && pathSessionOwner != requestSessionId) {
+                throw PreFlightException(
+                    "CROSS_SESSION_FILE_OWNERSHIP_VIOLATION",
+                    "Fichier ${cap.file.path} appartient au répertoire d'une autre session ($pathSessionOwner != $requestSessionId)"
+                )
+            }
         }
-        val actualSha = sha256File(cap.file)
+        if (!cap.file.exists() || !cap.file.isFile || cap.file.length() == 0L || !cap.file.canRead()) {
+            throw PreFlightException("CAPTURE_MISSING", "Fichier capture introuvable, vide ou illisible: ${cap.file.path}")
+        }
+        val canonical = cap.file.canonicalPath
+        if (!seenPaths.add(canonical)) {
+            throw PreFlightException("DUPLICATE_CAPTURE", "Même fichier vidéo réutilisé sur ${cap.sceneId}")
+        }
+        val actualSha = sha256File(cap.file).lowercase()
+        if (actualSha in rejectedPreviousHashesLower) {
+            throw PreFlightException(
+                "OLD_SESSION_HASH_REUSED",
+                "Vidéo déjà utilisée dans une création précédente détectée sur ${cap.sceneId}"
+            )
+        }
         if (cap.expectedSha256.isNotEmpty() && !actualSha.equals(cap.expectedSha256, ignoreCase = true)) {
             throw PreFlightException(
                 "CAPTURE_SHA_MISMATCH",
@@ -181,53 +230,42 @@ object PreFlightValidator {
         val sceneSpec = plan.scenes.first { it.id == cap.sceneId }
         val requiredDurationUs = ((sceneSpec.endFrameExcluded - sceneSpec.startFrame).toLong() * 1_000_000L) / plan.fps
 
-        val extractor = MediaExtractor()
-        try {
-            extractor.setDataSource(cap.file.absolutePath)
-            var width = 0
-            var height = 0
-            var rotation = 0
-            var videoDurUs = 0L
-            var hasVideo = false
-            var hasAudio = false
-            for (i in 0 until extractor.trackCount) {
-                val fmt = extractor.getTrackFormat(i)
-                val mime = fmt.getString(MediaFormat.KEY_MIME) ?: continue
-                if (mime.startsWith("video/")) {
-                    hasVideo = true
-                    width = fmt.getInteger(MediaFormat.KEY_WIDTH)
-                    height = fmt.getInteger(MediaFormat.KEY_HEIGHT)
-                    if (fmt.containsKey(MediaFormat.KEY_ROTATION)) {
-                        rotation = fmt.getInteger(MediaFormat.KEY_ROTATION)
-                    }
-                    videoDurUs = if (fmt.containsKey(MediaFormat.KEY_DURATION)) fmt.getLong(MediaFormat.KEY_DURATION) else 0L
-                } else if (mime.startsWith("audio/")) {
-                    hasAudio = true
+        val probed = probe.probe(cap.file)
+            ?: throw PreFlightException("INVALID_VIDEO_STREAM", "Fichier vidéo illisible ou conteneur MP4 corrompu pour ${cap.sceneId}")
+        if (!probed.hasVideo || probed.width <= 0 || probed.height <= 0) {
+            throw PreFlightException("INVALID_VIDEO_STREAM", "Aucune piste vidéo valide dans ${cap.sceneId}")
+        }
+        val allowFreeze = sceneSpec.shots.any { it.freezeTailFrames > 0 }
+        if (!allowFreeze && probed.durationUs > 0L && probed.durationUs + 150_000L < requiredDurationUs) {
+            throw PreFlightException(
+                "CAPTURE_TOO_SHORT",
+                "Capture ${cap.sceneId} trop courte (${probed.durationUs / 1000} ms < ${requiredDurationUs / 1000} ms requis)"
+            )
+        }
+        return ValidatedCapture(
+            sceneId = cap.sceneId,
+            file = cap.file,
+            sha256 = actualSha,
+            width = probed.width,
+            height = probed.height,
+            durationUs = probed.durationUs,
+            hasAudio = probed.hasAudio,
+            rotation = probed.rotation
+        )
+    }
+
+    private fun extractOwnedSessionIdFromPath(file: File): String? {
+        val parts = file.invariantSeparatorsPath.split('/')
+        for (i in 0 until parts.size - 1) {
+            val dir = parts[i]
+            if ((dir == "sessions_tmp" || dir == "captures") && i + 1 < parts.size) {
+                val candidate = parts[i + 1]
+                if (candidate.isNotBlank() && !candidate.endsWith(".mp4", ignoreCase = true)) {
+                    return candidate
                 }
             }
-            if (!hasVideo || width <= 0 || height <= 0) {
-                throw PreFlightException("INVALID_VIDEO_STREAM", "Aucune piste vidéo valide dans ${cap.sceneId}")
-            }
-            val allowFreeze = sceneSpec.shots.any { it.freezeTailFrames > 0 }
-            if (!allowFreeze && videoDurUs > 0L && videoDurUs + 150_000L < requiredDurationUs) {
-                throw PreFlightException(
-                    "CAPTURE_TOO_SHORT",
-                    "Capture ${cap.sceneId} trop courte (${videoDurUs / 1000} ms < ${requiredDurationUs / 1000} ms requis)"
-                )
-            }
-            return ValidatedCapture(
-                sceneId = cap.sceneId,
-                file = cap.file,
-                sha256 = actualSha,
-                width = width,
-                height = height,
-                durationUs = videoDurUs,
-                hasAudio = hasAudio,
-                rotation = rotation
-            )
-        } finally {
-            extractor.release()
         }
+        return null
     }
 
     private fun verifyManifestHashes(manifestFile: File, rootDir: File) {

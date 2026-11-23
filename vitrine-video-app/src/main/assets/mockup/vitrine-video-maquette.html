@@ -2257,6 +2257,14 @@ body{
       renderFlow();
     },
     goTo: (id, back) => goTo(id, !!back),
+    resetToBlank: (id) => {
+      clearInterval(flow.timer);
+      flow.template = state.format || "t3";
+      flow.scene = 0;
+      flow.stage = "guide";
+      flow.elapsed = 0;
+      goTo(id || "s-intro", true);
+    },
     selectT3: () => {
       state.sector = "commerce";
       state.format = "t3";

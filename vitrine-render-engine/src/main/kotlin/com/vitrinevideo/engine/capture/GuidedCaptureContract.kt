@@ -111,7 +111,9 @@ data class GuidedCaptureSession(
     val sessionState: CaptureSessionState = CaptureSessionState.READY_FOR_RENDER,
     val permissions: CapturePermissionsSnapshot = CapturePermissionsSnapshot(),
     val visitedScreens: List<Int> = emptyList(),
-    val expectedScreenCount: Int? = null
+    val expectedScreenCount: Int? = null,
+    val rejectedPreviousSessionIds: Set<String> = emptySet(),
+    val rejectedPreviousCaptureSha256s: Set<String> = emptySet()
 )
 
 /**
@@ -428,7 +430,8 @@ object GuidedCaptureValidator {
                 sceneId = scene.id,
                 file = file,
                 expectedSha256 = resolvedSha,
-                validated = desc.validatedByMerchant
+                validated = desc.validatedByMerchant,
+                sessionId = desc.sessionId
             )
         }
 
@@ -444,7 +447,10 @@ object GuidedCaptureValidator {
             expectedScreenCount = session.expectedScreenCount,
             outputDir = session.outputDir,
             rotationDbFile = session.rotationDbFile,
-            manifestJsonFile = session.manifestJsonFile
+            manifestJsonFile = session.manifestJsonFile,
+            sessionId = session.sessionId,
+            rejectedPreviousSessionIds = session.rejectedPreviousSessionIds,
+            rejectedPreviousCaptureSha256s = session.rejectedPreviousCaptureSha256s
         )
         return plan to request
     }

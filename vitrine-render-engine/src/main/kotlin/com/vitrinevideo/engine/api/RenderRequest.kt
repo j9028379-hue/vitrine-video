@@ -6,7 +6,8 @@ data class CaptureClip(
     val sceneId: String,
     val file: File,
     val expectedSha256: String,
-    val validated: Boolean = true
+    val validated: Boolean = true,
+    val sessionId: String = ""
 )
 
 data class RenderRequest(
@@ -22,5 +23,8 @@ data class RenderRequest(
     val outputDir: File,
     val rotationDbFile: File,
     val manifestJsonFile: File? = null,
-    val jobJsonRaw: String? = null
+    val jobJsonRaw: String? = null,
+    val sessionId: String = "",
+    val rejectedPreviousSessionIds: Set<String> = emptySet(),
+    val rejectedPreviousCaptureSha256s: Set<String> = emptySet()
 )

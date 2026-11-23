@@ -7,6 +7,7 @@ import android.graphics.Color
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -17,7 +18,6 @@ import android.view.TextureView
 import android.view.View
 import android.view.ViewGroup
 import android.webkit.JavascriptInterface
-import android.webkit.WebSettings
 import android.webkit.WebView
 import android.widget.Button
 import android.widget.FrameLayout
@@ -31,32 +31,28 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.camera.view.PreviewView
 import androidx.core.content.FileProvider
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import com.vitrinevideo.app.bridge.AssetWebViewClient
 import com.vitrinevideo.app.camera.CameraXSceneRecorder
-import com.vitrinevideo.app.flow.AppExecutionMode
-import com.vitrinevideo.app.flow.CaptureProgressionStateMachine
-import com.vitrinevideo.app.flow.CaptureSource
 import com.vitrinevideo.app.flow.CapturedSceneTake
 import com.vitrinevideo.app.flow.MockupResponseMapper
-import com.vitrinevideo.app.flow.RealSessionGuard
 import com.vitrinevideo.app.flow.RealSessionViolationException
+import com.vitrinevideo.app.flow.SessionLifecycleManager
 import com.vitrinevideo.app.flow.T3PackageRepository
 import com.vitrinevideo.app.player.VitrineMediaPlayer
 import com.vitrinevideo.engine.api.RenderListener
 import com.vitrinevideo.engine.api.RenderOutcome
 import com.vitrinevideo.engine.api.RenderProgress
 import com.vitrinevideo.engine.api.VitrineRenderEngine
-import com.vitrinevideo.engine.capture.CapturePermissionsSnapshot
-import com.vitrinevideo.engine.capture.CaptureSessionCheckpointStore
-import com.vitrinevideo.engine.capture.CaptureSessionState
-import com.vitrinevideo.engine.capture.SceneCaptureDescriptor
 import com.vitrinevideo.engine.capture.SceneCaptureGuideSpec
-import com.vitrinevideo.engine.capture.SceneRecordingStatus
 import com.vitrinevideo.engine.pkg.LoadedTemplatePackage
 import org.json.JSONObject
 import java.io.File
-import java.util.UUID
 import java.util.concurrent.Executors
+import kotlin.math.roundToInt
 
 class MainActivity : AppCompatActivity() {
 
@@ -71,11 +67,17 @@ class MainActivity : AppCompatActivity() {
     private val ioExec = Executors.newSingleThreadExecutor()
     private val mainHandler = Handler(Looper.getMainLooper())
 
+    private lateinit var rootContainer: FrameLayout
     private lateinit var webView: WebView
     private lateinit var cameraOverlay: FrameLayout
+    private lateinit var camRootCol: LinearLayout
     private lateinit var reviewOverlay: LinearLayout
+    private lateinit var revHeaderContainer: LinearLayout
+    private lateinit var revFooterContainer: LinearLayout
     private lateinit var renderOverlay: LinearLayout
     private lateinit var finalOverlay: LinearLayout
+    private lateinit var finBodyContainer: LinearLayout
+    private lateinit var finFooterContainer: LinearLayout
 
     // Camera overlay views
     private lateinit var camPreviewView: PreviewView
@@ -125,27 +127,27 @@ class MainActivity : AppCompatActivity() {
     private lateinit var finReplaySoundBtn: Button
     private lateinit var finStatsText: TextView
     private lateinit var finShareBtn: Button
-    private lateinit var finModifyBtn: Button
     private lateinit var finNewVideoBtn: Button
 
     private lateinit var cameraRecorder: CameraXSceneRecorder
     private lateinit var mediaPlayer: VitrineMediaPlayer
+    private lateinit var sessionManager: SessionLifecycleManager
     private var renderEngine: VitrineRenderEngine? = null
 
     private var loadedPackage: LoadedTemplatePackage? = null
-    private var sessionId: String = "t3_${UUID.randomUUID().toString().take(8)}"
     private var currentLang: String = "fr"
+    private var currentWebScreenId: String = "s-splash"
     private var activeSceneIndex: Int = 0
     private var overlayState: OverlayState = OverlayState.NONE
     private var isRecordingNow: Boolean = false
     private var lastRenderedMp4: File? = null
     private var lastPublishedLocation: String = ""
 
-    private val responses = linkedMapOf<String, String>()
-    private val progression = CaptureProgressionStateMachine(
-        sceneIds = listOf("S1", "S2", "S3", "S4"),
-        executionMode = AppExecutionMode.REAL_APPLICATION
-    )
+    private var insetTopCss: Float = 0f
+    private var insetRightCss: Float = 0f
+    private var insetBottomCss: Float = 0f
+    private var insetLeftCss: Float = 0f
+    private var insetKbCss: Float = 0f
 
     private val permissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
@@ -168,20 +170,60 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
+        configureEdgeToEdgeWindow()
+
+        sessionManager = SessionLifecycleManager(filesDir)
+        sessionManager.initialize()
+
         cameraRecorder = CameraXSceneRecorder(this, this)
         mediaPlayer = VitrineMediaPlayer(this)
 
         buildLayout()
+        setupWindowInsets()
         setupWebView()
-        restoreCheckpointIfAvailable()
         preloadTemplatePackage()
         setupBackNavigation()
+        updateSystemBarsAppearance()
+    }
+
+    @Suppress("DEPRECATION")
+    private fun configureEdgeToEdgeWindow() {
+        WindowCompat.setDecorFitsSystemWindows(window, false)
+        window.statusBarColor = Color.TRANSPARENT
+        window.navigationBarColor = Color.TRANSPARENT
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            window.isStatusBarContrastEnforced = false
+            window.isNavigationBarContrastEnforced = false
+        }
+    }
+
+    private fun updateSystemBarsAppearance() {
+        val controller = WindowInsetsControllerCompat(window, rootContainer)
+        val useLightTextBars = when (overlayState) {
+            OverlayState.CAMERA -> true
+            OverlayState.NONE -> currentWebScreenId == "s-intro"
+            else -> false
+        }
+        controller.isAppearanceLightStatusBars = !useLightTextBars
+        controller.isAppearanceLightNavigationBars = !useLightTextBars
     }
 
     private fun fr(): Boolean = currentLang != "en"
 
     private fun dp(v: Int): Int =
         TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, v.toFloat(), resources.displayMetrics).toInt()
+
+    private fun responsivePlayerDimensions(heightFraction: Float, minDp: Int, maxDp: Int): Pair<Int, Int> {
+        val dm = resources.displayMetrics
+        val density = dm.density.coerceAtLeast(1f)
+        val screenHeightDp = dm.heightPixels / density
+        val screenWidthDp = dm.widthPixels / density
+        val targetH = (screenHeightDp * heightFraction).coerceIn(minDp.toFloat(), maxDp.toFloat())
+        val maxAllowedW = (screenWidthDp - 48f).coerceAtLeast(140f)
+        val targetW = (targetH * 9f / 16f).coerceAtMost(maxAllowedW)
+        val finalH = (targetW * 16f / 9f)
+        return (targetW * density).roundToInt() to (finalH * density).roundToInt()
+    }
 
     private fun pillDrawable(fillHex: String, strokeHex: String? = null, radiusDp: Int = 999): GradientDrawable =
         GradientDrawable().apply {
@@ -191,7 +233,7 @@ class MainActivity : AppCompatActivity() {
         }
 
     private fun buildLayout() {
-        val root = FrameLayout(this).apply {
+        rootContainer = FrameLayout(this).apply {
             setBackgroundColor(Color.parseColor("#FFF9F6"))
             layoutParams = ViewGroup.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
@@ -205,19 +247,83 @@ class MainActivity : AppCompatActivity() {
                 FrameLayout.LayoutParams.MATCH_PARENT
             )
         }
-        root.addView(webView)
+        rootContainer.addView(webView)
 
         cameraOverlay = buildCameraOverlay().apply { visibility = View.GONE }
         reviewOverlay = buildReviewOverlay().apply { visibility = View.GONE }
         renderOverlay = buildRenderOverlay().apply { visibility = View.GONE }
         finalOverlay = buildFinalOverlay().apply { visibility = View.GONE }
 
-        root.addView(cameraOverlay)
-        root.addView(reviewOverlay)
-        root.addView(renderOverlay)
-        root.addView(finalOverlay)
+        rootContainer.addView(cameraOverlay)
+        rootContainer.addView(reviewOverlay)
+        rootContainer.addView(renderOverlay)
+        rootContainer.addView(finalOverlay)
 
-        setContentView(root)
+        setContentView(rootContainer)
+    }
+
+    private fun setupWindowInsets() {
+        ViewCompat.setOnApplyWindowInsetsListener(rootContainer) { _, insets ->
+            val sys = insets.getInsets(
+                WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout()
+            )
+            val ime = insets.getInsets(WindowInsetsCompat.Type.ime())
+            val density = resources.displayMetrics.density.coerceAtLeast(1f)
+
+            insetTopCss = sys.top / density
+            insetRightCss = sys.right / density
+            insetBottomCss = sys.bottom / density
+            insetLeftCss = sys.left / density
+            insetKbCss = (ime.bottom - sys.bottom).coerceAtLeast(0) / density
+
+            // Keep native overlays strictly inside safe system bar + display cutout insets
+            camRootCol.setPadding(
+                dp(14) + sys.left,
+                dp(12) + sys.top,
+                dp(14) + sys.right,
+                dp(16) + sys.bottom
+            )
+            revHeaderContainer.setPadding(
+                dp(16) + sys.left,
+                dp(12) + sys.top,
+                dp(16) + sys.right,
+                dp(8)
+            )
+            revFooterContainer.setPadding(
+                dp(16) + sys.left,
+                dp(8),
+                dp(16) + sys.right,
+                dp(16) + sys.bottom
+            )
+            renderOverlay.setPadding(
+                dp(24) + sys.left,
+                dp(24) + sys.top,
+                dp(24) + sys.right,
+                dp(24) + sys.bottom
+            )
+            finBodyContainer.setPadding(
+                dp(18) + sys.left,
+                dp(12) + sys.top,
+                dp(18) + sys.right,
+                dp(12)
+            )
+            finFooterContainer.setPadding(
+                dp(18) + sys.left,
+                dp(10),
+                dp(18) + sys.right,
+                dp(16) + sys.bottom
+            )
+
+            pushSystemInsetsToWeb()
+            insets
+        }
+        ViewCompat.requestApplyInsets(rootContainer)
+    }
+
+    private fun pushSystemInsetsToWeb() {
+        val js = "window.VitrineNativeCallback && window.VitrineNativeCallback.applySystemInsets(" +
+            "$insetTopCss, $insetRightCss, $insetBottomCss, $insetLeftCss, $insetKbCss);"
+        webView.evaluateJavascript(js, null)
     }
 
     private fun buildCameraOverlay(): FrameLayout {
@@ -230,7 +336,7 @@ class MainActivity : AppCompatActivity() {
             isClickable = true
         }
 
-        val col = LinearLayout(this).apply {
+        camRootCol = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(dp(14), dp(14), dp(14), dp(18))
             layoutParams = FrameLayout.LayoutParams(
@@ -265,19 +371,19 @@ class MainActivity : AppCompatActivity() {
             setPadding(dp(10), dp(6), dp(10), dp(6))
             text = "CAMÉRA PRÊTE"
         }
-        topBar.addView(camBackBtn, LinearLayout.LayoutParams(dp(48), dp(42)))
+        topBar.addView(camBackBtn, LinearLayout.LayoutParams(dp(46), dp(42)))
         topBar.addView(camSceneBadge, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
         topBar.addView(camRecIndicator, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT))
-        col.addView(topBar)
+        camRootCol.addView(topBar)
 
         camPromptText = TextView(this).apply {
             textSize = 15f
             setTypeface(null, Typeface.BOLD)
             setTextColor(Color.parseColor("#FFF4E6"))
             gravity = Gravity.CENTER
-            setPadding(dp(8), dp(10), dp(8), dp(10))
+            setPadding(dp(8), dp(8), dp(8), dp(8))
         }
-        col.addView(camPromptText)
+        camRootCol.addView(camPromptText)
 
         // Centered 9:16 portrait PreviewView container
         val previewBox = FrameLayout(this).apply {
@@ -313,41 +419,41 @@ class MainActivity : AppCompatActivity() {
             topMargin = dp(4)
             bottomMargin = dp(10)
         }
-        col.addView(previewBox, previewLp)
+        camRootCol.addView(previewBox, previewLp)
 
         camTimerText = TextView(this).apply {
-            textSize = 22f
+            textSize = 21f
             setTypeface(null, Typeface.BOLD)
             setTextColor(Color.WHITE)
             gravity = Gravity.CENTER
             text = "00:00 / 00:06"
         }
-        col.addView(camTimerText)
+        camRootCol.addView(camTimerText)
 
         camProgressBar = ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal).apply {
             max = 1000
             progress = 0
         }
-        col.addView(
+        camRootCol.addView(
             camProgressBar,
             LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(10)).apply {
                 topMargin = dp(6)
-                bottomMargin = dp(12)
+                bottomMargin = dp(10)
             }
         )
 
         camActionBtn = Button(this).apply {
-            textSize = 16f
+            textSize = 15.5f
             setTypeface(null, Typeface.BOLD)
             setTextColor(Color.WHITE)
             background = pillDrawable("#FF5F00")
             isAllCaps = false
-            setPadding(dp(16), dp(14), dp(16), dp(14))
+            setPadding(dp(16), dp(12), dp(16), dp(12))
             setOnClickListener { onCameraActionClick() }
         }
-        col.addView(camActionBtn, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(58)))
+        camRootCol.addView(camActionBtn, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(56)))
 
-        container.addView(col)
+        container.addView(camRootCol)
 
         // Permission / error overlay inside camera view
         camPermissionPanel = LinearLayout(this).apply {
@@ -397,19 +503,11 @@ class MainActivity : AppCompatActivity() {
             isClickable = true
         }
 
-        val scroll = ScrollView(this).apply {
-            layoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f)
-        }
-        val body = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(dp(16), dp(14), dp(16), dp(12))
-        }
-        scroll.addView(body)
-
-        // Header
-        val top = LinearLayout(this).apply {
+        // Fixed top header respecting status bar inset
+        revHeaderContainer = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
+            setPadding(dp(16), dp(14), dp(16), dp(8))
         }
         val backBtn = Button(this).apply {
             text = "←"
@@ -431,16 +529,25 @@ class MainActivity : AppCompatActivity() {
             background = pillDrawable("#FFE6D2")
             setPadding(dp(12), dp(6), dp(12), dp(6))
         }
-        top.addView(backBtn, LinearLayout.LayoutParams(dp(42), dp(42)))
-        top.addView(revHeaderTitle, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
-        top.addView(revHeaderBadge)
-        body.addView(top)
+        revHeaderContainer.addView(backBtn, LinearLayout.LayoutParams(dp(42), dp(42)))
+        revHeaderContainer.addView(revHeaderTitle, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+        revHeaderContainer.addView(revHeaderBadge)
+        root.addView(revHeaderContainer)
+
+        val scroll = ScrollView(this).apply {
+            layoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f)
+        }
+        val body = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(16), dp(4), dp(16), dp(12))
+        }
+        scroll.addView(body)
 
         revMainTitle = TextView(this).apply {
-            textSize = 25f
+            textSize = 23f
             setTypeface(null, Typeface.BOLD)
             setTextColor(Color.parseColor("#0A1550"))
-            setPadding(0, dp(10), 0, dp(8))
+            setPadding(0, dp(4), 0, dp(8))
         }
         body.addView(revMainTitle)
 
@@ -453,7 +560,7 @@ class MainActivity : AppCompatActivity() {
         }
         body.addView(revSummaryText)
 
-        // 9:16 Video Preview Card
+        // Responsive 9:16 Video Preview Card
         val playerFrame = FrameLayout(this).apply {
             background = pillDrawable("#030303", radiusDp = 22)
             clipToOutline = true
@@ -472,7 +579,7 @@ class MainActivity : AppCompatActivity() {
         }
         playerFrame.addView(
             revCenterPlayBtn,
-            FrameLayout.LayoutParams(dp(64), dp(64), Gravity.CENTER)
+            FrameLayout.LayoutParams(dp(60), dp(60), Gravity.CENTER)
         )
         val bottomControls = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
@@ -503,7 +610,8 @@ class MainActivity : AppCompatActivity() {
             FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.BOTTOM)
         )
 
-        val playerLp = LinearLayout.LayoutParams(dp(220), dp(390)).apply {
+        val (revW, revH) = responsivePlayerDimensions(heightFraction = 0.40f, minDp = 240, maxDp = 390)
+        val playerLp = LinearLayout.LayoutParams(revW, revH).apply {
             gravity = Gravity.CENTER_HORIZONTAL
             topMargin = dp(12)
         }
@@ -542,14 +650,13 @@ class MainActivity : AppCompatActivity() {
 
         root.addView(scroll)
 
-        // Footer
-        val footer = LinearLayout(this).apply {
+        revFooterContainer = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(dp(16), dp(8), dp(16), dp(16))
             setBackgroundColor(Color.parseColor("#FFF8F4"))
         }
         revRedoBtn = Button(this).apply {
-            textSize = 17f
+            textSize = 16.5f
             setTypeface(null, Typeface.BOLD)
             setTextColor(Color.parseColor("#0A1550"))
             background = pillDrawable("#FFFFFF", "#F1E7E1")
@@ -564,9 +671,9 @@ class MainActivity : AppCompatActivity() {
             isAllCaps = false
             setOnClickListener { onAcceptCurrentScene() }
         }
-        footer.addView(revRedoBtn, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(52)))
-        footer.addView(revNextBtn, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(58)).apply { topMargin = dp(10) })
-        root.addView(footer)
+        revFooterContainer.addView(revRedoBtn, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(50)))
+        revFooterContainer.addView(revNextBtn, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(56)).apply { topMargin = dp(10) })
+        root.addView(revFooterContainer)
 
         return root
     }
@@ -585,7 +692,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         rndTitle = TextView(this).apply {
-            textSize = 24f
+            textSize = 23f
             setTypeface(null, Typeface.BOLD)
             setTextColor(Color.parseColor("#0A1550"))
             gravity = Gravity.CENTER
@@ -661,20 +768,20 @@ class MainActivity : AppCompatActivity() {
         val scroll = ScrollView(this).apply {
             layoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f)
         }
-        val body = LinearLayout(this).apply {
+        finBodyContainer = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(dp(18), dp(18), dp(18), dp(18))
         }
-        scroll.addView(body)
+        scroll.addView(finBodyContainer)
 
         finTitle = TextView(this).apply {
-            textSize = 23f
+            textSize = 22f
             setTypeface(null, Typeface.BOLD)
             setTextColor(Color.parseColor("#0A1550"))
             gravity = Gravity.CENTER
             setPadding(0, dp(4), 0, dp(10))
         }
-        body.addView(finTitle)
+        finBodyContainer.addView(finTitle)
 
         val playerFrame = FrameLayout(this).apply {
             background = pillDrawable("#030303", radiusDp = 22)
@@ -727,9 +834,10 @@ class MainActivity : AppCompatActivity() {
             FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.BOTTOM)
         )
 
-        body.addView(
+        val (finW, finH) = responsivePlayerDimensions(heightFraction = 0.42f, minDp = 240, maxDp = 400)
+        finBodyContainer.addView(
             playerFrame,
-            LinearLayout.LayoutParams(dp(224), dp(398)).apply {
+            LinearLayout.LayoutParams(finW, finH).apply {
                 gravity = Gravity.CENTER_HORIZONTAL
             }
         )
@@ -742,7 +850,7 @@ class MainActivity : AppCompatActivity() {
             isAllCaps = false
             setOnClickListener { mediaPlayer.replayWithSound() }
         }
-        body.addView(
+        finBodyContainer.addView(
             finReplaySoundBtn,
             LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(46)).apply { topMargin = dp(10) }
         )
@@ -753,14 +861,14 @@ class MainActivity : AppCompatActivity() {
             background = pillDrawable("#FFFFFF", "#F0DBCF", radiusDp = 16)
             setPadding(dp(14), dp(12), dp(14), dp(12))
         }
-        body.addView(
+        finBodyContainer.addView(
             finStatsText,
             LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(10) }
         )
 
         root.addView(scroll)
 
-        val footer = LinearLayout(this).apply {
+        finFooterContainer = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(dp(18), dp(10), dp(18), dp(16))
         }
@@ -772,29 +880,17 @@ class MainActivity : AppCompatActivity() {
             isAllCaps = false
             setOnClickListener { shareFinalMp4() }
         }
-        val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
-        finModifyBtn = Button(this).apply {
-            textSize = 13f
-            setTypeface(null, Typeface.BOLD)
-            setTextColor(Color.parseColor("#0A1550"))
-            background = pillDrawable("#FFFFFF", "#E6D8CF")
-            isAllCaps = false
-            setOnClickListener { editInfoAfterRender() }
-        }
         finNewVideoBtn = Button(this).apply {
-            textSize = 13f
+            textSize = 15f
             setTypeface(null, Typeface.BOLD)
             setTextColor(Color.WHITE)
             background = pillDrawable("#14265D")
             isAllCaps = false
             setOnClickListener { startFreshSession() }
         }
-        row.addView(finModifyBtn, LinearLayout.LayoutParams(0, dp(48), 1f).apply { marginEnd = dp(6) })
-        row.addView(finNewVideoBtn, LinearLayout.LayoutParams(0, dp(48), 1f).apply { marginStart = dp(6) })
-
-        footer.addView(finShareBtn, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(56)))
-        footer.addView(row, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(8) })
-        root.addView(footer)
+        finFooterContainer.addView(finShareBtn, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(54)))
+        finFooterContainer.addView(finNewVideoBtn, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(52)).apply { topMargin = dp(8) })
+        root.addView(finFooterContainer)
 
         return root
     }
@@ -807,9 +903,19 @@ class MainActivity : AppCompatActivity() {
             mediaPlaybackRequiresUserGesture = false
             allowFileAccess = false
             allowContentAccess = false
+            useWideViewPort = true
+            loadWithOverviewMode = true
+            setSupportZoom(false)
+            builtInZoomControls = false
+            displayZoomControls = false
+            textZoom = 100
         }
+        webView.overScrollMode = View.OVER_SCROLL_NEVER
+        webView.isHorizontalScrollBarEnabled = false
+        webView.isVerticalScrollBarEnabled = false
         webView.addJavascriptInterface(VitrineJsBridge(), "VitrineAndroid")
         webView.webViewClient = AssetWebViewClient(this) {
+            pushSystemInsetsToWeb()
             pushSavedResponsesToWeb()
         }
         webView.loadUrl(AssetWebViewClient.ENTRY_URL)
@@ -822,75 +928,8 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun checkpointFile(): File = File(filesDir, "checkpoints/active_t3_session.json")
-
-    private fun persistCheckpoint(state: CaptureSessionState) {
-        val pkg = loadedPackage
-        val templateId = pkg?.templateId ?: "COMMERCE-T3"
-        val templateVer = pkg?.version ?: "1.0.0"
-        val descriptors = progression.allValidatedTakes().map { take ->
-            SceneCaptureDescriptor(
-                sessionId = sessionId,
-                templateId = templateId,
-                templateVersion = templateVer,
-                sceneId = take.sceneId,
-                localVideoPath = take.filePath,
-                durationUs = take.durationUs,
-                width = take.width,
-                height = take.height,
-                rotation = take.rotation,
-                audioPresent = take.audioPresent,
-                sha256 = take.sha256,
-                recordingStatus = SceneRecordingStatus.COMPLETED,
-                validatedByMerchant = true,
-                recordedAtEpochMs = take.recordedAtEpochMs
-            )
-        }
-        CaptureSessionCheckpointStore.saveCheckpoint(
-            checkpointFile = checkpointFile(),
-            sessionId = sessionId,
-            templateId = templateId,
-            templateVersion = templateVer,
-            state = state,
-            captures = descriptors,
-            responses = responses
-        )
-    }
-
-    private fun restoreCheckpointIfAvailable() {
-        val snap = CaptureSessionCheckpointStore.loadResumeState(
-            checkpointFile(),
-            progression.sceneIds
-        ) ?: return
-        sessionId = snap.sessionId
-        responses.clear()
-        responses.putAll(MockupResponseMapper.normalizeRawResponses(snap.responses))
-        snap.completedCaptures.forEach { desc ->
-            val idx = progression.sceneIds.indexOf(desc.sceneId)
-            val file = File(desc.localVideoPath)
-            if (idx >= 0 && file.exists() && file.length() > 0L) {
-                progression.restoreValidatedTake(
-                    CapturedSceneTake(
-                        sceneIndex = idx,
-                        sceneId = desc.sceneId,
-                        filePath = desc.localVideoPath,
-                        durationUs = desc.durationUs,
-                        width = desc.width,
-                        height = desc.height,
-                        rotation = desc.rotation,
-                        audioPresent = desc.audioPresent,
-                        sha256 = desc.sha256,
-                        source = CaptureSource.CAMERAX_REAL,
-                        validatedByMerchant = desc.validatedByMerchant,
-                        recordedAtEpochMs = desc.recordedAtEpochMs
-                    )
-                )
-            }
-        }
-    }
-
     private fun pushSavedResponsesToWeb() {
-        val json = JSONObject(responses as Map<*, *>).toString()
+        val json = JSONObject(sessionManager.responses as Map<*, *>).toString()
         val quoted = JSONObject.quote(json)
         webView.evaluateJavascript("window.VitrineNativeCallback && window.VitrineNativeCallback.restoreResponses($quoted);", null)
     }
@@ -925,15 +964,16 @@ class MainActivity : AppCompatActivity() {
         reviewOverlay.visibility = if (target == OverlayState.REVIEW) View.VISIBLE else View.GONE
         renderOverlay.visibility = if (target == OverlayState.RENDERING) View.VISIBLE else View.GONE
         finalOverlay.visibility = if (target == OverlayState.FINAL_PLAYER) View.VISIBLE else View.GONE
+        updateSystemBarsAppearance()
     }
 
     private fun openSceneCamera(sceneIndex: Int) {
-        if (!progression.canOpenSceneCamera(sceneIndex)) {
+        if (!sessionManager.progression.canOpenSceneCamera(sceneIndex)) {
             returnToSceneGuide((sceneIndex - 1).coerceAtLeast(0))
             return
         }
         activeSceneIndex = sceneIndex
-        progression.markGuideVisited(sceneIndex)
+        sessionManager.onGuideVisited(sceneIndex)
         mediaPlayer.release()
         showOverlay(OverlayState.CAMERA)
 
@@ -986,7 +1026,7 @@ class MainActivity : AppCompatActivity() {
 
             override fun onRecordingFinished(take: CapturedSceneTake) {
                 isRecordingNow = false
-                progression.onRecordingCompleted(take)
+                sessionManager.onSceneRecordingCompleted(take)
                 cameraRecorder.unbind()
                 openSceneReview(take.sceneIndex)
             }
@@ -1015,7 +1055,7 @@ class MainActivity : AppCompatActivity() {
             return
         }
         val spec = getSceneGuideSpec(activeSceneIndex)
-        val capturesDir = File(filesDir, "captures/$sessionId")
+        val capturesDir = sessionManager.currentSessionCaptureDir()
         isRecordingNow = true
         camRecIndicator.text = if (fr()) "● ON FILME" else "● FILMING"
         camRecIndicator.background = pillDrawable("#D92D20")
@@ -1044,7 +1084,7 @@ class MainActivity : AppCompatActivity() {
 
                 override fun onRecordingFinished(take: CapturedSceneTake) {
                     isRecordingNow = false
-                    progression.onRecordingCompleted(take)
+                    sessionManager.onSceneRecordingCompleted(take)
                     cameraRecorder.unbind()
                     openSceneReview(take.sceneIndex)
                 }
@@ -1114,7 +1154,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun openSceneReview(sceneIndex: Int) {
-        val take = progression.getReviewableTake(sceneIndex)
+        val take = sessionManager.progression.getReviewableTake(sceneIndex)
         if (take == null) {
             returnToSceneGuide(sceneIndex)
             return
@@ -1187,18 +1227,13 @@ class MainActivity : AppCompatActivity() {
 
     private fun onRetakeCurrentScene() {
         mediaPlayer.release()
-        progression.retakeScene(activeSceneIndex)
-        persistCheckpoint(CaptureSessionState.RECORDING)
+        sessionManager.retakeScene(activeSceneIndex)
         returnToSceneGuide(activeSceneIndex)
     }
 
     private fun onAcceptCurrentScene() {
         mediaPlayer.release()
-        progression.acceptScene(activeSceneIndex)
-        persistCheckpoint(
-            if (progression.isAllScenesValidated()) CaptureSessionState.READY_FOR_RENDER
-            else CaptureSessionState.RECORDING
-        )
+        sessionManager.acceptScene(activeSceneIndex)
         if (activeSceneIndex < 3) {
             returnToSceneGuide(activeSceneIndex + 1)
         } else {
@@ -1234,28 +1269,25 @@ class MainActivity : AppCompatActivity() {
                 val pkg = loadedPackage ?: T3PackageRepository.ensureLoaded(applicationContext).also {
                     loadedPackage = it
                 }
-                val (validatedResponses, descriptors) = RealSessionGuard.verifyAndBuildDescriptors(
-                    mode = AppExecutionMode.REAL_APPLICATION,
-                    pkg = pkg,
-                    sessionId = sessionId,
-                    responses = responses,
-                    takes = progression.allValidatedTakes()
-                )
+                val verifiedInputs = sessionManager.buildVerifiedRenderInputs(pkg)
+                val renderSessionId = verifiedInputs.creationId
 
                 val outDir = (getExternalFilesDir("vitrine_exports") ?: File(filesDir, "vitrine_exports"))
-                    .let { File(it, sessionId) }
+                    .let { File(it, renderSessionId) }
                     .apply { mkdirs() }
                 val rotationDb = File(filesDir, "vitrine_music_rotation.db")
 
                 val engine = VitrineRenderEngine(applicationContext).also { renderEngine = it }
                 val outcome = engine.renderPackage(
                     pkg = pkg,
-                    sessionId = sessionId,
-                    responses = validatedResponses,
-                    captures = descriptors,
+                    sessionId = renderSessionId,
+                    responses = verifiedInputs.responses,
+                    captures = verifiedInputs.descriptors,
                     outputDir = outDir,
                     rotationDbFile = rotationDb,
                     visitedScreens = (1..12).toList(),
+                    rejectedPreviousSessionIds = verifiedInputs.rejectedPreviousSessionIds,
+                    rejectedPreviousCaptureSha256s = verifiedInputs.rejectedPreviousCaptureSha256s,
                     listener = object : RenderListener {
                         override fun onProgress(progress: RenderProgress) {
                             runOnUiThread {
@@ -1267,14 +1299,24 @@ class MainActivity : AppCompatActivity() {
 
                         override fun onCompleted(result: RenderOutcome.Success) {
                             val mp4File = File(result.result.outputPath)
-                            val published = T3PackageRepository.publishFinalVideo(applicationContext, mp4File, sessionId)
+                            val published = T3PackageRepository.publishFinalVideo(applicationContext, mp4File, renderSessionId)
                             lastRenderedMp4 = mp4File
                             lastPublishedLocation = published
-                            persistCheckpoint(CaptureSessionState.RENDERED)
-                            runOnUiThread { showFinalPlayer(result, mp4File, published) }
+                            // Confirmed Media3 success + verified MP4 + permanent save:
+                            // Close session, delete temporary S1..S4 clips & answers, reset S1..S4,
+                            // and prepare a fresh blank UUID creation_id while preserving the final MP4.
+                            sessionManager.onRenderSucceededAndVerified(mp4File, published)
+                            runOnUiThread {
+                                webView.evaluateJavascript(
+                                    "window.VitrineNativeCallback && window.VitrineNativeCallback.resetSessionToBlank('s-intro');",
+                                    null
+                                )
+                                showFinalPlayer(result, mp4File, published)
+                            }
                         }
 
                         override fun onFailed(error: RenderOutcome.Failure) {
+                            sessionManager.onRenderFailed()
                             runOnUiThread {
                                 showRenderError("[${error.error.stage} / ${error.error.code}] ${error.error.message}")
                             }
@@ -1282,13 +1324,16 @@ class MainActivity : AppCompatActivity() {
                     }
                 )
                 if (outcome is RenderOutcome.Failure && rndErrorBox.visibility != View.VISIBLE) {
+                    sessionManager.onRenderFailed()
                     runOnUiThread {
                         showRenderError("[${outcome.error.stage} / ${outcome.error.code}] ${outcome.error.message}")
                     }
                 }
             } catch (e: RealSessionViolationException) {
+                sessionManager.onRenderFailed()
                 runOnUiThread { showRenderError("[${e.code}] ${e.message}") }
             } catch (t: Throwable) {
+                sessionManager.onRenderFailed()
                 runOnUiThread { showRenderError(t.message ?: "Erreur montage inconnue") }
             }
         }
@@ -1306,8 +1351,7 @@ class MainActivity : AppCompatActivity() {
         finTitle.text = if (fr()) "Ta publicité COMMERCE-T3 est prête !" else "Your COMMERCE-T3 ad is ready!"
         finReplaySoundBtn.text = if (fr()) "🔊 Revoir depuis le début avec le son" else "🔊 Replay from start with sound"
         finShareBtn.text = if (fr()) "PARTAGER / ENREGISTRER LA VIDÉO" else "SHARE / SAVE VIDEO"
-        finModifyBtn.text = if (fr()) "MODIFIER INFOS" else "EDIT INFO"
-        finNewVideoBtn.text = if (fr()) "NOUVELLE VIDÉO" else "NEW VIDEO"
+        finNewVideoBtn.text = if (fr()) "CRÉER UNE NOUVELLE VIDÉO" else "CREATE A NEW VIDEO"
 
         val credit = success.result.musicCredit ?: "Musique COMMERCE-T3"
         finStatsText.text = if (fr()) {
@@ -1357,20 +1401,18 @@ class MainActivity : AppCompatActivity() {
         startActivity(Intent.createChooser(shareIntent, if (fr()) "Partager ta publicité" else "Share your ad"))
     }
 
-    private fun editInfoAfterRender() {
-        mediaPlayer.release()
-        showOverlay(OverlayState.NONE)
-        webView.evaluateJavascript("window.VitrineNativeCallback && window.VitrineNativeCallback.goToQuestions();", null)
-    }
-
     private fun startFreshSession() {
         mediaPlayer.release()
-        progression.clearAll()
-        responses.clear()
-        sessionId = "t3_${UUID.randomUUID().toString().take(8)}"
-        checkpointFile().delete()
+        // If user starts fresh from an incomplete draft, wipe draft temp files cleanly;
+        // if coming from COMPLETED_CLEANED, sessionManager already rotated to a blank creation_id.
+        if (sessionManager.responses.isNotEmpty() || sessionManager.progression.allValidatedTakes().isNotEmpty()) {
+            sessionManager.startNewBlankSession()
+        }
         showOverlay(OverlayState.NONE)
-        webView.evaluateJavascript("window.VitrineNativeCallback && window.VitrineNativeCallback.goToIntro();", null)
+        webView.evaluateJavascript(
+            "window.VitrineNativeCallback && window.VitrineNativeCallback.resetSessionToBlank('s-intro');",
+            null
+        )
     }
 
     private fun setupBackNavigation() {
@@ -1384,7 +1426,7 @@ class MainActivity : AppCompatActivity() {
                             returnToSceneGuide(3)
                         }
                     }
-                    OverlayState.FINAL_PLAYER -> editInfoAfterRender()
+                    OverlayState.FINAL_PLAYER -> startFreshSession()
                     OverlayState.NONE -> {
                         webView.evaluateJavascript(
                             "window.VitrineNativeCallback ? window.VitrineNativeCallback.handleAndroidBack() : 'EXIT_APP';"
@@ -1426,7 +1468,18 @@ class MainActivity : AppCompatActivity() {
     inner class VitrineJsBridge {
         @JavascriptInterface
         fun onWebReady() {
-            mainHandler.post { pushSavedResponsesToWeb() }
+            mainHandler.post {
+                pushSystemInsetsToWeb()
+                pushSavedResponsesToWeb()
+            }
+        }
+
+        @JavascriptInterface
+        fun onScreenChanged(screenId: String) {
+            mainHandler.post {
+                currentWebScreenId = screenId
+                updateSystemBarsAppearance()
+            }
         }
 
         @JavascriptInterface
@@ -1442,31 +1495,27 @@ class MainActivity : AppCompatActivity() {
         @JavascriptInterface
         fun saveResponses(jsonStr: String) {
             val mapped = runCatching { MockupResponseMapper.parseFromWebJson(jsonStr) }.getOrNull() ?: return
-            synchronized(responses) {
-                responses.clear()
-                responses.putAll(mapped)
-            }
-            mainHandler.post { persistCheckpoint(CaptureSessionState.RECORDING) }
+            mainHandler.post { sessionManager.updateResponses(mapped) }
         }
 
         @JavascriptInterface
         fun getSavedResponsesJson(): String {
-            synchronized(responses) {
-                return JSONObject(responses as Map<*, *>).toString()
+            synchronized(sessionManager) {
+                return JSONObject(sessionManager.responses as Map<*, *>).toString()
             }
         }
 
         @JavascriptInterface
         fun hasValidatedScene(sceneIndex: Int): Boolean {
-            synchronized(progression) {
-                return progression.hasValidatedScene(sceneIndex)
+            synchronized(sessionManager) {
+                return sessionManager.progression.hasValidatedScene(sceneIndex)
             }
         }
 
         @JavascriptInterface
         fun isAllScenesValidated(): Boolean {
-            synchronized(progression) {
-                return progression.isAllScenesValidated()
+            synchronized(sessionManager) {
+                return sessionManager.progression.isAllScenesValidated()
             }
         }
 
@@ -1483,7 +1532,7 @@ class MainActivity : AppCompatActivity() {
         @JavascriptInterface
         fun launchMontage() {
             mainHandler.post {
-                if (progression.isAllScenesValidated()) {
+                if (sessionManager.progression.isAllScenesValidated()) {
                     this@MainActivity.launchRealMontageRender()
                 }
             }

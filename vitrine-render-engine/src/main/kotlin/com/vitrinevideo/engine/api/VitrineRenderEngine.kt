@@ -94,6 +94,7 @@ class VitrineRenderEngine(
     /**
      * End-to-end universal render from an imported [LoadedTemplatePackage] + responses + CameraX captures.
      */
+    @JvmOverloads
     fun renderPackage(
         pkg: LoadedTemplatePackage,
         sessionId: String,
@@ -102,7 +103,9 @@ class VitrineRenderEngine(
         outputDir: File,
         rotationDbFile: File,
         visitedScreens: List<Int> = emptyList(),
-        listener: RenderListener? = null
+        listener: RenderListener? = null,
+        rejectedPreviousSessionIds: Set<String> = emptySet(),
+        rejectedPreviousCaptureSha256s: Set<String> = emptySet()
     ): RenderOutcome {
         return try {
             listener?.onProgress(RenderProgress(RenderStage.PREFLIGHT, 2, "Assemblage et validation du RenderJob"))
@@ -113,7 +116,9 @@ class VitrineRenderEngine(
                 captures = captures,
                 outputDir = outputDir,
                 rotationDbFile = rotationDbFile,
-                visitedScreens = visitedScreens
+                visitedScreens = visitedScreens,
+                rejectedPreviousSessionIds = rejectedPreviousSessionIds,
+                rejectedPreviousCaptureSha256s = rejectedPreviousCaptureSha256s
             )
             File(outputDir.apply { mkdirs() }, "job.json").writeText(assembled.jobJson.toString(2))
             renderGuidedSession(assembled.guidedSession, listener)

@@ -43,7 +43,8 @@ object T3PackageRepository {
      */
     fun publishFinalVideo(context: Context, renderedMp4: File, sessionId: String): String {
         val stamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date())
-        val displayName = "Vitrine_T3_${stamp}.mp4"
+        val shortTag = sessionId.filter { it.isLetterOrDigit() }.takeLast(4).ifEmpty { "0000" }
+        val displayName = "Vitrine_T3_${stamp}_${shortTag}.mp4"
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             return runCatching {
