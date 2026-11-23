@@ -1,0 +1,3 @@
+-keep class com.vitrinevideo.engine.api.** { *; }
+-keep class com.vitrinevideo.engine.capabilities.** { *; }
+-keep class com.vitrinevideo.engine.interpreter.** { *; }
