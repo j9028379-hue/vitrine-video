@@ -141,6 +141,21 @@ class AppIntegrationContractTest {
     }
 
     @Test
+    fun reproduceD50_freeTextWhatsappRejectedByPackagePattern() {
+        val t1Zip = File(assetsRoot(), "packages/COMMERCE-T1-2.0.0.zip")
+        val pkg = FileInputStream(t1Zip).use {
+            TemplatePackageLoader.importZipStream(it, tempFolder.newFolder("pkg_t1_d51_repro"))
+        }
+        val raw = """{"nom":"Étal Kandi","produit":"Jus","prix":"750 FCFA","demonstration":"Frais","quartier":"Centre","whatsapp":"Contactez-nous sur WhatsApp"}"""
+        val mapped = MockupResponseMapper.parseFromWebJson(raw, "COMMERCE-T1")
+        assertEquals("Contactez-nous sur WhatsApp", mapped["whatsapp"])
+        val failure = runCatching { TemplateJobAssembler.validateResponses(pkg, mapped) }.exceptionOrNull()
+        assertTrue(failure is TemplateFormValidationException)
+        assertEquals("RESPONSE_PATTERN_INVALID", (failure as TemplateFormValidationException).code)
+        assertEquals("Format invalide pour le champ 'whatsapp'", failure.message)
+    }
+
+    @Test
     fun commerceT1_mapperValidationAndTemplateSessionStayIsolatedFromT3() {
         val t1Zip = File(assetsRoot(), "packages/COMMERCE-T1-2.0.0.zip")
         val pkg = FileInputStream(t1Zip).use { TemplatePackageLoader.importZipStream(it, tempFolder.newFolder("pkg_t1_app")) }
