@@ -158,7 +158,7 @@
   function collectFormResponses() {
     const val = (id) => {
       const el = document.getElementById(id);
-      return el ? String(el.value || "").trim() : "";
+      return el ? String(el.value) : "";
     };
     return {
       nom: val("q-nom"),
@@ -334,7 +334,7 @@
       );
     }
 
-    // Forward validated merchant answers to Android engine when continuing from #s-questions
+    // Forward merchant-entered answer text to Android when continuing from #s-questions
     const qNext = document.getElementById("questions-next");
     if (qNext) {
       qNext.addEventListener(
@@ -343,10 +343,6 @@
           // Persist the exact answers on every continue attempt, even if a browser-only
           // constraint rejects one field. The mockup owns navigation validation; package
           // and engine validation remain authoritative for whether rendering can start.
-          const flow = window.__vitrineFlow && window.__vitrineFlow.getState();
-          const isT1 = !!flow && flow.format === "t1";
-          const phone = document.getElementById("q-whatsapp");
-          if (isT1 && phone) phone.value = phone.value.replace(/\s+/g, "");
           if (hasBridge()) {
             window.VitrineAndroid.saveResponses(JSON.stringify(collectFormResponses()));
           }

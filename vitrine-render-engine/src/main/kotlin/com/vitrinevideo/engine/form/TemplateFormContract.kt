@@ -21,10 +21,16 @@ data class TemplateFormSpec(
     fun requiredKeys(): Set<String> = questions.filter { it.required }.map { it.key }.toSet()
 }
 
+/**
+ * Render-job structure contract. Merchant text bounds/patterns from historical package JSON
+ * are intentionally ignored; only required keys, payload key shape, allowed keys and captures
+ * constrain the render job.
+ */
 data class RenderJobSchemaConstraints(
     val expectedTemplateId: String?,
     val expectedTemplateVersion: String?,
     val requiredResponses: Set<String>,
+    /** Legacy response-content constraints are intentionally not loaded/enforced; only presence is validated. */
     val responseMinLengths: Map<String, Int>,
     val allowedResponseKeys: Set<String>,
     val additionalResponsesAllowed: Boolean,
@@ -90,19 +96,12 @@ object TemplateFormParser {
 
         val repProps = repObj.optJSONObject("properties") ?: JSONObject()
         val allowedKeys = mutableSetOf<String>()
-        val minLengths = mutableMapOf<String, Int>()
-        val maxLengths = mutableMapOf<String, Int>()
-        val patterns = mutableMapOf<String, Regex>()
         val repIter = repProps.keys()
         while (repIter.hasNext()) {
-            val k = repIter.next()
-            allowedKeys += k
-            val fieldSchema = repProps.optJSONObject(k)
-            if (fieldSchema != null) {
-                if (fieldSchema.has("minLength")) minLengths[k] = fieldSchema.getInt("minLength")
-                if (fieldSchema.has("maxLength")) maxLengths[k] = fieldSchema.getInt("maxLength")
-                fieldSchema.optString("pattern", "").takeIf { it.isNotBlank() }?.let { patterns[k] = Regex(it) }
-            }
+            // Merchant-provided strings are free text. Don't even compile legacy `pattern`
+            // expressions or load legacy content length bounds; required/payload shape below
+            // are the only response contract checks performed by the app.
+            allowedKeys += repIter.next()
         }
         val additionalAllowed = repObj.optBoolean("additionalProperties", true)
 
@@ -139,14 +138,14 @@ object TemplateFormParser {
             expectedTemplateId = expectedTemplateId,
             expectedTemplateVersion = expectedTemplateVersion,
             requiredResponses = requiredResponses,
-            responseMinLengths = minLengths,
+            responseMinLengths = emptyMap(),
             allowedResponseKeys = allowedKeys,
             additionalResponsesAllowed = additionalAllowed,
             requiredSceneIds = requiredScenes,
             sha256Regex = Regex(shaPattern),
             expectedScreenNumbers = expectedScreens,
-            responseMaxLengths = maxLengths,
-            responsePatterns = patterns,
+            responseMaxLengths = emptyMap(),
+            responsePatterns = emptyMap(),
             responsePayloadKey = payloadKey,
             capturesAsObject = capturesAsObject,
             captureUris = captureUris

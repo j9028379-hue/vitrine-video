@@ -21,6 +21,7 @@ import com.vitrinevideo.engine.interpreter.UniversalJsonInterpreter
 import com.vitrinevideo.engine.pkg.TemplatePackageLoader
 import com.vitrinevideo.engine.timeline.PreFlightException
 import com.vitrinevideo.engine.timeline.PreFlightValidator
+import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotEquals
@@ -132,27 +133,60 @@ class AppIntegrationContractTest {
 
         val normalized = MockupResponseMapper.parseFromWebJson(webPayload)
         val validated = MockupResponseMapper.validateAgainstPackage(pkg, normalized)
-        assertEquals("Boutique Élégance", validated["nom"])
+        assertEquals("  Boutique Élégance  ", validated["nom"])
         assertEquals("Sac cuir artisanal", validated["produit"])
-        assertEquals("", validated["prix"])
+        assertEquals("   ", validated["prix"])
         assertEquals("On voit la fermeture dorée et la doublure", validated["demonstration"])
         assertEquals("Akpakpa", validated["quartier"])
         assertEquals("+229 01 97 00 00 00", validated["whatsapp"])
     }
 
     @Test
-    fun reproduceD50_freeTextWhatsappRejectedByPackagePattern() {
+    fun commerceT1_acceptsFreeTextWhatsappMatrixAndPreservesEveryValue() {
         val t1Zip = File(assetsRoot(), "packages/COMMERCE-T1-2.0.0.zip")
         val pkg = FileInputStream(t1Zip).use {
-            TemplatePackageLoader.importZipStream(it, tempFolder.newFolder("pkg_t1_d51_repro"))
+            TemplatePackageLoader.importZipStream(it, tempFolder.newFolder("pkg_t1_d51_matrix"))
         }
-        val raw = """{"nom":"Étal Kandi","produit":"Jus","prix":"750 FCFA","demonstration":"Frais","quartier":"Centre","whatsapp":"Contactez-nous sur WhatsApp"}"""
+        val whatsappValues = listOf(
+            "07 01 02 03 04",
+            "+229 01 70 12 34 56",
+            "Contact WhatsApp",
+            "Appelez-nous au 97",
+            "Disponible tous les jours",
+            "Mon contact : 123 ABC",
+            "Bienvenue chez nous !"
+        )
+        for (phoneText in whatsappValues) {
+            val raw = JSONObject().apply {
+                put("nom", "Étal Kandi")
+                put("produit", "Jus")
+                put("prix", "750 FCFA")
+                put("demonstration", "Frais")
+                put("quartier", "Centre")
+                put("whatsapp", phoneText)
+            }.toString()
+            val mapped = MockupResponseMapper.parseFromWebJson(raw, "COMMERCE-T1")
+            assertEquals("typed T1 WhatsApp text must survive mapping", phoneText, mapped["whatsapp"])
+            val accepted = TemplateJobAssembler.validateResponses(pkg, mapped)
+            assertEquals("typed T1 WhatsApp text must survive validation", phoneText, accepted["whatsapp"])
+        }
+
+        val malformed = runCatching { MockupResponseMapper.parseFromWebJson("""{"whatsapp":97000000}""", "COMMERCE-T1") }.exceptionOrNull()
+        assertTrue(malformed is TemplateFormValidationException)
+        assertEquals("RESPONSE_VALUE_NOT_TEXT", (malformed as TemplateFormValidationException).code)
+        val futureTemplatePayload = MockupResponseMapper.parseFromWebJson("""{"offre":"  texte libre !  "}""", "COMMERCE-T5")
+        assertEquals(mapOf("offre" to "  texte libre !  "), futureTemplatePayload)
+
+        val exact = "  Contactez-nous sur WhatsApp — 123 ABC !  "
+        val raw = """{"nom":"  Étal Kandi ✨  ","produit":"Jus de gingembre / fruits — édition spéciale aux épices maison (récolte du jour)","prix":"Prix libre: 750 FCFA / offre spéciale !","demonstration":"  Frais, préparé ici — goûtez l’original ! ✨ ${"très ".repeat(20)}","quartier":"Centre-ville, près du marché (Kandi)","whatsapp":${JSONObject.quote(exact)}}"""
         val mapped = MockupResponseMapper.parseFromWebJson(raw, "COMMERCE-T1")
-        assertEquals("Contactez-nous sur WhatsApp", mapped["whatsapp"])
-        val failure = runCatching { TemplateJobAssembler.validateResponses(pkg, mapped) }.exceptionOrNull()
-        assertTrue(failure is TemplateFormValidationException)
-        assertEquals("RESPONSE_PATTERN_INVALID", (failure as TemplateFormValidationException).code)
-        assertEquals("Format invalide pour le champ 'whatsapp'", failure.message)
+        val accepted = TemplateJobAssembler.validateResponses(pkg, mapped)
+        assertEquals("  Étal Kandi ✨  ", accepted["nom"])
+        assertEquals("Jus de gingembre / fruits — édition spéciale aux épices maison (récolte du jour)", accepted["produit"])
+        assertEquals("Prix libre: 750 FCFA / offre spéciale !", accepted["prix"])
+        assertEquals("  Frais, préparé ici — goûtez l’original ! ✨ ${"très ".repeat(20)}", accepted["accroche"])
+        assertEquals("Centre-ville, près du marché (Kandi)", accepted["quartier"])
+        assertEquals(exact, accepted["whatsapp"])
     }
 
     @Test
@@ -165,7 +199,7 @@ class AppIntegrationContractTest {
         assertFalse("demonstration" in mapped)
         val validated = TemplateJobAssembler.validateResponses(pkg, mapped)
         assertEquals("Frais et préparé ici", validated["accroche"])
-        assertEquals("+2290197000000", validated["whatsapp"])
+        assertEquals("+229 01 97 00 00 00", validated["whatsapp"])
 
         val manager = SessionLifecycleManager(tempFolder.newFolder("sessions"))
         manager.initialize()
@@ -180,8 +214,8 @@ class AppIntegrationContractTest {
         assertEquals("COMMERCE-T3", manager.templateId)
         assertNotEquals(t1Id, manager.creationId)
 
-        val invalid = mapped.toMutableMap().apply { put("whatsapp", "97000000") }
-        assertTrue(runCatching { TemplateJobAssembler.validateResponses(pkg, invalid) }.isFailure)
+        val unconventional = mapped.toMutableMap().apply { put("whatsapp", "97000000") }
+        assertEquals("97000000", TemplateJobAssembler.validateResponses(pkg, unconventional)["whatsapp"])
     }
 
     @Test
@@ -198,12 +232,24 @@ class AppIntegrationContractTest {
         assertEquals("MISSING_REQUIRED_RESPONSE", (emptyFailure as TemplateFormValidationException).code)
         assertTrue(pkg.formSpec.requiredKeys().any { emptyFailure.message!!.contains("'$it'") })
 
-        // This is the exact field shape emitted by the existing mockup DOM bridge.
-        val webPayload = """{"nom":"Étal Kandi","produit":"Jus de gingembre","prix":"750 FCFA","demonstration":"Frais et préparé ici","quartier":"Centre-ville","whatsapp":"+2290197000000"}"""
-        val mapped = MockupResponseMapper.parseFromWebJson(webPayload, "COMMERCE-T1")
-        assertEquals("Étal Kandi", mapped["nom"])
-        assertEquals("Frais et préparé ici", mapped["accroche"])
+        // Mirrors the bridge's existing field IDs while exercising free-form values verbatim.
+        val answers = linkedMapOf(
+            "nom" to "  Étal Kandi ✨  ",
+            "produit" to "Jus de gingembre — préparé ici avec citron, miel, épices et fruits frais du marché local",
+            "prix" to "Prix libre : 750 FCFA / à discuter !",
+            "demonstration" to "  Frais, préparé ici — goûtez l’original ! ✨ ${"très ".repeat(20)}",
+            "quartier" to "Centre-ville, près du grand marché de Kandi",
+            "whatsapp" to "Mon contact : 123 ABC"
+        )
+        val mapped = MockupResponseMapper.parseFromWebJson(JSONObject().apply { answers.forEach { (key, value) -> put(key, value) } }.toString(), "COMMERCE-T1")
+        assertEquals(answers["nom"], mapped["nom"])
+        assertEquals(answers["demonstration"], mapped["accroche"])
+        assertEquals(answers["whatsapp"], mapped["whatsapp"])
         assertFalse("demonstration" in mapped)
+        val emptyWhatsapp = mapped.toMutableMap().apply { put("whatsapp", "") }
+        val missingWhatsapp = runCatching { TemplateJobAssembler.validateResponses(pkg, emptyWhatsapp) }.exceptionOrNull()
+        assertTrue(missingWhatsapp is TemplateFormValidationException)
+        assertEquals("MISSING_REQUIRED_RESPONSE", (missingWhatsapp as TemplateFormValidationException).code)
 
         val manager = SessionLifecycleManager(tempFolder.newFolder("d50_t1_session"))
         manager.initialize()
@@ -218,7 +264,12 @@ class AppIntegrationContractTest {
         assertTrue(manager.progression.isAllScenesValidated())
 
         val verified = manager.buildVerifiedRenderInputs(pkg)
-        assertEquals("Étal Kandi", verified.responses["nom"])
+        assertEquals(answers["nom"], verified.responses["nom"])
+        assertEquals(answers["produit"], verified.responses["produit"])
+        assertEquals(answers["prix"], verified.responses["prix"])
+        assertEquals(answers["demonstration"], verified.responses["accroche"])
+        assertEquals(answers["quartier"], verified.responses["quartier"])
+        assertEquals(answers["whatsapp"], verified.responses["whatsapp"])
         assertEquals(listOf("S1", "S2", "S3", "S4"), verified.descriptors.map { it.sceneId })
         val assembled = TemplateJobAssembler.assemble(
             pkg = pkg,
@@ -229,10 +280,13 @@ class AppIntegrationContractTest {
             rotationDbFile = tempFolder.newFile("d50_t1_rotation.db")
         )
         val merchantPayload = assembled.jobJson.getJSONObject("merchant_payload")
-        assertEquals("Étal Kandi", merchantPayload.getString("nom"))
-        assertEquals("Jus de gingembre", merchantPayload.getString("produit"))
-        assertEquals("Frais et préparé ici", merchantPayload.getString("accroche"))
-        assertEquals("+2290197000000", merchantPayload.getString("whatsapp"))
+        assertEquals(answers["nom"], merchantPayload.getString("nom"))
+        assertEquals(answers["produit"], merchantPayload.getString("produit"))
+        assertEquals(answers["prix"], merchantPayload.getString("prix"))
+        assertEquals(answers["demonstration"], merchantPayload.getString("accroche"))
+        assertEquals(answers["quartier"], merchantPayload.getString("quartier"))
+        assertEquals(answers["whatsapp"], merchantPayload.getString("whatsapp"))
+        assertEquals(mapped, assembled.renderRequest.responses)
         assertEquals(listOf("S1", "S2", "S3", "S4"), assembled.renderRequest.captures.map { it.sceneId })
 
         val profile = pkg.audioProfileFile?.let { UniversalJsonInterpreter.parseAudioProfile(it) }
@@ -250,9 +304,15 @@ class AppIntegrationContractTest {
 
         val bridge = File(assets, "mockup/android-bridge.js").readText()
         assertTrue("answers must be saved independently of browser checkValidity", bridge.contains("saveResponses(JSON.stringify(collectFormResponses()))"))
+        assertTrue("bridge must read the full input value verbatim", bridge.contains("String(el.value)"))
+        assertFalse("bridge must not trim merchant text", bridge.contains("String(el.value || \"\").trim()"))
+        assertFalse("bridge must not strip WhatsApp spaces", bridge.contains("phone.value.replace(/\\s+/g, \"\")"))
         assertFalse(bridge.contains("if (!anyMissing && hasBridge())"))
         val html = File(assets, "mockup/vitrine-video-maquette.html").readText()
         assertFalse("T1 must not inherit the cross-sector product placeholder", html.contains("pfr:t2?\"Sac à main pour femme\":\"Riz au poulet, tresses, robe, sac...\""))
+        assertTrue("WhatsApp must accept free text rather than use a telephone input mode", html.contains("id=\"q-whatsapp\" data-i18n-placeholder=\"ph.q6\" required type=\"text\""))
+        assertFalse("merchant form must not set a custom length limit", html.contains("input.maxLength="))
+        assertFalse("merchant form must not set a custom format regex", html.contains("input.pattern="))
     }
 
     @Test

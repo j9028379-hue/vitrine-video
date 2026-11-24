@@ -167,32 +167,16 @@ object TemplateJobAssembler {
         val orderedKeys = (pkg.formSpec.questions.map { it.key } + allowedKeys).distinct()
         for (key in orderedKeys) {
             val rawVal = rawResponses[key]
-            val stripPhoneSpaces = key == "whatsapp" && schema?.responsePayloadKey == "merchant_payload"
-            val value = if (stripPhoneSpaces) rawVal?.replace(Regex("\\s+"), "") else rawVal
-            if (key in requiredKeys) {
-                if (value == null || value.trim().isEmpty()) {
-                    throw TemplateFormValidationException(
-                        "MISSING_REQUIRED_RESPONSE",
-                        "Réponse obligatoire absente ou vide pour le champ '$key'"
-                    )
-                }
-                val clean = value.trim()
-                val minLen = schema?.responseMinLengths?.get(key) ?: 1
-                if (clean.length < minLen) {
-                    throw TemplateFormValidationException("RESPONSE_TOO_SHORT", "Réponse '$key' trop courte (${clean.length} < $minLen)")
-                }
-                val maxLen = schema?.responseMaxLengths?.get(key)
-                if (maxLen != null && clean.length > maxLen) {
-                    throw TemplateFormValidationException("RESPONSE_TOO_LONG", "Réponse '$key' trop longue (${clean.length} > $maxLen)")
-                }
-                val pattern = schema?.responsePatterns?.get(key)
-                if (pattern != null && !pattern.containsMatchIn(clean)) {
-                    throw TemplateFormValidationException("RESPONSE_PATTERN_INVALID", "Format invalide pour le champ '$key'")
-                }
-                normalized[key] = if (stripPhoneSpaces) clean else rawVal.orEmpty()
-            } else {
-                normalized[key] = rawVal ?: ""
+            if (key in requiredKeys && (rawVal == null || rawVal.isBlank())) {
+                throw TemplateFormValidationException(
+                    "MISSING_REQUIRED_RESPONSE",
+                    "Réponse obligatoire absente ou vide pour le champ '$key'"
+                )
             }
+            // Responses are merchant-authored text. Schema patterns/lengths are legacy
+            // annotations and must never rewrite or reject content; schema still controls
+            // payload shape, allowed keys, and which answers are required.
+            normalized[key] = rawVal.orEmpty()
         }
         return normalized
     }

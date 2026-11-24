@@ -49,33 +49,40 @@ class RealSessionViolationException(
  */
 object MockupResponseMapper {
 
-    val EXPECTED_T3_KEYS = listOf("nom", "produit", "prix", "demonstration", "quartier", "whatsapp")
-    val EXPECTED_T1_KEYS = listOf("nom", "produit", "prix", "accroche", "quartier", "whatsapp")
-
     fun parseFromWebJson(rawJson: String, templateId: String = "COMMERCE-T3"): Map<String, String> {
         val obj = JSONObject(rawJson)
         val raw = linkedMapOf<String, String>()
         val keys = obj.keys()
         while (keys.hasNext()) {
             val k = keys.next()
-            raw[k] = obj.optString(k, "")
+            val value = obj.opt(k)
+            if (value !is String) {
+                throw TemplateFormValidationException(
+                    "RESPONSE_VALUE_NOT_TEXT",
+                    "La réponse '$k' doit être une chaîne de texte."
+                )
+            }
+            raw[k] = value
         }
         return normalizeRawResponses(raw, templateId)
     }
 
+    /**
+     * Pass every form key through unchanged for schema-driven/future templates. The only
+     * compatibility bridges are the existing Commerce T1/T3 label alias for the shared UI field.
+     */
     fun normalizeRawResponses(raw: Map<String, String>, templateId: String = "COMMERCE-T3"): Map<String, String> {
-        val isT1 = templateId == "COMMERCE-T1"
-        val expected = if (isT1) EXPECTED_T1_KEYS else EXPECTED_T3_KEYS
-        val out = linkedMapOf<String, String>()
-        for (key in expected) {
-            val value = when (key) {
-                "accroche" -> raw["accroche"] ?: raw["demonstration"] ?: ""
-                "demonstration" -> raw["demonstration"] ?: raw["accroche"] ?: ""
-                else -> raw[key] ?: ""
+        val out = LinkedHashMap(raw)
+        when (templateId) {
+            "COMMERCE-T1" -> {
+                val legacyBridgeValue = out.remove("demonstration")
+                if (!out.containsKey("accroche") && legacyBridgeValue != null) out["accroche"] = legacyBridgeValue
             }
-            out[key] = value.trim()
+            "COMMERCE-T3" -> {
+                val legacyUiValue = out.remove("accroche")
+                if (!out.containsKey("demonstration") && legacyUiValue != null) out["demonstration"] = legacyUiValue
+            }
         }
-        for ((k, v) in raw) if (k !in out && !(isT1 && k == "demonstration") && !(!isT1 && k == "accroche")) out[k] = v.trim()
         return out
     }
 

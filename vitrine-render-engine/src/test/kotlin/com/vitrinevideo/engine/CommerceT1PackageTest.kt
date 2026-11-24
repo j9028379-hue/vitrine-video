@@ -6,6 +6,7 @@ import com.vitrinevideo.engine.interpreter.TextEntryAnim
 import com.vitrinevideo.engine.interpreter.TransitionType
 import com.vitrinevideo.engine.pkg.TemplatePackageLoader
 import com.vitrinevideo.engine.video.TransitionGeometry
+import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
@@ -18,7 +19,7 @@ class CommerceT1PackageTest {
     @get:Rule val tmp = TemporaryFolder()
 
     @Test
-    fun importsT1PackageWithContractRelativeAssetsAndConstraints() {
+    fun importsT1PackageWithFreeTextContractAndContractRelativeAssets() {
         val zip = File("/home/user/vitrine-render-engine/vitrine-video-app/src/main/assets/packages/COMMERCE-T1-2.0.0.zip")
         assertTrue("Runtime T1 ZIP missing", zip.isFile)
         val pkg = TemplatePackageLoader.importZip(zip, tmp.newFolder("registry"))
@@ -50,9 +51,26 @@ class CommerceT1PackageTest {
         assertNotNull(pkg.audioProfile)
         assertEquals(4, pkg.audioProfile!!.tracks.size)
         assertTrue(pkg.resolvePackageRelative(pkg.renderPlan.textOverlay!!.fontRelativePath).isFile)
-        assertEquals(55, pkg.jobSchemaConstraints!!.responseMaxLengths["accroche"])
+        assertTrue(pkg.jobSchemaConstraints!!.responseMaxLengths.isEmpty())
+        assertTrue(pkg.jobSchemaConstraints!!.responseMinLengths.isEmpty())
+        assertTrue(pkg.jobSchemaConstraints!!.responsePatterns.isEmpty())
         assertEquals("merchant_payload", pkg.jobSchemaConstraints!!.responsePayloadKey)
         assertTrue(pkg.jobSchemaConstraints!!.capturesAsObject)
+        val requiredTextKeys = setOf("nom", "produit", "prix", "accroche", "quartier", "whatsapp")
+        for (schemaFile in listOf(pkg.jobSchemaFile!!, pkg.resolvePackageRelative("templates/commerce/commerce-t1/form/schema-v2.json"))) {
+            val root = JSONObject(schemaFile.readText())
+            val payload = root.optJSONObject("properties")?.optJSONObject("merchant_payload") ?: root
+            val required = payload.getJSONArray("required").let { array -> (0 until array.length()).map { array.getString(it) }.toSet() }
+            assertEquals(requiredTextKeys, required)
+            val properties = payload.getJSONObject("properties")
+            for (key in requiredTextKeys) {
+                val field = properties.getJSONObject(key)
+                assertEquals("string", field.getString("type"))
+                assertTrue("content schema for $key must not impose length or a pattern", !field.has("minLength") && !field.has("maxLength") && !field.has("pattern"))
+            }
+        }
+        val candidateContract = JSONObject(pkg.resolvePackageRelative("templates/commerce/commerce-t1/montage/contrat-candidat.json").readText())
+        assertTrue(candidateContract.getJSONObject("formulaire").getString("whatsapp").contains("exactement le texte saisi"))
 
         val ex = runCatching {
             TemplateJobAssembler.validateResponses(pkg, mapOf(
