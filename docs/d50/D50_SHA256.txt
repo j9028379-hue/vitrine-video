@@ -1,0 +1,5 @@
+f6638e82fe20754ae9abbadcee4b1cb57ed9a2e560ad8ef37a2bc8ad565c2cb8  VitrineVideo-D50.apk
+Size: 39,499,037 bytes
+Artifact: Android debug APK (applicationId com.vitrinevideo.app, versionName 1.0.0)
+Built from branch d50-t1-json-data-binding-fix, commit 911ca02.
+Validation: aapt package metadata checked; APK ZIP integrity passed. Not a production-signed release; no device installation or Media3 MP4 render verified.
