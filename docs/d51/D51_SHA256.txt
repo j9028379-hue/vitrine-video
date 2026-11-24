@@ -1,0 +1,6 @@
+163b50f941034ccf367a9b125bc981eb601cdd0abae8fc920dc069e29b1c4632  VitrineVideo-D51.apk
+Size: 39,523,950 bytes
+Drive-transfer cross-check: MD5 9b311c0b16fe5b2ac810ec3324989e84
+Application: com.vitrinevideo.app 1.0.0; Android debug APK
+Built from branch d51-t1-response-contract-hardening, source commit e98753f.
+Checks performed: aapt package metadata and APK ZIP integrity. No device install, physical CameraX capture, Media3 MP4 render, or ffprobe of a rendered file was performed.
