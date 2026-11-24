@@ -69,6 +69,13 @@ object WaveCurveEvaluator {
                 min(1f, (frame - window.startFrame).toFloat() / d)
             }
             TextEntryAnim.VAGUE -> 1f
+            TextEntryAnim.PLUME, TextEntryAnim.VAGUE_REVEAL -> 1f
+            TextEntryAnim.LEVER -> {
+                val d = max(1, window.enterFrames ?: 1).toFloat()
+                val x = min(1f, (frame - window.startFrame).toFloat() / d)
+                val eased = 1f - (1f - x) * (1f - x) * (1f - x)
+                eased * x
+            }
         }
         if (window.exitFadeFrames > 0) {
             val rem = (window.endFrameExcluded - frame).toFloat()

@@ -85,6 +85,12 @@ class SessionLifecycleManager(
 
     fun getConsumedCaptureHashes(): Set<String> = consumedCaptureHashes.toSet()
 
+    /** Starts an isolated blank session when the merchant changes between supported Commerce templates. */
+    fun selectTemplate(newTemplateId: String) {
+        require(newTemplateId == "COMMERCE-T1" || newTemplateId == "COMMERCE-T3") { "Gabarit Commerce non pris en charge: $newTemplateId" }
+        if (templateId != newTemplateId) startNewBlankSession(newTemplateId)
+    }
+
     fun currentSessionCaptureDir(): File =
         File(File(sessionsRootDir, creationId), "captures").apply { mkdirs() }
 

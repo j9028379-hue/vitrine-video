@@ -82,13 +82,34 @@ object TemplatePackageLoader {
         if (!partitionFile.exists()) {
             throw TemplatePackageException("PARTITION_MISSING", "Contrat introuvable: ${catalogueEntry.contratRelPath}")
         }
+        val contractJson = try { JSONObject(partitionFile.readText()) } catch (t: Throwable) {
+            throw TemplatePackageException("PARTITION_INVALID", "Contrat JSON illisible: ${t.message}")
+        }
+        val contractRoot = partitionFile.parentFile?.parentFile ?: rootCanonical
+        fun contractRelativePath(path: String): String {
+            val target = resolveSafe(contractRoot, path)
+            return rootCanonical.toPath().relativize(target.toPath()).toString().replace(File.separatorChar, '/')
+        }
+        val formRelPath = contractJson.optJSONObject("formulaire")?.optString("questions", "")
+            ?.takeIf { it.isNotBlank() }?.let(::contractRelativePath) ?: catalogueEntry.formRelPath
+        val formSchemaRelPath = contractJson.optJSONObject("formulaire")?.optString("schema", "")
+            ?.takeIf { it.isNotBlank() }?.let(::contractRelativePath)
+        val guideRelPath = contractJson.optJSONObject("guide")?.optString("path", "")
+            ?.takeIf { it.isNotBlank() }?.let(::contractRelativePath) ?: catalogueEntry.captureGuideRelPath
+        val jobSchemaRelPath = if (resolveSafe(rootCanonical, catalogueEntry.jobSchemaRelPath).exists()) catalogueEntry.jobSchemaRelPath
+            else if (File(contractRoot, "schemas/render-job.json").exists()) contractRelativePath("schemas/render-job.json") else catalogueEntry.jobSchemaRelPath
+        val templateSchemaRelPath = if (resolveSafe(rootCanonical, catalogueEntry.templateSchemaRelPath).exists()) catalogueEntry.templateSchemaRelPath
+            else if (File(contractRoot, "schemas/template.json").exists()) contractRelativePath("schemas/template.json") else catalogueEntry.templateSchemaRelPath
         val renderPlan = try {
             UniversalJsonInterpreter.parsePartition(partitionFile)
         } catch (t: Throwable) {
             throw TemplatePackageException("PARTITION_INVALID", "Partition invalide: ${t.message}")
         }
 
-        val audioProfileFile = resolveSafe(rootCanonical, catalogueEntry.audioRelPath).takeIf { it.exists() }
+        val contractAudioFile = File(contractRoot, "audio/profil.json")
+        val audioProfilePath = if (resolveSafe(rootCanonical, catalogueEntry.audioRelPath).exists()) catalogueEntry.audioRelPath
+            else if (contractAudioFile.exists()) contractRelativePath("audio/profil.json") else catalogueEntry.audioRelPath
+        val audioProfileFile = resolveSafe(rootCanonical, audioProfilePath).takeIf { it.exists() }
         if (renderPlan.audioProfileId.isNotEmpty() && audioProfileFile == null) {
             throw TemplatePackageException("AUDIO_PROFILE_MISSING", "Profil audio requis absent: ${catalogueEntry.audioRelPath}")
         }
@@ -100,19 +121,35 @@ object TemplatePackageLoader {
             }
         }
 
-        val formFile = resolveSafe(rootCanonical, catalogueEntry.formRelPath)
+        val formFile = resolveSafe(rootCanonical, formRelPath)
         if (!formFile.exists()) {
-            throw TemplatePackageException("FORM_MISSING", "Formulaire absent: ${catalogueEntry.formRelPath}")
+            throw TemplatePackageException("FORM_MISSING", "Formulaire absent: $formRelPath")
         }
         val formSpec = try {
             TemplateFormParser.parseQuestions(formFile.readText())
         } catch (t: Throwable) {
             throw TemplatePackageException("FORM_INVALID", "Formulaire invalide: ${t.message}")
         }
+        val formSchemaFile = formSchemaRelPath?.let { resolveSafe(rootCanonical, it) }
+        if (formSchemaRelPath != null && (formSchemaFile == null || !formSchemaFile.exists())) {
+            throw TemplatePackageException("FORM_SCHEMA_MISSING", "Schéma du formulaire absent: $formSchemaRelPath")
+        }
+        formSchemaFile?.let { schemaFile ->
+            val schema = runCatching { JSONObject(schemaFile.readText()) }.getOrElse {
+                throw TemplatePackageException("FORM_SCHEMA_INVALID", "Schéma formulaire JSON invalide: ${it.message}")
+            }
+            val required = schema.optJSONArray("required")
+            if (required != null) {
+                val requiredKeys = (0 until required.length()).map { required.getString(it) }.toSet()
+                if (requiredKeys != formSpec.requiredKeys()) {
+                    throw TemplatePackageException("FORM_SCHEMA_MISMATCH", "Champs requis du schéma ($requiredKeys) != formulaire (${formSpec.requiredKeys()})")
+                }
+            }
+        }
 
-        val captureGuideFile = resolveSafe(rootCanonical, catalogueEntry.captureGuideRelPath)
+        val captureGuideFile = resolveSafe(rootCanonical, guideRelPath)
         if (!captureGuideFile.exists()) {
-            throw TemplatePackageException("CAPTURE_GUIDE_MISSING", "Guide de capture absent: ${catalogueEntry.captureGuideRelPath}")
+            throw TemplatePackageException("CAPTURE_GUIDE_MISSING", "Guide de capture absent: $guideRelPath")
         }
         val captureGuides = GuidedCaptureGuideParser.parseFromEcransJson(captureGuideFile.readText())
         if (captureGuides.size != renderPlan.scenes.size) {
@@ -131,7 +168,8 @@ object TemplatePackageLoader {
                 )
             }
             val expectedSec = (sc.endFrameExcluded - sc.startFrame).toDouble() / renderPlan.fps.toDouble()
-            if (kotlin.math.abs(guide.durationSec - expectedSec) > 0.05) {
+            val keptDuration = guide.keptDurationSec.takeIf { it > 0 }?.toDouble() ?: guide.durationSec.toDouble()
+            if (kotlin.math.abs(keptDuration - expectedSec) > 0.05) {
                 throw TemplatePackageException(
                     "CAPTURE_GUIDE_DURATION_MISMATCH",
                     "Durée guide ${guide.sceneId} (${guide.durationSec}s) != partition (${expectedSec}s)"
@@ -139,12 +177,12 @@ object TemplatePackageLoader {
             }
         }
 
-        val jobSchemaFile = resolveSafe(rootCanonical, catalogueEntry.jobSchemaRelPath).takeIf { it.exists() }
+        val jobSchemaFile = resolveSafe(rootCanonical, jobSchemaRelPath).takeIf { it.exists() }
         val jobSchemaConstraints = jobSchemaFile?.let {
             TemplateFormParser.parseRenderJobSchema(it.readText())
         }
 
-        val templateSchemaFile = resolveSafe(rootCanonical, catalogueEntry.templateSchemaRelPath).takeIf { it.exists() }
+        val templateSchemaFile = resolveSafe(rootCanonical, templateSchemaRelPath).takeIf { it.exists() }
         val templateSchemaJson = templateSchemaFile?.let { JSONObject(it.readText()) }
         if (templateSchemaJson != null) {
             validatePartitionAgainstTemplateSchema(JSONObject(partitionFile.readText()), templateSchemaJson)
@@ -176,11 +214,16 @@ object TemplatePackageLoader {
             if (expectedFontSha.isNotEmpty()) {
                 val actualFontSha = PreFlightValidator.sha256File(fontFile)
                 if (!actualFontSha.equals(expectedFontSha, ignoreCase = true)) {
-                    throw TemplatePackageException(
-                        "FONT_SHA_MISMATCH",
-                        "Empreinte SHA-256 police invalide ($fontRel): attendu=$expectedFontSha, réel=$actualFontSha"
-                    )
+                    throw TemplatePackageException("FONT_SHA_MISMATCH", "Empreinte SHA-256 police invalide ($fontRel)")
                 }
+            }
+        }
+        renderPlan.textOverlay?.extraFontPaths?.forEach { (family, rel) ->
+            val fontFile = resolveSafe(rootCanonical, rel)
+            if (!fontFile.exists() || fontFile.length() == 0L) throw TemplatePackageException("FONT_MISSING", "Police $family absente: $rel")
+            val expected = renderPlan.textOverlay.extraFontSha256s[family].orEmpty()
+            if (expected.isNotBlank() && !PreFlightValidator.sha256File(fontFile).equals(expected, ignoreCase = true)) {
+                throw TemplatePackageException("FONT_SHA_MISMATCH", "Empreinte SHA-256 invalide pour la police $family")
             }
         }
         if (audioProfile != null) {

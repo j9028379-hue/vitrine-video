@@ -137,7 +137,7 @@
         card.setAttribute("data-soon-label", label);
       }
     });
-    ["t1", "t2", "t4"].forEach((f) => {
+    ["t2", "t4"].forEach((f) => {
       const card = document.querySelector(`.format-card[data-format="${f}"]`);
       if (card) {
         card.setAttribute("data-coming-soon", "true");
@@ -191,7 +191,7 @@
     setVal("q-nom", resp.nom || "");
     setVal("q-produit", resp.produit || "");
     setVal("q-prix", resp.prix || "");
-    setVal("q-accroche", resp.demonstration || "");
+    setVal("q-accroche", resp.accroche || resp.demonstration || "");
     setVal("q-quartier", resp.quartier || "");
     setVal("q-whatsapp", resp.whatsapp || "");
   }
@@ -306,20 +306,20 @@
           const card = e.target.closest(".format-card");
           if (!card) return;
           const fmt = card.dataset.format || card.id.replace(/^format-/, "");
-          if (fmt !== "t3") {
+          if (fmt !== "t1" && fmt !== "t3") {
             e.preventDefault();
             e.stopImmediatePropagation();
             const fr = getCurrentLang() === "fr";
             showToast(
               "format-toast",
               fr
-                ? "Ce gabarit sera ajouté prochainement. Choisis « Démonstration » (COMMERCE-T3)."
-                : "This template will be added soon. Choose 'Demonstration' (COMMERCE-T3)."
+                ? "Ce gabarit sera ajouté prochainement. Choisis « Présentation de mon commerce » ou « Démonstration »."
+                : "This template will be added soon. Choose 'Business presentation' or 'Demonstration'."
             );
             return;
           }
           if (hasBridge()) {
-            window.VitrineAndroid.onTemplateSelected("COMMERCE-T3");
+            window.VitrineAndroid.onTemplateSelected(fmt === "t1" ? "COMMERCE-T1" : "COMMERCE-T3");
             try {
               const saved = JSON.parse(window.VitrineAndroid.getSavedResponsesJson() || "{}");
               if (Object.keys(saved).length > 0) {
@@ -343,7 +343,8 @@
           const inputs = Array.from(document.querySelectorAll("#s-questions input"));
           const anyMissing = inputs.some((i) => {
             const field = i.closest(".field");
-            return field && !field.hidden && i.required && !i.value.trim();
+            if (field && !field.hidden && i.id === "q-whatsapp" && document.querySelector("#format-t1") && (window.__vitrineFlow && window.__vitrineFlow.getState().format === "t1")) i.value = i.value.replace(/\s+/g, "");
+            return field && !field.hidden && ((i.required && !i.value.trim()) || !i.checkValidity());
           });
           if (!anyMissing && hasBridge()) {
             window.VitrineAndroid.saveResponses(JSON.stringify(collectFormResponses()));

@@ -33,7 +33,8 @@ class VitrineBitmapTextOverlay(
     private val plan: RenderPlan,
     private val spec: TextOverlaySpec,
     private val responses: Map<String, String>,
-    fontFile: File?
+    fontFile: File?,
+    private val fontFiles: Map<String, File> = emptyMap()
 ) : BitmapOverlay() {
 
     private data class GlyphCacheKey(val ch: Char, val fontSizeTenths: Int)
@@ -50,6 +51,9 @@ class VitrineBitmapTextOverlay(
     } else {
         Typeface.create(spec.fontFamily, if (spec.fontWeight >= 600) Typeface.BOLD else Typeface.NORMAL)
     }
+    private val typefacesByPath: Map<String, Typeface> = fontFiles.mapNotNull { (path, file) ->
+        if (file.exists() && file.length() > 0L) runCatching { path to Typeface.createFromFile(file) }.getOrNull() else null
+    }.toMap()
 
     private val fillPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         this.typeface = this@VitrineBitmapTextOverlay.typeface
@@ -84,7 +88,15 @@ class VitrineBitmapTextOverlay(
 
     private fun layoutAllWindows(resp: Map<String, String>): List<ResolvedTextWindow> =
         spec.windows.mapNotNull { w ->
-            TextFieldResolver.layoutWindow(w, spec, resp) { txt, sz ->
+            val primary = w.fontRelativePath?.let { typefacesByPath[it] } ?: typeface
+            val raw = TextFieldResolver.resolveFieldText(w, spec, resp)
+            val fallback = w.fallbackFontRelativePath?.let { typefacesByPath[it] }
+            fillPaint.typeface = if (fallback != null && raw.isNotEmpty()) {
+                primary
+                if (fillPaint.hasGlyph(raw)) primary else fallback
+            } else primary
+            val resolvedSpec = if (fallback != null && fillPaint.typeface == fallback) w.copy(fontRelativePath = w.fallbackFontRelativePath) else w
+            TextFieldResolver.layoutWindow(resolvedSpec, spec, resp) { txt, sz ->
                 fillPaint.textSize = sz
                 fillPaint.measureText(txt)
             }
@@ -201,10 +213,28 @@ class VitrineBitmapTextOverlay(
         if (alpha <= 0.001f) return
 
         val sz = rw.fontSizePx
+        val window = rw.spec
+        val selectedTypeface = window.fontRelativePath?.let { typefacesByPath[it] } ?: typeface
+        fillPaint.typeface = selectedTypeface
+        strokePaint.typeface = selectedTypeface
         fillPaint.textSize = sz
         strokePaint.textSize = sz
-        val baseFillAlpha = Color.alpha(parseColor(spec.colorHex, Color.WHITE))
-        val baseStrokeAlpha = Color.alpha(parseColor(spec.relief.strokeColorRgba, Color.BLACK))
+        val ink = parseColor(window.inkColorHex ?: spec.colorHex, Color.WHITE)
+        val relief = parseColor(window.reliefColorHex ?: spec.relief.strokeColorRgba, Color.BLACK)
+        fillPaint.color = ink
+        strokePaint.color = relief
+        fillPaint.setShadowLayer(
+            spec.relief.shadowBlurPx.toFloat(), spec.relief.shadowDxPx.toFloat(), spec.relief.shadowDyPx.toFloat(),
+            parseColor(window.reliefColorHex ?: spec.relief.shadowColorRgba, Color.BLACK)
+        )
+        val baseFillAlpha = Color.alpha(ink)
+        val baseStrokeAlpha = Color.alpha(relief)
+        val elapsed = (frame - window.startFrame).coerceAtLeast(0)
+        val enterDuration = max(1, window.enterFrames ?: 1)
+        val rawEntry = (elapsed.toFloat() / enterDuration).coerceIn(0f, 1f)
+        val entryProgress = 1f - (1f - rawEntry) * (1f - rawEntry) * (1f - rawEntry)
+        val entryShiftX = if (window.entryAnim == TextEntryAnim.VAGUE_REVEAL) -14f * (1f - entryProgress) else 0f
+        val entryShiftY = if (window.entryAnim == TextEntryAnim.LEVER) 28f * (1f - entryProgress) else 0f
 
         val lineStep = if (rw.spec.overrideStyle != null) {
             rw.spec.overrideStyle.lineSpacingPx.toFloat()
@@ -215,10 +245,23 @@ class VitrineBitmapTextOverlay(
         var charShiftCount = 0
         val centerOffsetLines = max(0, rw.lines.size - 2) / 2.0f
         rw.lines.forEachIndexed { li, line ->
-            val y = (rw.baseY - bandTopPx.toFloat()) + (li - centerOffsetLines) * lineStep
+            val y = (rw.baseY - bandTopPx.toFloat()) + (li - centerOffsetLines) * lineStep + entryShiftY
             val lineW = fillPaint.measureText(line)
-            val startX = (bandBitmap.width - lineW) * 0.5f
-
+            val centerX = rw.spec.centerX?.toFloat() ?: bandBitmap.width * 0.5f
+            val startX = centerX - lineW * 0.5f + entryShiftX
+            val lineSave = bandCanvas.save()
+            if ((window.entryAnim == TextEntryAnim.PLUME || window.entryAnim == TextEntryAnim.VAGUE_REVEAL) && entryProgress < 1f) {
+                val revealX = startX - entryShiftX + lineW * entryProgress
+                val slant = if (window.entryAnim == TextEntryAnim.PLUME) 23f else -42f
+                val path = Path().apply {
+                    moveTo(startX - 40f, y - sz * 1.5f)
+                    lineTo(revealX + slant, y - sz * 1.5f)
+                    lineTo(revealX - slant, y + sz * 0.6f)
+                    lineTo(startX - 40f, y + sz * 0.6f)
+                    close()
+                }
+                bandCanvas.clipPath(path)
+            }
             if (rw.spec.entryAnim == TextEntryAnim.VAGUE && spec.wave != null) {
                 blitPaint.alpha = (255f * alpha).roundToInt().coerceIn(0, 255)
                 var xCursor = startX
@@ -260,6 +303,7 @@ class VitrineBitmapTextOverlay(
                     bandCanvas.drawLine(startX - 4f, strikeY, startX + lineW + 4f, strikeY, fillPaint)
                 }
             }
+            bandCanvas.restoreToCount(lineSave)
         }
     }
 
@@ -324,7 +368,8 @@ class VitrineBitmapTextOverlay(
             resourcesDir: File
         ): OverlayEffect {
             val fontFile = if (spec.fontRelativePath.isNotEmpty()) File(resourcesDir, spec.fontRelativePath) else null
-            return OverlayEffect(listOf(VitrineBitmapTextOverlay(plan, spec, responses, fontFile)))
+            val fontFiles = spec.extraFontPaths.values.distinct().associateWith { File(resourcesDir, it) }
+            return OverlayEffect(listOf(VitrineBitmapTextOverlay(plan, spec, responses, fontFile, fontFiles)))
         }
 
         fun createDynamicOverlay(
@@ -334,7 +379,8 @@ class VitrineBitmapTextOverlay(
             resourcesDir: File
         ): Pair<VitrineBitmapTextOverlay, OverlayEffect> {
             val fontFile = if (spec.fontRelativePath.isNotEmpty()) File(resourcesDir, spec.fontRelativePath) else null
-            val overlay = VitrineBitmapTextOverlay(plan, spec, responses, fontFile)
+            val fontFiles = spec.extraFontPaths.values.distinct().associateWith { File(resourcesDir, it) }
+            val overlay = VitrineBitmapTextOverlay(plan, spec, responses, fontFile, fontFiles)
             return overlay to OverlayEffect(listOf(overlay))
         }
 

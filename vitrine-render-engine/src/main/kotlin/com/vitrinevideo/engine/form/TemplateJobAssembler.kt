@@ -58,20 +58,29 @@ object TemplateJobAssembler {
         val jobJson = JSONObject().apply {
             put("template_id", pkg.templateId)
             put("template_version", pkg.version)
-            put("reponses", JSONObject().apply {
-                for ((k, v) in validatedResponses) {
-                    put(k, v)
-                }
+            val payloadKey = pkg.jobSchemaConstraints?.responsePayloadKey ?: "reponses"
+            put(payloadKey, JSONObject().apply {
+                for ((k, v) in validatedResponses) put(k, v)
             })
-            put("captures", JSONArray().apply {
-                for (c in validatedCaptures) {
-                    put(JSONObject().apply {
-                        put("scene", c.sceneId)
-                        put("valide", c.validatedByMerchant)
-                        put("sha256", c.sha256)
+            val schema = pkg.jobSchemaConstraints
+            if (schema?.capturesAsObject == true) {
+                put("captures", JSONObject().apply {
+                    for (c in validatedCaptures) {
+                        put(c.sceneId, JSONObject().apply {
+                            put("uri", schema.captureUris[c.sceneId] ?: "${c.sceneId}.mp4")
+                            put("validation", "C")
+                            put("prise", 1)
+                            put("sha256", c.sha256)
+                        })
+                    }
+                })
+            } else {
+                put("captures", JSONArray().apply {
+                    for (c in validatedCaptures) put(JSONObject().apply {
+                        put("scene", c.sceneId); put("valide", c.validatedByMerchant); put("sha256", c.sha256)
                     })
-                }
-            })
+                })
+            }
             if (effectiveScreens.isNotEmpty()) {
                 put("ecrans", JSONArray(effectiveScreens))
             }
@@ -158,24 +167,30 @@ object TemplateJobAssembler {
         val orderedKeys = (pkg.formSpec.questions.map { it.key } + allowedKeys).distinct()
         for (key in orderedKeys) {
             val rawVal = rawResponses[key]
+            val stripPhoneSpaces = key == "whatsapp" && schema?.responsePayloadKey == "merchant_payload"
+            val value = if (stripPhoneSpaces) rawVal?.replace(Regex("\\s+"), "") else rawVal
             if (key in requiredKeys) {
-                if (rawVal == null || rawVal.trim().isEmpty()) {
+                if (value == null || value.trim().isEmpty()) {
                     throw TemplateFormValidationException(
                         "MISSING_REQUIRED_RESPONSE",
                         "Réponse obligatoire absente ou vide pour le champ '$key'"
                     )
                 }
+                val clean = value.trim()
                 val minLen = schema?.responseMinLengths?.get(key) ?: 1
-                if (rawVal.trim().length < minLen) {
-                    throw TemplateFormValidationException(
-                        "RESPONSE_TOO_SHORT",
-                        "Réponse '$key' trop courte (${rawVal.trim().length} < $minLen)"
-                    )
+                if (clean.length < minLen) {
+                    throw TemplateFormValidationException("RESPONSE_TOO_SHORT", "Réponse '$key' trop courte (${clean.length} < $minLen)")
                 }
-                // Preserve merchant wording intact (only normalize outer whitespace if needed, never invent text)
-                normalized[key] = rawVal
+                val maxLen = schema?.responseMaxLengths?.get(key)
+                if (maxLen != null && clean.length > maxLen) {
+                    throw TemplateFormValidationException("RESPONSE_TOO_LONG", "Réponse '$key' trop longue (${clean.length} > $maxLen)")
+                }
+                val pattern = schema?.responsePatterns?.get(key)
+                if (pattern != null && !pattern.containsMatchIn(clean)) {
+                    throw TemplateFormValidationException("RESPONSE_PATTERN_INVALID", "Format invalide pour le champ '$key'")
+                }
+                normalized[key] = if (stripPhoneSpaces) clean else rawVal.orEmpty()
             } else {
-                // Optional field (e.g. 'prix'): preserve empty string "" cleanly when omitted
                 normalized[key] = rawVal ?: ""
             }
         }
@@ -264,7 +279,9 @@ object TemplateJobAssembler {
                 )
             }
 
-            val requiredUs = ((sc.endFrameExcluded - sc.startFrame).toLong() * 1_000_000L) / pkg.renderPlan.fps
+            val requiredSourceFrames = sc.shots.maxOfOrNull { it.sourceOutFrame }
+                ?: (sc.endFrameExcluded - sc.startFrame)
+            val requiredUs = (requiredSourceFrames.toLong() * 1_000_000L) / pkg.renderPlan.fps
             val allowFreeze = sc.shots.any { it.freezeTailFrames > 0 }
             if (!allowFreeze && cap.durationUs > 0L && cap.durationUs + 150_000L < requiredUs) {
                 throw TemplateFormValidationException(

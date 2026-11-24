@@ -118,15 +118,23 @@ object PreFlightValidator {
         val fontRel = plan.textOverlay?.fontRelativePath.orEmpty()
         if (fontRel.isNotEmpty()) {
             val fontFile = File(request.resourcesDir, fontRel)
-            if (!fontFile.exists()) {
-                throw PreFlightException("FONT_MISSING", "Police requise introuvable: ${fontFile.path}")
-            }
+            if (!fontFile.exists()) throw PreFlightException("FONT_MISSING", "Police requise introuvable: ${fontFile.path}")
             val expectedFontSha = plan.textOverlay?.fontSha256.orEmpty()
-            if (expectedFontSha.isNotEmpty()) {
-                val actualFontSha = sha256File(fontFile)
-                if (!actualFontSha.equals(expectedFontSha, ignoreCase = true)) {
-                    throw PreFlightException("FONT_SHA_MISMATCH", "Empreinte police invalide pour $fontRel")
-                }
+            if (expectedFontSha.isNotEmpty() && !sha256File(fontFile).equals(expectedFontSha, ignoreCase = true)) {
+                throw PreFlightException("FONT_SHA_MISMATCH", "Empreinte police invalide pour $fontRel")
+            }
+        }
+        plan.textOverlay?.let { text ->
+            val expectedByPath = linkedMapOf<String, String>()
+            text.extraFontPaths.forEach { (family, rel) -> expectedByPath[rel] = text.extraFontSha256s[family].orEmpty() }
+            text.windows.forEach { w ->
+                w.fontRelativePath?.let { expectedByPath[it] = w.fontSha256.orEmpty() }
+                w.fallbackFontRelativePath?.let { rel -> expectedByPath.putIfAbsent(rel, text.extraFontSha256s["fallback"].orEmpty()) }
+            }
+            expectedByPath.forEach { (rel, expected) ->
+                val file = File(request.resourcesDir, rel)
+                if (!file.exists() || file.length() == 0L) throw PreFlightException("FONT_MISSING", "Police requise introuvable: ${file.path}")
+                if (expected.isNotBlank() && !sha256File(file).equals(expected, ignoreCase = true)) throw PreFlightException("FONT_SHA_MISMATCH", "Empreinte police invalide pour $rel")
             }
         }
 
@@ -228,7 +236,9 @@ object PreFlightValidator {
         }
 
         val sceneSpec = plan.scenes.first { it.id == cap.sceneId }
-        val requiredDurationUs = ((sceneSpec.endFrameExcluded - sceneSpec.startFrame).toLong() * 1_000_000L) / plan.fps
+        val requiredSourceFrames = sceneSpec.shots.maxOfOrNull { it.sourceOutFrame }
+            ?: (sceneSpec.endFrameExcluded - sceneSpec.startFrame)
+        val requiredDurationUs = (requiredSourceFrames.toLong() * 1_000_000L) / plan.fps
 
         val probed = probe.probe(cap.file)
             ?: throw PreFlightException("INVALID_VIDEO_STREAM", "Fichier vidéo illisible ou conteneur MP4 corrompu pour ${cap.sceneId}")

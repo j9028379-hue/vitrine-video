@@ -14,6 +14,7 @@ object UniversalJsonInterpreter {
     fun parsePartitionJson(rawJson: String): RenderPlan {
         val json = JSONObject(rawJson)
         val plan = when {
+            ContratCandidatParser.canParse(json) -> ContratCandidatParser.parse(json)
             PartitionV1Parser.canParse(json) -> PartitionV1Parser.parse(json)
             EngineeringSpecParser.canParse(json) -> EngineeringSpecParser.parse(json)
             else -> throw IllegalArgumentException("Format JSON de partition non reconnu")

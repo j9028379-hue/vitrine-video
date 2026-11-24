@@ -131,12 +131,33 @@ data class SceneCaptureGuideSpec(
     val thingsToAvoid: List<String>,
     val guideImageRelPath: String? = null,
     val guideAudioRelPath: String? = null,
-    val microphoneActive: Boolean = true
+    val microphoneActive: Boolean = true,
+    val keptDurationSec: Int = 0
 )
 
 object GuidedCaptureGuideParser {
     fun parseFromEcransJson(rawJson: String): List<SceneCaptureGuideSpec> {
         val root = JSONObject(rawJson)
+        root.optJSONArray("scenes")?.let { scenes ->
+            return (0 until scenes.length()).mapIndexed { index, i ->
+                val scene = scenes.getJSONObject(i)
+                val number = scene.optInt("id", index + 1)
+                val needed = scene.optJSONArray("needed")?.let { a -> (0 until a.length()).map { a.getString(it) } }.orEmpty()
+                val avoid = scene.optJSONArray("avoid")?.let { a -> (0 until a.length()).map { a.getString(it) } }.orEmpty()
+                val capture = scene.optInt("capture", scene.optInt("captureDurationSec", scene.optInt("capture_s", 0)))
+                val kept = scene.optInt("kept", scene.optInt("keptDurationSec", scene.optInt("kept_s", 0)))
+                SceneCaptureGuideSpec(
+                    sceneNumber = number, sceneId = "S$number", durationSec = capture,
+                    title = scene.optString("title", "SCÈNE $number"),
+                    onScreenPrompt = scene.optString("instruction", scene.optString("action", "")),
+                    whatToFilm = scene.optString("action", scene.optString("instruction", "")),
+                    thingsToFilm = needed, thingsToAvoid = avoid,
+                    guideImageRelPath = scene.optString("image", "").ifBlank { null },
+                    guideAudioRelPath = scene.optString("audio", "").ifBlank { null },
+                    microphoneActive = true, keptDurationSec = kept
+                )
+            }
+        }
         val arr = root.optJSONArray("ecrans") ?: root.optJSONArray("ecrans_capture") ?: return emptyList()
         val byScene = linkedMapOf<Int, MutableMap<String, JSONObject>>()
         for (i in 0 until arr.length()) {
@@ -415,7 +436,9 @@ object GuidedCaptureValidator {
                     "Aucune piste vidéo exploitable dans ${scene.id}"
                 )
             }
-            val requiredDurationUs = ((scene.endFrameExcluded - scene.startFrame).toLong() * 1_000_000L) / plan.fps
+            val requiredSourceFrames = scene.shots.maxOfOrNull { it.sourceOutFrame }
+                ?: (scene.endFrameExcluded - scene.startFrame)
+            val requiredDurationUs = (requiredSourceFrames.toLong() * 1_000_000L) / plan.fps
             val allowFreeze = scene.shots.any { it.freezeTailFrames > 0 }
             val effectiveDurUs = if (probed.durationUs > 0L) probed.durationUs else desc.durationUs
             if (!allowFreeze && effectiveDurUs + 150_000L < requiredDurationUs) {

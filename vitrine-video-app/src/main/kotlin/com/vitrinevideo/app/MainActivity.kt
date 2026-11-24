@@ -43,7 +43,7 @@ import com.vitrinevideo.app.flow.CapturedSceneTake
 import com.vitrinevideo.app.flow.MockupResponseMapper
 import com.vitrinevideo.app.flow.RealSessionViolationException
 import com.vitrinevideo.app.flow.SessionLifecycleManager
-import com.vitrinevideo.app.flow.T3PackageRepository
+import com.vitrinevideo.app.flow.TemplatePackageRepository
 import com.vitrinevideo.app.player.VitrineMediaPlayer
 import com.vitrinevideo.engine.api.RenderListener
 import com.vitrinevideo.engine.api.RenderOutcome
@@ -927,10 +927,10 @@ class MainActivity : AppCompatActivity() {
         webView.loadUrl(AssetWebViewClient.ENTRY_URL)
     }
 
-    private fun preloadTemplatePackage() {
+    private fun preloadTemplatePackage(templateId: String = sessionManager.templateId) {
         ioExec.execute {
-            runCatching { T3PackageRepository.ensureLoaded(applicationContext) }
-                .onSuccess { pkg -> loadedPackage = pkg }
+            runCatching { TemplatePackageRepository.ensureLoaded(applicationContext, templateId) }
+                .onSuccess { pkg -> if (sessionManager.templateId == templateId) loadedPackage = pkg }
         }
     }
 
@@ -945,7 +945,7 @@ class MainActivity : AppCompatActivity() {
         if (pkg != null && sceneIndex in pkg.captureGuides.indices) {
             return pkg.captureGuides[sceneIndex]
         }
-        val fallbackDurs = listOf(6, 8, 7, 9)
+        val fallbackDurs = if (sessionManager.templateId == "COMMERCE-T1") listOf(8, 10, 9, 11) else listOf(6, 8, 7, 9)
         val fallbackPrompts = listOf(
             "MONTRE TON PRODUIT EN ENTIER.",
             "MONTRE BIEN LA PARTIE À UTILISER.",
@@ -1265,7 +1265,8 @@ class MainActivity : AppCompatActivity() {
         cameraRecorder.unbind()
         showOverlay(OverlayState.RENDERING)
 
-        rndTitle.text = if (fr()) "Montage automatique COMMERCE-T3" else "Automatic COMMERCE-T3 Editing"
+        val selectedTemplate = sessionManager.templateId
+        rndTitle.text = if (fr()) "Montage automatique $selectedTemplate" else "Automatic $selectedTemplate Editing"
         rndPercentText.text = "0%"
         rndProgressBar.progress = 0
         rndStageText.text = if (fr()) "Préparation du paquet et vérification des 4 scènes..." else "Preparing package and verifying 4 scenes..."
@@ -1275,9 +1276,10 @@ class MainActivity : AppCompatActivity() {
 
         ioExec.execute {
             try {
-                val pkg = loadedPackage ?: T3PackageRepository.ensureLoaded(applicationContext).also {
-                    loadedPackage = it
-                }
+                val pkg = loadedPackage?.takeIf { it.templateId == sessionManager.templateId }
+                    ?: TemplatePackageRepository.ensureLoaded(applicationContext, sessionManager.templateId).also {
+                        loadedPackage = it
+                    }
                 val verifiedInputs = sessionManager.buildVerifiedRenderInputs(pkg)
                 val renderSessionId = verifiedInputs.creationId
 
@@ -1308,7 +1310,7 @@ class MainActivity : AppCompatActivity() {
 
                         override fun onCompleted(result: RenderOutcome.Success) {
                             val mp4File = File(result.result.outputPath)
-                            val published = T3PackageRepository.publishFinalVideo(applicationContext, mp4File, renderSessionId)
+                            val published = TemplatePackageRepository.publishFinalVideo(applicationContext, mp4File, renderSessionId, sessionManager.templateId)
                             lastRenderedMp4 = mp4File
                             lastPublishedLocation = published
                             // Confirmed Media3 success + verified MP4 + permanent save:
@@ -1357,7 +1359,8 @@ class MainActivity : AppCompatActivity() {
     private fun showFinalPlayer(success: RenderOutcome.Success, mp4File: File, publishedLocation: String) {
         showOverlay(OverlayState.FINAL_PLAYER)
         val rep = success.report
-        finTitle.text = if (fr()) "Ta publicité COMMERCE-T3 est prête !" else "Your COMMERCE-T3 ad is ready!"
+        val renderedTemplate = sessionManager.templateId
+        finTitle.text = if (fr()) "Ta publicité $renderedTemplate est prête !" else "Your $renderedTemplate ad is ready!"
         finReplaySoundBtn.text = if (fr()) "🔊 Revoir depuis le début avec le son" else "🔊 Replay from start with sound"
         finShareBtn.text = if (fr()) "PARTAGER / ENREGISTRER LA VIDÉO" else "SHARE / SAVE VIDEO"
         finNewVideoBtn.text = if (fr()) "CRÉER UNE NOUVELLE VIDÉO" else "CREATE A NEW VIDEO"
@@ -1563,12 +1566,17 @@ class MainActivity : AppCompatActivity() {
 
         @JavascriptInterface
         fun onTemplateSelected(templateId: String) {
-            mainHandler.post { preloadTemplatePackage() }
+            mainHandler.post {
+                if (templateId != "COMMERCE-T1" && templateId != "COMMERCE-T3") return@post
+                sessionManager.selectTemplate(templateId)
+                loadedPackage = null
+                preloadTemplatePackage(templateId)
+            }
         }
 
         @JavascriptInterface
         fun saveResponses(jsonStr: String) {
-            val mapped = runCatching { MockupResponseMapper.parseFromWebJson(jsonStr) }.getOrNull() ?: return
+            val mapped = runCatching { MockupResponseMapper.parseFromWebJson(jsonStr, sessionManager.templateId) }.getOrNull() ?: return
             mainHandler.post { sessionManager.updateResponses(mapped) }
         }
 

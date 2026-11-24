@@ -30,7 +30,12 @@ data class RenderJobSchemaConstraints(
     val additionalResponsesAllowed: Boolean,
     val requiredSceneIds: List<String>,
     val sha256Regex: Regex,
-    val expectedScreenNumbers: List<Int>
+    val expectedScreenNumbers: List<Int>,
+    val responseMaxLengths: Map<String, Int> = emptyMap(),
+    val responsePatterns: Map<String, Regex> = emptyMap(),
+    val responsePayloadKey: String = "reponses",
+    val capturesAsObject: Boolean = false,
+    val captureUris: Map<String, String> = emptyMap()
 )
 
 object TemplateFormParser {
@@ -38,6 +43,17 @@ object TemplateFormParser {
     fun parseQuestions(rawJson: String): TemplateFormSpec {
         val root = JSONObject(rawJson)
         val title = root.optString("titre", "").ifBlank { "Formulaire gabarit" }
+        if (!root.has("champs") && !root.has("questions")) {
+            val questions = mutableListOf<TemplateFormQuestion>()
+            val keys = root.keys()
+            while (keys.hasNext()) {
+                val key = keys.next()
+                val value = root.opt(key)
+                if (value is String) questions += TemplateFormQuestion(key, value, "", true, "texte")
+            }
+            if (questions.isEmpty()) throw TemplateFormValidationException("FORM_MISSING_QUESTIONS", "Aucune question valide dans form/questions.json")
+            return TemplateFormSpec(title, questions)
+        }
         val arr = root.optJSONArray("champs") ?: root.optJSONArray("questions")
             ?: throw TemplateFormValidationException("FORM_MISSING_QUESTIONS", "Tableau 'champs'/'questions' absent de form/questions.json")
         if (arr.length() == 0) {
@@ -67,29 +83,48 @@ object TemplateFormParser {
         val expectedTemplateId = props.optJSONObject("template_id")?.optString("const", "")?.ifBlank { null }
         val expectedTemplateVersion = props.optJSONObject("template_version")?.optString("const", "")?.ifBlank { null }
 
-        val repObj = props.optJSONObject("reponses") ?: JSONObject()
+        val payloadKey = if (props.has("merchant_payload")) "merchant_payload" else "reponses"
+        val repObj = props.optJSONObject(payloadKey) ?: JSONObject()
         val reqRepArr = repObj.optJSONArray("required") ?: JSONArray()
         val requiredResponses = (0 until reqRepArr.length()).map { reqRepArr.getString(it) }.toSet()
 
         val repProps = repObj.optJSONObject("properties") ?: JSONObject()
         val allowedKeys = mutableSetOf<String>()
         val minLengths = mutableMapOf<String, Int>()
+        val maxLengths = mutableMapOf<String, Int>()
+        val patterns = mutableMapOf<String, Regex>()
         val repIter = repProps.keys()
         while (repIter.hasNext()) {
             val k = repIter.next()
             allowedKeys += k
             val fieldSchema = repProps.optJSONObject(k)
-            if (fieldSchema != null && fieldSchema.has("minLength")) {
-                minLengths[k] = fieldSchema.getInt("minLength")
+            if (fieldSchema != null) {
+                if (fieldSchema.has("minLength")) minLengths[k] = fieldSchema.getInt("minLength")
+                if (fieldSchema.has("maxLength")) maxLengths[k] = fieldSchema.getInt("maxLength")
+                fieldSchema.optString("pattern", "").takeIf { it.isNotBlank() }?.let { patterns[k] = Regex(it) }
             }
         }
         val additionalAllowed = repObj.optBoolean("additionalProperties", true)
 
-        val capItems = props.optJSONObject("captures")?.optJSONObject("items") ?: JSONObject()
-        val capProps = capItems.optJSONObject("properties") ?: JSONObject()
+        val capturesObj = props.optJSONObject("captures") ?: JSONObject()
+        val capturesAsObject = capturesObj.has("properties")
+        val capProps = if (capturesAsObject) capturesObj.optJSONObject("properties") ?: JSONObject()
+            else capturesObj.optJSONObject("items")?.optJSONObject("properties") ?: JSONObject()
         val sceneEnumArr = capProps.optJSONObject("scene")?.optJSONArray("enum") ?: JSONArray()
-        val requiredScenes = (0 until sceneEnumArr.length()).map { sceneEnumArr.getString(it) }
-        val shaPattern = capProps.optJSONObject("sha256")?.optString("pattern", "^[0-9a-f]{64}$") ?: "^[0-9a-f]{64}$"
+        val requiredCaptureArr = capturesObj.optJSONArray("required") ?: JSONArray()
+        val requiredScenes = if (sceneEnumArr.length() > 0) (0 until sceneEnumArr.length()).map { sceneEnumArr.getString(it) }
+            else if (requiredCaptureArr.length() > 0) (0 until requiredCaptureArr.length()).map { requiredCaptureArr.getString(it) }
+            else emptyList()
+        val captureUris = mutableMapOf<String, String>()
+        var shaPattern = capProps.optJSONObject("sha256")?.optString("pattern", "") ?: ""
+        val capKeyIter = capProps.keys()
+        while (capKeyIter.hasNext()) {
+            val scene = capKeyIter.next()
+            val sceneProps = capProps.optJSONObject(scene)?.optJSONObject("properties") ?: continue
+            sceneProps.optJSONObject("uri")?.optString("const", "")?.takeIf { it.isNotBlank() }?.let { captureUris[scene] = it }
+            if (shaPattern.isBlank()) shaPattern = sceneProps.optJSONObject("sha256")?.optString("pattern", "") ?: ""
+        }
+        if (shaPattern.isBlank()) shaPattern = "^[0-9a-f]{64}$"
 
         val ecransProp = props.optJSONObject("ecrans")
         val ecransEnum = ecransProp?.optJSONObject("items")?.optJSONArray("enum") ?: JSONArray()
@@ -109,7 +144,12 @@ object TemplateFormParser {
             additionalResponsesAllowed = additionalAllowed,
             requiredSceneIds = requiredScenes,
             sha256Regex = Regex(shaPattern),
-            expectedScreenNumbers = expectedScreens
+            expectedScreenNumbers = expectedScreens,
+            responseMaxLengths = maxLengths,
+            responsePatterns = patterns,
+            responsePayloadKey = payloadKey,
+            capturesAsObject = capturesAsObject,
+            captureUris = captureUris
         )
     }
 }

@@ -45,6 +45,8 @@ class VitrineSceneGlEffect(
     override fun isNoOp(inputWidth: Int, inputHeight: Int): Boolean = false
 }
 
+private data class ShotTransform(val zoom: Float, val panX: Float, val panY: Float, val angleDeg: Float)
+
 @OptIn(UnstableApi::class)
 private class VitrineSceneShaderProgram(
     private val plan: RenderPlan,
@@ -159,7 +161,12 @@ private class VitrineSceneShaderProgram(
         main.setFloatsUniform("uAspectScale", floatArrayOf(aspectScaleX, aspectScaleY))
 
         val shot = state.shot
-        val (zoom, panNormX, panNormY) = evaluateShotTransform(shot, frame)
+        val tr = state.activeTransition
+        val transform = evaluateShotTransform(shot, frame, tr)
+        val zoom = transform.zoom
+        val panNormX = transform.panX
+        val panNormY = transform.panY
+        main.setFloatUniform("uMainAngleDeg", transform.angleDeg)
 
         val grid = shot.gridLayout
         if (grid != null && grid.viewports.size >= 4) {
@@ -191,8 +198,8 @@ private class VitrineSceneShaderProgram(
             main.setFloatUniform("uMainPanY", panNormY)
         }
 
-        val tr = state.activeTransition
-        val mask = if (tr != null && hasHoldFrame) TransitionGeometry.evaluate(tr, frame) else null
+        val mask = if (tr != null) TransitionGeometry.evaluate(tr, frame) else null
+        main.setIntUniform("uHasHoldFrame", if (hasHoldFrame) 1 else 0)
         val grading = plan.colorGrading
         main.setIntUniform("uApplyTint", if (grading.shouldRenderAddedTint) 1 else 0)
         main.setFloatsUniform("uTintColor", floatArrayOf(0f, 0f, 0f, grading.tintOpacity.toFloat().coerceIn(0f, 1f)))
@@ -224,6 +231,29 @@ private class VitrineSceneShaderProgram(
                     main.setIntUniform("uTransMode", 3)
                     main.setFloatUniform("uTransParam", 0f)
                     main.setFloatsUniform("uTransDiag", floatArrayOf(mask.diagonalTopX, mask.diagonalBottomX))
+                    for (i in 0 until 4) main.setFloatsUniform("uTransRect$i", zeroRect)
+                }
+                TransitionType.LAMELLES_OUVERTURE,
+                TransitionType.ECLAT_COLORE,
+                TransitionType.PAPIER_OBLIQUE,
+                TransitionType.POUSSEE_VOILE,
+                TransitionType.FENTE_HORIZONTALE,
+                TransitionType.TRANCHE_PIP,
+                TransitionType.BANDE_OBLIQUE_RECUL,
+                TransitionType.LAMELLES_FERMETURE -> {
+                    val mode = when (mask.type) {
+                        TransitionType.LAMELLES_OUVERTURE -> 4
+                        TransitionType.ECLAT_COLORE -> 5
+                        TransitionType.PAPIER_OBLIQUE -> 6
+                        TransitionType.POUSSEE_VOILE -> 7
+                        TransitionType.FENTE_HORIZONTALE -> 8
+                        TransitionType.TRANCHE_PIP -> 9
+                        TransitionType.BANDE_OBLIQUE_RECUL -> 10
+                        else -> 11
+                    }
+                    main.setIntUniform("uTransMode", mode)
+                    main.setFloatUniform("uTransParam", mask.progressQ)
+                    main.setFloatsUniform("uTransDiag", floatArrayOf(0f, 0f))
                     for (i in 0 until 4) main.setFloatsUniform("uTransRect$i", zeroRect)
                 }
                 else -> {
@@ -271,6 +301,7 @@ private class VitrineSceneShaderProgram(
         copy.use()
         copy.setSamplerTexIdUniform("uTexSampler", inputTexId, 0)
         copy.setFloatsUniform("uAspectScale", floatArrayOf(aspectScaleX, aspectScaleY))
+        copy.setFloatUniform("uMainAngleDeg", shot.motion.endAngleDeg.toFloat())
 
         val grid = shot.gridLayout
         if (grid != null && grid.viewports.size >= 4) {
@@ -305,18 +336,30 @@ private class VitrineSceneShaderProgram(
         hasHoldFrame = true
     }
 
-    private fun evaluateShotTransform(shot: CutSegmentSpec, frame: Int): Triple<Float, Float, Float> {
+    private fun evaluateShotTransform(shot: CutSegmentSpec, frame: Int, transition: com.vitrinevideo.engine.interpreter.TransitionSpec?): ShotTransform {
         val m: MotionSpec = shot.motion
-        if (m.type == "none") {
-            return Triple(shot.viewport.zoom.toFloat(), 0f, 0f)
-        }
         val len = max(1, shot.outEndFrameExcluded - shot.outStartFrame - 1)
         val rawT = ((frame - shot.outStartFrame).toFloat() / len.toFloat()).coerceIn(0f, 1f)
         val t = TransitionGeometry.smoothstep(rawT)
-        val scale = (m.startScale + (m.endScale - m.startScale) * t).toFloat() * shot.viewport.zoom.toFloat()
-        val panX = ((m.startPanX + (m.endPanX - m.startPanX) * t) / outWidth.toDouble()).toFloat()
-        val panY = ((m.startPanY + (m.endPanY - m.startPanY) * t) / outHeight.toDouble()).toFloat()
-        return Triple(scale, panX, panY)
+        var scale = if (m.type == "none") shot.viewport.zoom.toFloat()
+            else (m.startScale + (m.endScale - m.startScale) * t).toFloat() * shot.viewport.zoom.toFloat()
+        var panX = if (m.type == "none") 0f else ((m.startPanX + (m.endPanX - m.startPanX) * t) / outWidth.toDouble()).toFloat()
+        var panY = if (m.type == "none") 0f else ((m.startPanY + (m.endPanY - m.startPanY) * t) / outHeight.toDouble()).toFloat()
+        var angle = if (m.type == "none") 0f else (m.startAngleDeg + (m.endAngleDeg - m.startAngleDeg) * t).toFloat()
+        if (transition != null && transition.durationFrames > 1 && frame in transition.startFrame until transition.startFrame + transition.durationFrames) {
+            val q = TransitionGeometry.smoothstep((frame - transition.startFrame).toFloat() / (transition.durationFrames - 1).toFloat())
+            when (transition.type) {
+                TransitionType.ECLAT_COLORE -> { scale *= 1.21f + 0.01f * q; angle += 5f * (1f - q) }
+                TransitionType.POUSSEE_VOILE -> {
+                    scale *= 1f + 0.42f * (1f - q)
+                    panX += 0.055f * (1f - 2f * q)
+                    panY += 0.035f * (1f - 2f * q)
+                }
+                TransitionType.BANDE_OBLIQUE_RECUL -> { scale *= 1f + 0.62f * (1f - q); angle -= 14f * (1f - q) }
+                else -> Unit
+            }
+        }
+        return ShotTransform(scale, panX, panY, angle)
     }
 
     override fun release() {
@@ -346,6 +389,7 @@ private class VitrineSceneShaderProgram(
             precision mediump float;
             uniform sampler2D uTexSampler;
             uniform vec2 uAspectScale;
+            uniform float uMainAngleDeg;
             uniform int uIsGrid;
             uniform float uHalfDivX;
             uniform float uHalfDivY;
@@ -357,6 +401,9 @@ private class VitrineSceneShaderProgram(
             uniform float uMainPanY;
 
             vec4 sampleCropped(vec2 localUv, float cx, float cy, float zoom, float panX, float panY) {
+                float angle = uMainAngleDeg * 0.01745329252;
+                vec2 centered = localUv - vec2(0.5);
+                localUv = vec2(centered.x * cos(angle) - centered.y * sin(angle), centered.x * sin(angle) + centered.y * cos(angle)) + vec2(0.5);
                 vec2 span = uAspectScale / max(zoom, 0.01);
                 vec2 halfSpan = 0.5 * span;
                 vec2 center = clamp(vec2(cx + panX, cy + panY), halfSpan, max(halfSpan, vec2(1.0) - halfSpan));
@@ -396,6 +443,7 @@ private class VitrineSceneShaderProgram(
         private const val FRAGMENT_SHADER = SCENE_SAMPLER_FUNCTIONS + """
             uniform sampler2D uHoldSampler;
             uniform int uTransMode;
+            uniform int uHasHoldFrame;
             uniform float uTransParam;
             uniform vec2 uTransDiag;
             uniform vec4 uTransRect0;
@@ -437,6 +485,59 @@ private class VitrineSceneShaderProgram(
                     } else if (uTransMode == 3) {
                         float edgeX = uTransDiag.x + (uTransDiag.y - uTransDiag.x) * topDownUv.y;
                         composed = topDownUv.x <= edgeX ? incoming : hold;
+                    } else if (uTransMode >= 4) {
+                        float q = clamp(uTransParam, 0.0, 1.0);
+                        vec2 p = topDownUv;
+                        if (uTransMode == 4 || uTransMode == 11) {
+                            float stripe = fract((p.x + p.y * 0.72) * 7.0);
+                            float opening = q * 1.72;
+                            bool reveal = stripe < opening;
+                            vec4 slatBase = uHasHoldFrame == 1 ? hold : vec4(0.086, 0.102, 0.075, 1.0);
+                            composed = reveal ? incoming : slatBase;
+                            float radius = length(p - vec2(0.5, 0.5));
+                            float ringRadius = uTransMode == 4 ? (0.10 + 0.10 * q) : (0.20 * (1.0 - q));
+                            float theta = atan(p.y - 0.5, p.x - 0.5) + q * 6.2831853;
+                            float tick = step(0.22, fract(theta * 2.2281692));
+                            float ringBand = 1.0 - smoothstep(0.006, 0.018, abs(radius - ringRadius));
+                            float ring = ringBand * tick;
+                            composed.rgb = mix(composed.rgb, vec3(0.776, 0.969, 0.902), ring);
+                            if (uTransMode == 4) {
+                                float flash = smoothstep(0.86, 0.89, q) * (1.0 - smoothstep(0.96, 1.0, q));
+                                composed.rgb = mix(composed.rgb, vec3(1.0), flash * 0.85);
+                            } else {
+                                float fade = smoothstep(0.84, 1.0, q);
+                                composed.rgb = mix(composed.rgb, vec3(0.086, 0.102, 0.075), fade);
+                            }
+                        } else if (uTransMode == 5) {
+                            composed = mix(hold, incoming, q);
+                            float flash = 0.22 * (1.0 - abs(2.0 * q - 1.0));
+                            composed.rgb = mix(composed.rgb, vec3(0.91, 0.44, 0.85), flash * 0.45);
+                        } else if (uTransMode == 6) {
+                            float edge = -0.18 + 1.36 * q + (0.5 - p.y) * 0.32;
+                            float d = p.x - edge;
+                            composed = d < 0.0 ? incoming : hold;
+                            float rim = 1.0 - smoothstep(0.0, 0.012, abs(d));
+                            composed.rgb = mix(composed.rgb, vec3(0.98, 0.92, 0.88), rim * 0.75);
+                        } else if (uTransMode == 7) {
+                            composed = mix(hold, incoming, q);
+                            float veil = 0.28 * (1.0 - abs(2.0 * q - 1.0));
+                            composed.rgb = mix(composed.rgb, vec3(1.0, 0.97, 0.93), veil);
+                        } else if (uTransMode == 8) {
+                            float distanceY = abs(p.y - 0.55);
+                            float halfOpen = 0.56 * q;
+                            composed = distanceY <= halfOpen ? incoming : hold;
+                            float rim = 1.0 - smoothstep(0.0, 0.012, abs(distanceY - halfOpen));
+                            composed.rgb = mix(composed.rgb, vec3(1.0), rim * 0.8);
+                        } else if (uTransMode == 9) {
+                            vec2 d = abs(p - vec2(0.5, 0.56));
+                            float extent = 0.72 * q;
+                            bool inside = d.x < extent && d.y < extent * 1.45;
+                            composed = inside ? incoming : hold;
+                        } else {
+                            float edge = -0.35 + 1.7 * q + (0.5 - p.y) * 0.55;
+                            composed = p.x < edge ? incoming : hold;
+                            composed.rgb *= 1.0 - 0.32 * (1.0 - q);
+                        }
                     } else {
                         int count = int(uTransParam + 0.5);
                         bool inside = false;

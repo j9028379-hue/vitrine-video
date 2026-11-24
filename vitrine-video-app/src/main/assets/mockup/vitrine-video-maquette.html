@@ -1982,7 +1982,7 @@ body{
       {id:"q-quartier",fr:"Où peut-on te trouver ?",en:"Where can customers find you?",pfr:"Cotonou, Akpakpa",pen:"Cotonou, Akpakpa"},
       {id:"q-whatsapp",fr:"Quel est ton numéro WhatsApp ?",en:"What is your WhatsApp number?",pfr:"+229 XX XX XX XX",pen:"+229 XX XX XX XX"}
     ];
-    fields.forEach(f=>{const input=$("#"+f.id),label=input.closest(".field").querySelector("label");label.textContent=fr?f.fr:f.en;input.placeholder=fr?f.pfr:f.pen;input.required=f.required!==false;});
+    fields.forEach(f=>{const input=$("#"+f.id),label=input.closest(".field").querySelector("label");label.textContent=fr?f.fr:f.en;input.placeholder=fr?f.pfr:f.pen;input.required=f.required!==false;const limits={"q-nom":40,"q-produit":45,"q-prix":32,"q-accroche":55,"q-quartier":40};if(state.format==="t1"&&limits[f.id])input.maxLength=limits[f.id];else input.removeAttribute("maxlength");if(state.format==="t1"&&f.id==="q-whatsapp")input.pattern="\\+[1-9][0-9]{6,14}";else input.removeAttribute("pattern");});
     $("#s-questions .h-sub").textContent=fr?"Réponds à ces questions pour personnaliser ta publicité.":"Answer these questions to personalize your ad.";
   }
   $(".formats").addEventListener("click",(event)=>{

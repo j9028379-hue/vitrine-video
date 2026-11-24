@@ -140,6 +140,35 @@ class AppIntegrationContractTest {
     }
 
     @Test
+    fun commerceT1_mapperValidationAndTemplateSessionStayIsolatedFromT3() {
+        val t1Zip = File(assetsRoot(), "packages/COMMERCE-T1-2.0.0.zip")
+        val pkg = FileInputStream(t1Zip).use { TemplatePackageLoader.importZipStream(it, tempFolder.newFolder("pkg_t1_app")) }
+        val raw = """{"nom":"Étal Kandi","produit":"Jus de gingembre","prix":"750 FCFA","demonstration":"Frais et préparé ici","quartier":"Centre","whatsapp":"+229 01 97 00 00 00"}"""
+        val mapped = MockupResponseMapper.parseFromWebJson(raw, "COMMERCE-T1")
+        assertTrue("accroche" in mapped)
+        assertFalse("demonstration" in mapped)
+        val validated = TemplateJobAssembler.validateResponses(pkg, mapped)
+        assertEquals("Frais et préparé ici", validated["accroche"])
+        assertEquals("+2290197000000", validated["whatsapp"])
+
+        val manager = SessionLifecycleManager(tempFolder.newFolder("sessions"))
+        manager.initialize()
+        val initialId = manager.creationId
+        manager.selectTemplate("COMMERCE-T1")
+        assertEquals("COMMERCE-T1", manager.templateId)
+        assertNotEquals(initialId, manager.creationId)
+        val t1Id = manager.creationId
+        manager.selectTemplate("COMMERCE-T1")
+        assertEquals(t1Id, manager.creationId)
+        manager.selectTemplate("COMMERCE-T3")
+        assertEquals("COMMERCE-T3", manager.templateId)
+        assertNotEquals(t1Id, manager.creationId)
+
+        val invalid = mapped.toMutableMap().apply { put("whatsapp", "97000000") }
+        assertTrue(runCatching { TemplateJobAssembler.validateResponses(pkg, invalid) }.isFailure)
+    }
+
+    @Test
     fun progressionStateMachine_enforcesSequentialOrder_andPreservesOtherScenesOnRetake() {
         val sm = CaptureProgressionStateMachine(executionMode = AppExecutionMode.REAL_APPLICATION)
         val f1 = createDummyVideoFile("s1.mp4", "real-s1")

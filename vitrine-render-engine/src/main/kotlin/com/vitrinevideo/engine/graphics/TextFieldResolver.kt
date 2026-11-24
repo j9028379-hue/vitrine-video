@@ -41,7 +41,7 @@ object TextFieldResolver {
         val values = keys.mapNotNull { k -> responses[k]?.trim()?.takeIf { it.isNotEmpty() } }
         if (values.isEmpty()) return ""
         val joined = values.joinToString("\n")
-        return if ((window.fieldKey == "contact" || window.fieldKey == "whatsapp") &&
+        return if (!window.skipAutoWhatsappPrefix && (window.fieldKey == "contact" || window.fieldKey == "whatsapp") &&
             !joined.startsWith("WhatsApp", ignoreCase = true)
         ) {
             "WhatsApp\n$joined"
@@ -73,6 +73,10 @@ object TextFieldResolver {
             sz -= 1f
             lines = splitBalancedLines(text, maxLines, sz, maxW, measureWidth)
         }
+        val maxHeight = window.maxHeightPx?.toFloat() ?: Float.POSITIVE_INFINITY
+        val lineSpacing = window.overrideStyle?.lineSpacingPx?.toFloat()
+            ?: spec.defaultStyle.lineSpacingPx.toFloat() * (sz / spec.defaultStyle.fontSizePx.toFloat())
+        while (sz > 14f && lines.size * lineSpacing > maxHeight) sz -= 1f
 
         val baseY = when {
             window.customY != null -> window.customY.toFloat()

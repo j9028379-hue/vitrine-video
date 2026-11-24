@@ -28,6 +28,8 @@ data class MotionSpec(
     val endPanX: Double = 0.0,
     val startPanY: Double = 0.0,
     val endPanY: Double = 0.0,
+    val startAngleDeg: Double = 0.0,
+    val endAngleDeg: Double = 0.0,
     val easing: String = "easeInOutQuad"
 )
 
@@ -60,13 +62,22 @@ enum class TransitionType(val wireName: String, val capability: CapabilityId) {
     BALAYAGE_DIAGONAL("balayage_diagonal", CapabilityId.TRANSITION_BALAYAGE_DIAGONAL),
     WIPE_DIRECTIONNEL("wipe_directionnel", CapabilityId.TRANSITION_WIPE_DIRECTIONNEL),
     CROSSFADE("fondu_court_crossfade", CapabilityId.TRANSITION_CROSSFADE),
-    PUNCH("punch_cut", CapabilityId.TRANSITION_PUNCH)
+    PUNCH("punch_cut", CapabilityId.TRANSITION_PUNCH),
+    LAMELLES_OUVERTURE("lamelles_ouverture", CapabilityId.TRANSITION_LAMELLES_OUVERTURE),
+    LAMELLES_FERMETURE("lamelles_fermeture", CapabilityId.TRANSITION_LAMELLES_FERMETURE),
+    ECLAT_COLORE("eclat_colore", CapabilityId.TRANSITION_ECLAT_COLORE),
+    PAPIER_OBLIQUE("papier_oblique", CapabilityId.TRANSITION_PAPIER_OBLIQUE),
+    POUSSEE_VOILE("poussee_voile", CapabilityId.TRANSITION_POUSSEE_VOILE),
+    FENTE_HORIZONTALE("fente_horizontale", CapabilityId.TRANSITION_FENTE_HORIZONTALE),
+    TRANCHE_PIP("tranche_pip", CapabilityId.TRANSITION_TRANCHE_PIP),
+    BANDE_OBLIQUE_RECUL("bande_oblique_recul", CapabilityId.TRANSITION_BANDE_OBLIQUE_RECUL)
 }
 
 data class TransitionSpec(
     val startFrame: Int,
     val durationFrames: Int,
-    val type: TransitionType
+    val type: TransitionType,
+    val motifId: String = ""
 )
 
 data class TextStyleSpec(
@@ -107,7 +118,10 @@ enum class TextEntryAnim(val wireName: String, val capability: CapabilityId) {
     COUPE("coupe", CapabilityId.TEXT_ANIM_COUPE),
     FONDU("fondu", CapabilityId.TEXT_ANIM_FONDU),
     VAGUE("vague", CapabilityId.TEXT_ANIM_VAGUE_CHAR),
-    SLIDE_POP("slide_pop", CapabilityId.TEXT_ANIM_SLIDE_POP)
+    SLIDE_POP("slide_pop", CapabilityId.TEXT_ANIM_SLIDE_POP),
+    PLUME("plume", CapabilityId.TEXT_ANIM_PLUME),
+    LEVER("lever", CapabilityId.TEXT_ANIM_LEVER),
+    VAGUE_REVEAL("vague_reveal", CapabilityId.TEXT_ANIM_VAGUE_REVEAL)
 }
 
 data class TextWindowSpec(
@@ -117,9 +131,18 @@ data class TextWindowSpec(
     val templateLines: List<String>? = null, // e.g. T5 ["« {avis_client} »", "— {client}"]
     val entryAnim: TextEntryAnim,
     val exitFadeFrames: Int = 0,
+    val enterFrames: Int? = null,
     val strikethrough: Boolean = false,
     val customY: Double? = null,
+    val centerX: Double? = null,
     val maxLines: Int? = null,
+    val maxHeightPx: Double? = null,
+    val fontRelativePath: String? = null,
+    val fallbackFontRelativePath: String? = null,
+    val fontSha256: String? = null,
+    val inkColorHex: String? = null,
+    val reliefColorHex: String? = null,
+    val skipAutoWhatsappPrefix: Boolean = false,
     val overrideStyle: TextStyleSpec? = null
 )
 
@@ -152,6 +175,8 @@ data class TextOverlaySpec(
     val fontWeight: Int,
     val fontRelativePath: String,
     val fontSha256: String = "",
+    val extraFontPaths: Map<String, String> = emptyMap(),
+    val extraFontSha256s: Map<String, String> = emptyMap(),
     val colorHex: String,
     val alignment: String = "centre",
     val absentPriceRule: String = "",

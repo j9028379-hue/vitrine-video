@@ -67,6 +67,14 @@ object TransitionGeometry {
             TransitionType.CUT, TransitionType.PUNCH -> {
                 TransitionMaskState(spec.type, 1f, listOf(NormalizedRect(0f, 0f, 1f, 1f)))
             }
+            TransitionType.LAMELLES_OUVERTURE,
+            TransitionType.LAMELLES_FERMETURE,
+            TransitionType.ECLAT_COLORE,
+            TransitionType.PAPIER_OBLIQUE,
+            TransitionType.POUSSEE_VOILE,
+            TransitionType.FENTE_HORIZONTALE,
+            TransitionType.TRANCHE_PIP,
+            TransitionType.BANDE_OBLIQUE_RECUL -> TransitionMaskState(spec.type, q)
         }
     }
 

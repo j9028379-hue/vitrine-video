@@ -50,8 +50,9 @@ class RealSessionViolationException(
 object MockupResponseMapper {
 
     val EXPECTED_T3_KEYS = listOf("nom", "produit", "prix", "demonstration", "quartier", "whatsapp")
+    val EXPECTED_T1_KEYS = listOf("nom", "produit", "prix", "accroche", "quartier", "whatsapp")
 
-    fun parseFromWebJson(rawJson: String): Map<String, String> {
+    fun parseFromWebJson(rawJson: String, templateId: String = "COMMERCE-T3"): Map<String, String> {
         val obj = JSONObject(rawJson)
         val raw = linkedMapOf<String, String>()
         val keys = obj.keys()
@@ -59,21 +60,22 @@ object MockupResponseMapper {
             val k = keys.next()
             raw[k] = obj.optString(k, "")
         }
-        return normalizeRawResponses(raw)
+        return normalizeRawResponses(raw, templateId)
     }
 
-    fun normalizeRawResponses(raw: Map<String, String>): Map<String, String> {
+    fun normalizeRawResponses(raw: Map<String, String>, templateId: String = "COMMERCE-T3"): Map<String, String> {
+        val isT1 = templateId == "COMMERCE-T1"
+        val expected = if (isT1) EXPECTED_T1_KEYS else EXPECTED_T3_KEYS
         val out = linkedMapOf<String, String>()
-        for (key in EXPECTED_T3_KEYS) {
-            val value = raw[key] ?: if (key == "demonstration") raw["accroche"] ?: "" else ""
+        for (key in expected) {
+            val value = when (key) {
+                "accroche" -> raw["accroche"] ?: raw["demonstration"] ?: ""
+                "demonstration" -> raw["demonstration"] ?: raw["accroche"] ?: ""
+                else -> raw[key] ?: ""
+            }
             out[key] = value.trim()
         }
-        // Preserve any extra keys explicitly so schema validation can reject unknown keys transparently
-        for ((k, v) in raw) {
-            if (k !in out && k != "accroche") {
-                out[k] = v.trim()
-            }
-        }
+        for ((k, v) in raw) if (k !in out && !(isT1 && k == "demonstration") && !(!isT1 && k == "accroche")) out[k] = v.trim()
         return out
     }
 
@@ -227,7 +229,7 @@ object RealSessionGuard {
         if (byId.keys != expectedIds.toSet() || takes.size != expectedIds.size) {
             throw RealSessionViolationException(
                 "INCOMPLETE_SCENES",
-                "Les 4 scènes ($expectedIds) doivent être filmées et validées avant le montage."
+                "Toutes les scènes ($expectedIds) doivent être filmées et validées avant le montage."
             )
         }
 
@@ -269,7 +271,9 @@ object RealSessionGuard {
                     "Empreinte SHA-256 manquante ou dupliquée pour ${sc.id}."
                 )
             }
-            val requiredUs = ((sc.endFrameExcluded - sc.startFrame).toLong() * 1_000_000L) / pkg.renderPlan.fps
+            val requiredSourceFrames = sc.shots.maxOfOrNull { it.sourceOutFrame }
+                ?: (sc.endFrameExcluded - sc.startFrame)
+            val requiredUs = (requiredSourceFrames.toLong() * 1_000_000L) / pkg.renderPlan.fps
             val allowFreeze = sc.shots.any { it.freezeTailFrames > 0 }
             if (!allowFreeze && take.durationUs + 150_000L < requiredUs) {
                 throw RealSessionViolationException(
