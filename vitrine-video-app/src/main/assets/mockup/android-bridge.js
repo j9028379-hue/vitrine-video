@@ -340,13 +340,14 @@
       qNext.addEventListener(
         "click",
         () => {
-          const inputs = Array.from(document.querySelectorAll("#s-questions input"));
-          const anyMissing = inputs.some((i) => {
-            const field = i.closest(".field");
-            if (field && !field.hidden && i.id === "q-whatsapp" && document.querySelector("#format-t1") && (window.__vitrineFlow && window.__vitrineFlow.getState().format === "t1")) i.value = i.value.replace(/\s+/g, "");
-            return field && !field.hidden && ((i.required && !i.value.trim()) || !i.checkValidity());
-          });
-          if (!anyMissing && hasBridge()) {
+          // Persist the exact answers on every continue attempt, even if a browser-only
+          // constraint rejects one field. The mockup owns navigation validation; package
+          // and engine validation remain authoritative for whether rendering can start.
+          const flow = window.__vitrineFlow && window.__vitrineFlow.getState();
+          const isT1 = !!flow && flow.format === "t1";
+          const phone = document.getElementById("q-whatsapp");
+          if (isT1 && phone) phone.value = phone.value.replace(/\s+/g, "");
+          if (hasBridge()) {
             window.VitrineAndroid.saveResponses(JSON.stringify(collectFormResponses()));
           }
         },

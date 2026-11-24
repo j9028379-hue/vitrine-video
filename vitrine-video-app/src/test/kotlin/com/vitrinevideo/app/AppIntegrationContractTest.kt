@@ -16,6 +16,7 @@ import com.vitrinevideo.engine.capture.ProbedMediaMetadata
 import com.vitrinevideo.engine.capture.SceneCaptureDescriptor
 import com.vitrinevideo.engine.capture.VideoMetadataProbe
 import com.vitrinevideo.engine.form.TemplateJobAssembler
+import com.vitrinevideo.engine.form.TemplateFormValidationException
 import com.vitrinevideo.engine.interpreter.UniversalJsonInterpreter
 import com.vitrinevideo.engine.pkg.TemplatePackageLoader
 import com.vitrinevideo.engine.timeline.PreFlightException
@@ -166,6 +167,76 @@ class AppIntegrationContractTest {
 
         val invalid = mapped.toMutableMap().apply { put("whatsapp", "97000000") }
         assertTrue(runCatching { TemplateJobAssembler.validateResponses(pkg, invalid) }.isFailure)
+    }
+
+    @Test
+    fun t1WebAnswers_reachMerchantPayloadAndPassCapturePreflight() {
+        val assets = assetsRoot()
+        val pkg = FileInputStream(File(assets, "packages/COMMERCE-T1-2.0.0.zip")).use {
+            TemplatePackageLoader.importZipStream(it, tempFolder.newFolder("pkg_t1_d50_pipeline"))
+        }
+
+        // Reproduce D49's observed engine error when the JS bridge condition skips saving.
+        val emptyFailure = runCatching { TemplateJobAssembler.validateResponses(pkg, emptyMap()) }.exceptionOrNull()
+        assertTrue(emptyFailure is TemplateFormValidationException)
+        assertEquals("MISSING_REQUIRED_RESPONSE", (emptyFailure as TemplateFormValidationException).code)
+        assertTrue(emptyFailure.message!!.contains("'nom'"))
+
+        // This is the exact field shape emitted by the existing mockup DOM bridge.
+        val webPayload = """{"nom":"Étal Kandi","produit":"Jus de gingembre","prix":"750 FCFA","demonstration":"Frais et préparé ici","quartier":"Centre-ville","whatsapp":"+2290197000000"}"""
+        val mapped = MockupResponseMapper.parseFromWebJson(webPayload, "COMMERCE-T1")
+        assertEquals("Étal Kandi", mapped["nom"])
+        assertEquals("Frais et préparé ici", mapped["accroche"])
+        assertFalse("demonstration" in mapped)
+
+        val manager = SessionLifecycleManager(tempFolder.newFolder("d50_t1_session"))
+        manager.initialize()
+        manager.selectTemplate("COMMERCE-T1")
+        manager.updateResponses(mapped)
+        val durations = listOf(8, 10, 9, 11)
+        for (i in 0..3) {
+            val take = createTakeInDir(manager.currentSessionCaptureDir(), i, durations[i], "d50-real-t1-scene-$i")
+            manager.onSceneRecordingCompleted(take)
+            manager.acceptScene(i)
+        }
+        assertTrue(manager.progression.isAllScenesValidated())
+
+        val verified = manager.buildVerifiedRenderInputs(pkg)
+        assertEquals("Étal Kandi", verified.responses["nom"])
+        assertEquals(listOf("S1", "S2", "S3", "S4"), verified.descriptors.map { it.sceneId })
+        val assembled = TemplateJobAssembler.assemble(
+            pkg = pkg,
+            sessionId = verified.creationId,
+            rawResponses = verified.responses,
+            captures = verified.descriptors,
+            outputDir = tempFolder.newFolder("d50_t1_render_out"),
+            rotationDbFile = tempFolder.newFile("d50_t1_rotation.db")
+        )
+        val merchantPayload = assembled.jobJson.getJSONObject("merchant_payload")
+        assertEquals("Étal Kandi", merchantPayload.getString("nom"))
+        assertEquals("Jus de gingembre", merchantPayload.getString("produit"))
+        assertEquals("Frais et préparé ici", merchantPayload.getString("accroche"))
+        assertEquals("+2290197000000", merchantPayload.getString("whatsapp"))
+        assertEquals(listOf("S1", "S2", "S3", "S4"), assembled.renderRequest.captures.map { it.sceneId })
+
+        val profile = pkg.audioProfileFile?.let { UniversalJsonInterpreter.parseAudioProfile(it) }
+        val report = PreFlightValidator.validate(
+            context = null,
+            request = assembled.renderRequest,
+            plan = pkg.renderPlan,
+            audioProfile = profile,
+            config = EngineConfig(minFreeStorageBytes = 0L),
+            probe = VideoMetadataProbe {
+                ProbedMediaMetadata(720, 1280, 0, 11_000_000L, hasVideo = true, hasAudio = true)
+            }
+        )
+        assertEquals(setOf("S1", "S2", "S3", "S4"), report.validatedCaptures.keys)
+
+        val bridge = File(assets, "mockup/android-bridge.js").readText()
+        assertTrue("answers must be saved independently of browser checkValidity", bridge.contains("saveResponses(JSON.stringify(collectFormResponses()))"))
+        assertFalse(bridge.contains("if (!anyMissing && hasBridge())"))
+        val html = File(assets, "mockup/vitrine-video-maquette.html").readText()
+        assertFalse("T1 must not inherit the cross-sector product placeholder", html.contains("pfr:t2?\"Sac à main pour femme\":\"Riz au poulet, tresses, robe, sac...\""))
     }
 
     @Test
