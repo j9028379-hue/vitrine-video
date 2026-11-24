@@ -1,11 +1,17 @@
 # D50 Sandbox Storage Report
 
-Temporary build, toolchain and browser-test storage was used to complete the available automated checks and debug APK build. No storage limit was used as a reason to skip those checks.
+Temporary storage was used for the Android toolchain, Chromium/Playwright regression, unit tests and APK build; checks were not skipped to avoid storage use.
 
-- Browser regression tooling was installed outside the persistent workspace at `/opt/pw`; browser downloads are temporary environment data.
-- The D50 debug APK was built and validated before delivery. The local APK, Gradle build outputs, caches and temporary browser tooling will be removed only after Drive upload and verification succeed.
-- Project source, package assets and original JSON remain preserved.
-- No MP4 render was created; therefore there is no test-video artifact to retain or delete.
-- Final persistent workspace size and remaining local artifacts are reported after transfer cleanup. System filesystem free space is reported separately from workspace usage.
+## Cleanup after Drive verification
+- Google Drive upload was verified before cleanup: APK byte size and Drive MD5 matched the local artifact; SHA-256 is recorded in `D50_SHA256.txt`.
+- Removed the temporary local APK, app/engine Gradle build outputs and caches, repo Gradle state, Gradle user cache, Playwright package/browser downloads and npm download cache.
+- Preserved the project source, original JSON/template assets, and the five D50 reports in `docs/d50/`. JDK 17, Gradle and Android SDK remain installed outside the workspace for a future rebuild.
+- Test MP4s created/conserved: **0**; no render was run.
 
-Drive destination: `apk/D50_LIVRAISON`. Delivery comprises the debug APK, four reports, and a SHA-256 manifest; device/Media3/ffprobe validation is explicitly outstanding as documented in `D50_TEST_RESULTS.md`.
+## Final measured storage
+- Persistent workspace (`du -sh /home/user`): **96 MB** at final cleanup measurement.
+- D50 repository source tree: approximately **65 MB**; includes its `.git` history and preserved template/package assets.
+- System filesystem: **19 GB available** after cleanup (`df -h /home/user`; distinct from workspace size).
+- Local D50 APK: **removed after verified upload**. Local Gradle build outputs/caches and temporary browser tool files: **removed**.
+
+Drive destination: `apk/D50_LIVRAISON`. It contains one current copy of each of the six requested deliverables. Device CameraX and real T1/T3 MP4/ffprobe validation remain outstanding, as documented in `D50_TEST_RESULTS.md`.
