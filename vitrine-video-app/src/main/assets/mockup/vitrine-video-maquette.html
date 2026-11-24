@@ -2089,8 +2089,10 @@ body{
   const list=a=>`<ul>${a.map(x=>`<li>${safe(x)}</li>`).join("")}</ul>`;
   function renderFlow(){
     clearInterval(flow.timer);
+    const nativeAudio=window.__vitrineNativeGuideAudio||null;
     const previousGuideAudio=root.querySelector("#guide-audio");
     if(previousGuideAudio){previousGuideAudio.pause();previousGuideAudio.currentTime=0;}
+    if(nativeAudio&&flow.stage!=="guide"){nativeAudio.stop();}
     const s=scene(),fr=state.lang==="fr";
     const labels={guide:fr?"Guide":"Guide",record:fr?"Enregistrement":"Recording",review:fr?"Vérification":"Review"};
     const header=`<div class="cap__top"><button class="round-btn" id="flow-back" type="button" aria-label="Retour"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7" fill="none" stroke="#0B1650" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button><span class="cap__scene">${fr?"Scène":"Scene"} ${flow.scene+1} / 4</span><span class="cap__state">${labels[flow.stage]}</span></div>`;
@@ -2100,11 +2102,13 @@ body{
       const pauseIconAudio=`<svg class="guide-audio-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 5h4v14H6zM14 5h4v14h-4z" fill="currentColor"/></svg>`;
       const camIcon=`<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="5" width="14" height="14" rx="3" fill="none" stroke="currentColor" stroke-width="2.2"/><path d="m16 10 6-4v12l-6-4z" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"/></svg>`;
       const audioLabel=fr?"ÉCOUTER LE CONSEIL":"LISTEN TO THE GUIDE IN FRENCH";
+      const guideAudioSrc=SCENE_AUDIOS[flow.template][flow.scene];
+      const useNativeAudio=Boolean(nativeAudio&&nativeAudio.isSupported&&nativeAudio.isSupported());
       root.innerHTML=`<div class="guide-readable"><main class="guide-readable-main">
         <header class="guide-readable-header"><button class="guide-readable-back" id="flow-back" type="button" aria-label="${fr?"Retour":"Back"}">${backIcon}</button><b>${fr?"Scène":"Scene"} ${flow.scene+1} / 4</b><span class="guide-readable-state">${fr?"GUIDE":"GUIDE"}</span></header>
         <div class="guide-scene-image" id="guide-scene-image"><img src="${SCENE_VISUALS[flow.template][flow.scene]}" alt="${fr?"Illustration complète de la scène":"Full illustration for scene"} ${flow.scene+1}: ${safe(s.title)}"></div>
         <section class="guide-audio-panel" aria-label="${fr?"Voix off du guide":"French voice-over guide"}">
-          <audio id="guide-audio" preload="metadata" src="${SCENE_AUDIOS[flow.template][flow.scene]}"></audio>
+          <audio id="guide-audio" preload="${useNativeAudio?"none":"metadata"}"${useNativeAudio?"":` src="${guideAudioSrc}"`}></audio>
           <button class="guide-audio-button" id="guide-audio-toggle" type="button" aria-pressed="false"><span id="guide-audio-icon">${playIcon}</span><span id="guide-audio-label">${audioLabel}</span></button>
           <div class="guide-audio-transport" id="guide-audio-transport" hidden>
             <button class="guide-audio-skip" id="guide-audio-back" type="button" aria-label="${fr?"Reculer de dix secondes":"Back ten seconds"}">−10</button>
@@ -2117,36 +2121,81 @@ body{
       const audio=$("#guide-audio"),toggle=$("#guide-audio-toggle"),label=$("#guide-audio-label"),seek=$("#guide-audio-seek"),audioIcon=$("#guide-audio-icon"),transport=$("#guide-audio-transport");
       const currentTime=$("#guide-audio-current"),durationTime=$("#guide-audio-duration"),imageViewport=$("#guide-scene-image");
       const formatAudioTime=value=>{if(!Number.isFinite(value)||value<0)return "0:00";const seconds=Math.floor(value);return `${Math.floor(seconds/60)}:${String(seconds%60).padStart(2,"0")}`;};
-      const syncAudio=()=>{
+      let isDraggingSeek=false;
+      const getSnapshot=()=>{
+        if(useNativeAudio){return nativeAudio.getState();}
         const duration=Number.isFinite(audio.duration)?audio.duration:0;
-        currentTime.textContent=formatAudioTime(audio.currentTime);
+        const pos=Number.isFinite(audio.currentTime)?audio.currentTime:0;
+        return {durationSec:duration,currentSec:pos,playing:!audio.paused&&!audio.ended,ended:Boolean(audio.ended)};
+      };
+      const syncAudio=()=>{
+        const st=getSnapshot();
+        const duration=Number.isFinite(st.durationSec)&&st.durationSec>0?st.durationSec:0;
+        const cur=Number.isFinite(st.currentSec)&&st.currentSec>=0?Math.min(st.currentSec,duration||st.currentSec):0;
+        currentTime.textContent=formatAudioTime(cur);
         durationTime.textContent=formatAudioTime(duration);
-        seek.value=duration?String(Math.round(audio.currentTime/duration*1000)):"0";
+        if(!isDraggingSeek){seek.value=duration?String(Math.round(cur/duration*1000)):"0";}
       };
       const syncAudioButton=()=>{
-        const playing=!audio.paused&&!audio.ended;
-        label.textContent=playing?(fr?"METTRE EN PAUSE":"PAUSE AUDIO"):(transport.hidden?audioLabel:(audio.ended?(fr?"RÉÉCOUTER LE CONSEIL":"REPLAY THE GUIDE"):(audio.currentTime>0?(fr?"REPRENDRE L’ÉCOUTE":"RESUME AUDIO"):audioLabel)));
+        const st=getSnapshot();
+        const playing=Boolean(st.playing&&!st.ended);
+        const ended=Boolean(st.ended);
+        const cur=Number.isFinite(st.currentSec)?st.currentSec:0;
+        label.textContent=playing?(fr?"METTRE EN PAUSE":"PAUSE AUDIO"):(transport.hidden?audioLabel:(ended?(fr?"RÉÉCOUTER LE CONSEIL":"REPLAY THE GUIDE"):(cur>0?(fr?"REPRENDRE L’ÉCOUTE":"RESUME AUDIO"):audioLabel)));
         toggle.setAttribute("aria-pressed",String(playing));
         toggle.classList.toggle("is-playing",playing);
         audioIcon.innerHTML=playing?pauseIconAudio:playIcon;
       };
-      audio.addEventListener("loadedmetadata",syncAudio);
-      audio.addEventListener("timeupdate",syncAudio);
-      audio.addEventListener("durationchange",syncAudio);
-      audio.addEventListener("play",syncAudioButton);
-      audio.addEventListener("pause",syncAudioButton);
-      audio.addEventListener("ended",()=>{syncAudio();syncAudioButton();});
+      if(useNativeAudio){
+        nativeAudio.bind(guideAudioSrc,()=>{
+          if(!document.body.contains(toggle))return;
+          syncAudio();syncAudioButton();
+        });
+      }else{
+        audio.addEventListener("loadedmetadata",syncAudio);
+        audio.addEventListener("timeupdate",()=>{syncAudio();syncAudioButton();});
+        audio.addEventListener("durationchange",syncAudio);
+        audio.addEventListener("seeked",()=>{syncAudio();syncAudioButton();});
+        audio.addEventListener("play",syncAudioButton);
+        audio.addEventListener("pause",syncAudioButton);
+        audio.addEventListener("ended",()=>{syncAudio();syncAudioButton();});
+        audio.addEventListener("error",()=>{label.textContent=fr?"TOUCHE POUR ÉCOUTER":"TAP TO LISTEN";syncAudio();});
+      }
       toggle.onclick=()=>{
         transport.hidden=false;
         imageViewport.classList.add("has-audio-controls");
+        if(useNativeAudio){
+          const st=nativeAudio.getState();
+          if(st.playing){nativeAudio.pause();}else{nativeAudio.play();}
+          return;
+        }
+        if(audio.preload!=="auto")audio.preload="auto";
         if(audio.paused){if(audio.ended)audio.currentTime=0;audio.play().catch(()=>{label.textContent=fr?"TOUCHE POUR ÉCOUTER":"TAP TO LISTEN";});}
         else audio.pause();
       };
-      seek.oninput=()=>{if(Number.isFinite(audio.duration)&&audio.duration>0)audio.currentTime=Number(seek.value)/1000*audio.duration;};
-      $("#guide-audio-back").onclick=()=>{if(Number.isFinite(audio.duration))audio.currentTime=Math.max(0,audio.currentTime-10);};
-      $("#guide-audio-forward").onclick=()=>{if(Number.isFinite(audio.duration))audio.currentTime=Math.min(audio.duration,audio.currentTime+10);};
-      const back=$("#flow-back");back.onclick=()=>{if(flow.scene===0)goTo("s-guide-intro",true);else{flow.scene--;flow.stage="review";renderFlow();}};
-      $("#flow-start").onclick=()=>{audio.pause();audio.currentTime=0;flow.stage="record";renderFlow();};
+      seek.addEventListener("pointerdown",()=>{isDraggingSeek=true;});
+      seek.addEventListener("pointerup",()=>{isDraggingSeek=false;});
+      seek.addEventListener("pointercancel",()=>{isDraggingSeek=false;});
+      seek.oninput=()=>{
+        const st=getSnapshot();
+        if(Number.isFinite(st.durationSec)&&st.durationSec>0){
+          const target=Number(seek.value)/1000*st.durationSec;
+          currentTime.textContent=formatAudioTime(target);
+          if(useNativeAudio){nativeAudio.seekTo(target);}
+          else{audio.currentTime=target;}
+        }
+      };
+      seek.onchange=()=>{isDraggingSeek=false;syncAudio();syncAudioButton();};
+      $("#guide-audio-back").onclick=()=>{
+        if(useNativeAudio){nativeAudio.seekBy(-10);return;}
+        if(Number.isFinite(audio.duration)){audio.currentTime=Math.max(0,audio.currentTime-10);syncAudio();syncAudioButton();}
+      };
+      $("#guide-audio-forward").onclick=()=>{
+        if(useNativeAudio){nativeAudio.seekBy(10);return;}
+        if(Number.isFinite(audio.duration)){audio.currentTime=Math.min(audio.duration,audio.currentTime+10);syncAudio();syncAudioButton();}
+      };
+      const back=$("#flow-back");back.onclick=()=>{if(useNativeAudio){nativeAudio.stop();}else{audio.pause();audio.currentTime=0;}if(flow.scene===0)goTo("s-guide-intro",true);else{flow.scene--;flow.stage="review";renderFlow();}};
+      $("#flow-start").onclick=()=>{if(useNativeAudio){nativeAudio.stop();}else{audio.pause();audio.currentTime=0;}flow.stage="record";renderFlow();};
       syncAudio();syncAudioButton();
       const sceneImage=imageViewport.querySelector("img");
       const centerSceneImage=()=>{imageViewport.scrollLeft=Math.max(0,(imageViewport.scrollWidth-imageViewport.clientWidth)/2);};

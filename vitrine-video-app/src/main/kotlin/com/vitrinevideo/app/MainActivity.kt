@@ -35,6 +35,8 @@ import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
+import com.vitrinevideo.app.audio.GuideAudioPlayer
+import com.vitrinevideo.app.audio.GuideAudioState
 import com.vitrinevideo.app.bridge.AssetWebViewClient
 import com.vitrinevideo.app.camera.CameraXSceneRecorder
 import com.vitrinevideo.app.flow.CapturedSceneTake
@@ -131,6 +133,7 @@ class MainActivity : AppCompatActivity() {
 
     private lateinit var cameraRecorder: CameraXSceneRecorder
     private lateinit var mediaPlayer: VitrineMediaPlayer
+    private lateinit var guideAudioPlayer: GuideAudioPlayer
     private lateinit var sessionManager: SessionLifecycleManager
     private var renderEngine: VitrineRenderEngine? = null
 
@@ -177,6 +180,9 @@ class MainActivity : AppCompatActivity() {
 
         cameraRecorder = CameraXSceneRecorder(this, this)
         mediaPlayer = VitrineMediaPlayer(this)
+        guideAudioPlayer = GuideAudioPlayer(this) { state ->
+            pushGuideAudioStateToWeb(state)
+        }
 
         buildLayout()
         setupWindowInsets()
@@ -974,6 +980,7 @@ class MainActivity : AppCompatActivity() {
         }
         activeSceneIndex = sceneIndex
         sessionManager.onGuideVisited(sceneIndex)
+        guideAudioPlayer.stopAndReset()
         mediaPlayer.release()
         showOverlay(OverlayState.CAMERA)
 
@@ -1160,6 +1167,7 @@ class MainActivity : AppCompatActivity() {
             return
         }
         activeSceneIndex = sceneIndex
+        guideAudioPlayer.stopAndReset()
         cameraRecorder.unbind()
         showOverlay(OverlayState.REVIEW)
 
@@ -1252,6 +1260,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun launchRealMontageRender() {
+        guideAudioPlayer.stopAndReset()
         mediaPlayer.release()
         cameraRecorder.unbind()
         showOverlay(OverlayState.RENDERING)
@@ -1402,6 +1411,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun startFreshSession() {
+        guideAudioPlayer.stopAndReset()
         mediaPlayer.release()
         // If user starts fresh from an incomplete draft, wipe draft temp files cleanly;
         // if coming from COMPLETED_CLEANED, sessionManager already rotated to a blank creation_id.
@@ -1441,8 +1451,28 @@ class MainActivity : AppCompatActivity() {
         })
     }
 
+    private fun pushGuideAudioStateToWeb(state: GuideAudioState) {
+        val quoted = JSONObject.quote(state.toJson())
+        val js = "window.VitrineNativeCallback && window.VitrineNativeCallback.onGuideAudioState($quoted);"
+        if (Looper.myLooper() == Looper.getMainLooper()) {
+            if (::webView.isInitialized) {
+                webView.evaluateJavascript(js, null)
+            }
+        } else {
+            mainHandler.post {
+                if (::webView.isInitialized) {
+                    webView.evaluateJavascript(js, null)
+                }
+            }
+        }
+    }
+
     override fun onResume() {
         super.onResume()
+        if (::webView.isInitialized) {
+            webView.onResume()
+        }
+        guideAudioPlayer.onHostResume()
         if (overlayState == OverlayState.CAMERA && cameraRecorder.hasPermissions() && !isRecordingNow) {
             camPermissionPanel.visibility = View.GONE
             bindCameraPreview()
@@ -1454,12 +1484,17 @@ class MainActivity : AppCompatActivity() {
         if (isRecordingNow) {
             cameraRecorder.cancelActiveRecording()
         }
+        guideAudioPlayer.onHostPause()
         mediaPlayer.pause()
+        if (::webView.isInitialized) {
+            webView.onPause()
+        }
     }
 
     override fun onDestroy() {
         super.onDestroy()
         cameraRecorder.unbind()
+        guideAudioPlayer.release()
         mediaPlayer.release()
         renderEngine?.cancel()
         ioExec.shutdownNow()
@@ -1471,6 +1506,7 @@ class MainActivity : AppCompatActivity() {
             mainHandler.post {
                 pushSystemInsetsToWeb()
                 pushSavedResponsesToWeb()
+                guideAudioPlayer.onHostResume()
             }
         }
 
@@ -1478,8 +1514,46 @@ class MainActivity : AppCompatActivity() {
         fun onScreenChanged(screenId: String) {
             mainHandler.post {
                 currentWebScreenId = screenId
+                if (screenId != "s-capture") {
+                    guideAudioPlayer.stopAndReset()
+                }
                 updateSystemBarsAppearance()
             }
+        }
+
+        @JavascriptInterface
+        fun guideAudioPrepare(assetPath: String) {
+            mainHandler.post { guideAudioPlayer.prepare(assetPath) }
+        }
+
+        @JavascriptInterface
+        fun guideAudioPlay() {
+            mainHandler.post { guideAudioPlayer.play() }
+        }
+
+        @JavascriptInterface
+        fun guideAudioPause() {
+            mainHandler.post { guideAudioPlayer.pause() }
+        }
+
+        @JavascriptInterface
+        fun guideAudioSeekTo(positionMs: Long) {
+            mainHandler.post { guideAudioPlayer.seekTo(positionMs) }
+        }
+
+        @JavascriptInterface
+        fun guideAudioSeekBy(deltaMs: Long) {
+            mainHandler.post { guideAudioPlayer.seekBy(deltaMs) }
+        }
+
+        @JavascriptInterface
+        fun guideAudioStop() {
+            mainHandler.post { guideAudioPlayer.stopAndReset() }
+        }
+
+        @JavascriptInterface
+        fun guideAudioGetStateJson(): String {
+            return guideAudioPlayer.currentState().toJson()
         }
 
         @JavascriptInterface

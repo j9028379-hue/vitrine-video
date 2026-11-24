@@ -1,0 +1,5 @@
+VitrineVideo-D48.apk
+size_bytes=36768325
+sha256=16a3f8d4c685ee61f5f896bb9c3b7b2ce83d0a80a44502f2a77de1c963716c75
+md5=c8f8b71ba4227a10964de0ca473e8303
+branch=d48-t3-guide-audio-playback-fix

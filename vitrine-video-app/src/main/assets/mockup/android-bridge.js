@@ -2,6 +2,87 @@
   "use strict";
 
   const hasBridge = () => typeof window.VitrineAndroid !== "undefined" && window.VitrineAndroid !== null;
+  const hasNativeGuideAudio = () =>
+    hasBridge() && typeof window.VitrineAndroid.guideAudioPrepare === "function";
+
+  const guideAudioState = {
+    assetPath: "",
+    durationSec: 0,
+    currentSec: 0,
+    playing: false,
+    ended: false,
+    ready: false,
+    error: ""
+  };
+  let guideAudioListener = null;
+
+  function applyGuideAudioSnapshot(raw) {
+    if (!raw || typeof raw !== "object") return;
+    guideAudioState.assetPath = raw.assetPath || "";
+    guideAudioState.durationSec = Number(raw.durationSec) || 0;
+    guideAudioState.currentSec = Number(raw.currentSec) || 0;
+    guideAudioState.playing = Boolean(raw.playing);
+    guideAudioState.ended = Boolean(raw.ended);
+    guideAudioState.ready = Boolean(raw.ready);
+    guideAudioState.error = raw.error || "";
+    if (typeof guideAudioListener === "function") {
+      try {
+        guideAudioListener({ ...guideAudioState });
+      } catch (_) {}
+    }
+  }
+
+  window.__vitrineNativeGuideAudio = {
+    isSupported: () => hasNativeGuideAudio(),
+    getState: () => ({ ...guideAudioState }),
+    bind: (assetSrc, listener) => {
+      guideAudioListener = typeof listener === "function" ? listener : null;
+      if (!hasNativeGuideAudio()) return;
+      guideAudioState.durationSec = 0;
+      guideAudioState.currentSec = 0;
+      guideAudioState.playing = false;
+      guideAudioState.ended = false;
+      guideAudioState.ready = false;
+      guideAudioState.error = "";
+      window.VitrineAndroid.guideAudioPrepare(String(assetSrc || ""));
+    },
+    play: () => {
+      if (hasNativeGuideAudio()) window.VitrineAndroid.guideAudioPlay();
+    },
+    pause: () => {
+      if (hasNativeGuideAudio()) window.VitrineAndroid.guideAudioPause();
+    },
+    seekTo: (sec) => {
+      if (hasNativeGuideAudio()) {
+        const ms = Math.max(0, Math.round(Number(sec || 0) * 1000));
+        window.VitrineAndroid.guideAudioSeekTo(ms);
+      }
+    },
+    seekBy: (deltaSec) => {
+      if (hasNativeGuideAudio()) {
+        const ms = Math.round(Number(deltaSec || 0) * 1000);
+        window.VitrineAndroid.guideAudioSeekBy(ms);
+      }
+    },
+    stop: () => {
+      guideAudioListener = null;
+      guideAudioState.playing = false;
+      guideAudioState.currentSec = 0;
+      guideAudioState.ended = false;
+      if (hasNativeGuideAudio()) window.VitrineAndroid.guideAudioStop();
+    }
+  };
+
+  function stopAllGuideAudio() {
+    const audio = document.getElementById("guide-audio");
+    if (audio) {
+      audio.pause();
+      audio.currentTime = 0;
+    }
+    if (window.__vitrineNativeGuideAudio) {
+      window.__vitrineNativeGuideAudio.stop();
+    }
+  }
 
   function enforceFluidAndroidViewport() {
     const holder = document.getElementById("holder");
@@ -151,11 +232,7 @@
         ? "LANCER LE MONTAGE (4 SCÈNES PRÊTES) →"
         : "START EDITING (4 SCENES READY) →";
       jumpBtn.addEventListener("click", () => {
-        const audio = document.getElementById("guide-audio");
-        if (audio) {
-          audio.pause();
-          audio.currentTime = 0;
-        }
+        stopAllGuideAudio();
         window.VitrineAndroid.launchMontage();
       });
       footer.appendChild(jumpBtn);
@@ -286,11 +363,7 @@
           if (startBtn) {
             e.preventDefault();
             e.stopImmediatePropagation();
-            const audio = document.getElementById("guide-audio");
-            if (audio) {
-              audio.pause();
-              audio.currentTime = 0;
-            }
+            stopAllGuideAudio();
             const flow = window.__vitrineFlow && window.__vitrineFlow.getState();
             const sceneIdx = flow ? flow.scene : 0;
             if (hasBridge()) {
@@ -306,11 +379,7 @@
               if (window.VitrineAndroid.hasValidatedScene(flow.scene - 1)) {
                 e.preventDefault();
                 e.stopImmediatePropagation();
-                const audio = document.getElementById("guide-audio");
-                if (audio) {
-                  audio.pause();
-                  audio.currentTime = 0;
-                }
+                stopAllGuideAudio();
                 window.VitrineAndroid.openSceneReview(flow.scene - 1);
               }
             }
@@ -348,11 +417,7 @@
       enforceFluidAndroidViewport();
     },
     goToSceneGuide: function (sceneIdx) {
-      const audio = document.getElementById("guide-audio");
-      if (audio) {
-        audio.pause();
-        audio.currentTime = 0;
-      }
+      stopAllGuideAudio();
       if (window.__vitrineFlow) {
         window.__vitrineFlow.setSceneStage(sceneIdx, "guide");
         syncGuideBadge();
@@ -382,12 +447,21 @@
       }
       notifyActiveScreen();
     },
+    onGuideAudioState: function (jsonStr) {
+      try {
+        const parsed = typeof jsonStr === "string" ? JSON.parse(jsonStr) : jsonStr;
+        applyGuideAudioSnapshot(parsed);
+      } catch (_) {}
+    },
     resetSessionToBlank: function (targetScreenId) {
       clearFormInputs();
       const audio = document.getElementById("guide-audio");
       if (audio) {
         audio.pause();
         audio.currentTime = 0;
+      }
+      if (window.__vitrineNativeGuideAudio) {
+        window.__vitrineNativeGuideAudio.stop();
       }
       document.querySelectorAll(".vitrine-scene-saved-pill, #vitrine-jump-montage").forEach((el) => el.remove());
       if (window.__vitrineFlow && typeof window.__vitrineFlow.resetToBlank === "function") {
