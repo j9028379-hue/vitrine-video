@@ -176,11 +176,12 @@ class AppIntegrationContractTest {
             TemplatePackageLoader.importZipStream(it, tempFolder.newFolder("pkg_t1_d50_pipeline"))
         }
 
-        // Reproduce D49's observed engine error when the JS bridge condition skips saving.
+        // Reproduce the D49 failure class when the JS bridge condition skips saving.
+        // JSONObject iteration order may select any first required key; device log reported `nom`.
         val emptyFailure = runCatching { TemplateJobAssembler.validateResponses(pkg, emptyMap()) }.exceptionOrNull()
         assertTrue(emptyFailure is TemplateFormValidationException)
         assertEquals("MISSING_REQUIRED_RESPONSE", (emptyFailure as TemplateFormValidationException).code)
-        assertTrue(emptyFailure.message!!.contains("'nom'"))
+        assertTrue(pkg.formSpec.requiredKeys().any { emptyFailure.message!!.contains("'$it'") })
 
         // This is the exact field shape emitted by the existing mockup DOM bridge.
         val webPayload = """{"nom":"Étal Kandi","produit":"Jus de gingembre","prix":"750 FCFA","demonstration":"Frais et préparé ici","quartier":"Centre-ville","whatsapp":"+2290197000000"}"""
