@@ -1,6 +1,6 @@
 # VITRINE VIDÉO — APK delivery package
-workflow_run=45692359198
-commit=1eac560a6b9d518db85255d8cc346c7482c6d204
+workflow_run=45699097839
+commit=efe3e9e15b3cfb7b98de5047d4c2f8810b33bc55
 branch=arena/dd66abee-vitrine-video
 
 ## APK
@@ -8,18 +8,18 @@ T2 APKs exceed GitHub's 100 MB per-file limit, so each APK is stored as verified
 Reassemble with: cat <apk>.part-* > <apk> (in lexicographic order).
 
 name=VitrineVideo-debug.apk
-size=56969702 bytes
-sha256=2cae60c4a675d6ca11599bb9771a0a7ba79c101e6fe830933e6019f7595804bb
-reassembled_sha256=2cae60c4a675d6ca11599bb9771a0a7ba79c101e6fe830933e6019f7595804bb
+size=60325232 bytes
+sha256=e32604a308b45bd69095d4e52e645be1fb65739ac0e289f08d6558eb394444ed
+reassembled_sha256=e32604a308b45bd69095d4e52e645be1fb65739ac0e289f08d6558eb394444ed
 chunk=VitrineVideo-debug.apk.part-00 bytes=50331648
-chunk=VitrineVideo-debug.apk.part-01 bytes=6638054
+chunk=VitrineVideo-debug.apk.part-01 bytes=9993584
 
 name=VitrineVideo-release-ci-signed.apk
-size=55368018 bytes
-sha256=d8c9d4c3a18d0c75dbd8ff2f68e35ce5ea5e4533ad421cb2db5613433ab06d31
-reassembled_sha256=d8c9d4c3a18d0c75dbd8ff2f68e35ce5ea5e4533ad421cb2db5613433ab06d31
+size=58723194 bytes
+sha256=fdcbab13620a91af67b0aec248be5cb9ecac8a24f4de0b459c46c9a5c51c6b59
+reassembled_sha256=fdcbab13620a91af67b0aec248be5cb9ecac8a24f4de0b459c46c9a5c51c6b59
 chunk=VitrineVideo-release-ci-signed.apk.part-00 bytes=50331648
-chunk=VitrineVideo-release-ci-signed.apk.part-01 bytes=5036370
+chunk=VitrineVideo-release-ci-signed.apk.part-01 bytes=8391546
 
 ## Source CI artifacts
 ci-delivery/artifacts/apk-release-evidence/SHA256SUMS.txt
@@ -89,6 +89,7 @@ ci-delivery/artifacts/junit-reports/vitrine-video-app/build/reports/tests/testDe
 ci-delivery/artifacts/junit-reports/vitrine-video-app/build/reports/tests/testDebugUnitTest/classes/com.vitrinevideo.app.CommerceFormatSelectionTest.html
 ci-delivery/artifacts/junit-reports/vitrine-video-app/build/reports/tests/testDebugUnitTest/classes/com.vitrinevideo.app.GuideAudioAndAssetTest.html
 ci-delivery/artifacts/junit-reports/vitrine-video-app/build/reports/tests/testDebugUnitTest/classes/com.vitrinevideo.app.RestaurationT2AppFlowTest.html
+ci-delivery/artifacts/junit-reports/vitrine-video-app/build/reports/tests/testDebugUnitTest/classes/com.vitrinevideo.app.RestaurationT3AppFlowTest.html
 ci-delivery/artifacts/junit-reports/vitrine-video-app/build/reports/tests/testDebugUnitTest/classes/com.vitrinevideo.app.RestaurationT5AppFlowTest.html
 ci-delivery/artifacts/junit-reports/vitrine-video-app/build/reports/tests/testDebugUnitTest/classes/com.vitrinevideo.app.T2AppFlowTest.html
 ci-delivery/artifacts/junit-reports/vitrine-video-app/build/reports/tests/testDebugUnitTest/classes/com.vitrinevideo.app.T4ResponseContractTest.html
@@ -101,10 +102,12 @@ ci-delivery/artifacts/junit-reports/vitrine-video-app/build/test-results/testDeb
 ci-delivery/artifacts/junit-reports/vitrine-video-app/build/test-results/testDebugUnitTest/TEST-com.vitrinevideo.app.CommerceFormatSelectionTest.xml
 ci-delivery/artifacts/junit-reports/vitrine-video-app/build/test-results/testDebugUnitTest/TEST-com.vitrinevideo.app.GuideAudioAndAssetTest.xml
 ci-delivery/artifacts/junit-reports/vitrine-video-app/build/test-results/testDebugUnitTest/TEST-com.vitrinevideo.app.RestaurationT2AppFlowTest.xml
+ci-delivery/artifacts/junit-reports/vitrine-video-app/build/test-results/testDebugUnitTest/TEST-com.vitrinevideo.app.RestaurationT3AppFlowTest.xml
 ci-delivery/artifacts/junit-reports/vitrine-video-app/build/test-results/testDebugUnitTest/TEST-com.vitrinevideo.app.RestaurationT5AppFlowTest.xml
 ci-delivery/artifacts/junit-reports/vitrine-video-app/build/test-results/testDebugUnitTest/TEST-com.vitrinevideo.app.T2AppFlowTest.xml
 ci-delivery/artifacts/junit-reports/vitrine-video-app/build/test-results/testDebugUnitTest/TEST-com.vitrinevideo.app.T4ResponseContractTest.xml
 ci-delivery/artifacts/t2-t5-package-evidence/ci-artifacts/RESTAURATION_T2_INTEGRITY_REPORT.txt
+ci-delivery/artifacts/t2-t5-package-evidence/ci-artifacts/RESTAURATION_T3_INTEGRITY_REPORT.txt
 ci-delivery/artifacts/t2-t5-package-evidence/ci-artifacts/T2_INTEGRITY_REPORT.txt
 ci-delivery/artifacts/t2-t5-package-evidence/ci-artifacts/T5_INTEGRITY_REPORT.txt
 ci-delivery/artifacts/t2-t5-package-evidence/docs/restauration_t5/proofs/T5_TRANSITIONS_REPORT.txt
