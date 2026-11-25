@@ -54,7 +54,9 @@ Every profile below is copied verbatim into the generated runtime montage JSON. 
 - `python3 tools/build_restauration_t3_package.py` — pass; regenerated T3 ZIP with 17 source events and exact source profile objects. ZIP SHA-256: `99e4ccb1a36f39d37986f99887aa44ab9f677244e45126e9c1d7aac139b4fb2f`.
 - `python3 tools/verify_restauration_t3_integrity.py` — **67 pass, 0 fail**. This validates package integrity/contracts, not rendering or audio quality.
 - `git diff --check` — pass at time of audit.
-- Kotlin/Android unit tests and Gradle compilation — pending (sandbox has no usable Java/JDK per earlier check).
+- GitHub Actions run `45707752425` on source commit `780e84a22283bfe15a340a5158da99a012ce6b6c` — green: engine/app unit suites **144 total, 0 failures, 0 errors, 0 skipped**; T2/T5/T3 package evidence checks pass; Debug + Release build, APK signature/integrity, and T3 asset audit pass. This proves build and tests, not visual/audio conformance on device.
+- CI Release APK SHA-256: `15a6bc49a4825328752d5982f1a18b04dba7d2d4c34dbc669c53bd2cc155f030` (58,723,194 bytes). Uploaded as `VitrineVideo-RESTAURATION-T3-corrective-CI-signed.apk` to Drive file `1pCuJBNyPLJKVohngSHVEfcpy9Jtv6S1t`; downloaded again from Drive and SHA-256/size matched exactly. [Drive file](https://drive.google.com/file/d/1pCuJBNyPLJKVohngSHVEfcpy9Jtv6S1t/view?usp=drivesdk).
+- GitHub Actions delivery evidence commit: `6f9ad92c03656e79a76dbe8d49377bd91a34cd3b` (automatic CI APK chunks/manifests on the same branch).
 
 ## Release blockers
 
