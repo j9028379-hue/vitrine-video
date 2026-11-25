@@ -1567,7 +1567,7 @@ class MainActivity : AppCompatActivity() {
         @JavascriptInterface
         fun onTemplateSelected(templateId: String) {
             mainHandler.post {
-                if (templateId != "COMMERCE-T1" && templateId != "COMMERCE-T3") return@post
+                if (templateId != "COMMERCE-T1" && templateId != "COMMERCE-T3" && templateId != "COMMERCE-T4") return@post
                 sessionManager.selectTemplate(templateId)
                 loadedPackage = null
                 preloadTemplatePackage(templateId)

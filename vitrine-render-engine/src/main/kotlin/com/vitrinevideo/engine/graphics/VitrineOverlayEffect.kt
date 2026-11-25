@@ -12,6 +12,7 @@ import com.vitrinevideo.engine.interpreter.TextEntryAnim
 import com.vitrinevideo.engine.interpreter.TextOverlaySpec
 import com.vitrinevideo.engine.timeline.TimelineEngine
 import java.io.File
+import java.util.Locale
 import java.util.concurrent.atomic.AtomicLong
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.math.abs
@@ -236,6 +237,11 @@ class VitrineBitmapTextOverlay(
         val entryShiftX = if (window.entryAnim == TextEntryAnim.VAGUE_REVEAL) -14f * (1f - entryProgress) else 0f
         val entryShiftY = if (window.entryAnim == TextEntryAnim.LEVER) 28f * (1f - entryProgress) else 0f
 
+        if (window.textKind != null && (window.whiteTextTemplate != null || window.accentTextTemplate != null)) {
+            drawT4Window(window, alpha)
+            return
+        }
+
         val lineStep = if (rw.spec.overrideStyle != null) {
             rw.spec.overrideStyle.lineSpacingPx.toFloat()
         } else {
@@ -304,6 +310,107 @@ class VitrineBitmapTextOverlay(
                 }
             }
             bandCanvas.restoreToCount(lineSave)
+        }
+    }
+
+
+    private fun drawT4Window(window: com.vitrinevideo.engine.interpreter.TextWindowSpec, alpha: Float) {
+        val applyCase: (String) -> String = if (spec.caseMode.equals("majuscules", ignoreCase = true)) {
+            { it.uppercase(Locale.ROOT) }
+        } else {
+            { it }
+        }
+        fun resolve(template: String?): String = applyCase(
+            template.orEmpty().replace(Regex("\\{([a-zA-Z0-9_]+)\\}")) { m ->
+                responses[m.groupValues[1]]?.trim().orEmpty()
+            }.trim()
+        )
+        val white = resolve(window.whiteTextTemplate)
+        val accent = resolve(window.accentTextTemplate)
+        val accentColor = parseColor(window.accentColorHex ?: spec.accentColorHex ?: "#6C87FF", Color.BLUE)
+        val whiteColor = parseColor(window.whiteColorHex ?: "#FFFFFF", Color.WHITE)
+        val outline = parseColor(spec.outlineColorHex ?: spec.relief.strokeColorRgba, Color.BLACK)
+        val maxWidth = (window.overrideStyle?.maxWidthPx ?: spec.defaultStyle.maxWidthPx).toFloat()
+        val initialBase = (spec.defaultTextY ?: (spec.defaultStyle.singleLineBaseY - spec.defaultStyle.fontSizePx)).toFloat()
+        var cursorTop = initialBase - bandTopPx.toFloat()
+
+        fun drawText(text: String, x: Float, baseline: Float, color: Int, size: Float, strike: Boolean = false) {
+            if (text.isBlank()) return
+            fillPaint.textSize = size
+            strokePaint.textSize = size
+            fillPaint.style = Paint.Style.FILL
+            fillPaint.color = color
+            fillPaint.alpha = (Color.alpha(color) * alpha).roundToInt().coerceIn(0, 255)
+            fillPaint.setShadowLayer(spec.relief.shadowBlurPx.toFloat(), spec.relief.shadowDxPx.toFloat(),
+                spec.shadowOffsetYPx?.toFloat() ?: spec.relief.shadowDyPx.toFloat(),
+                parseColor(spec.relief.shadowColorRgba, Color.BLACK))
+            strokePaint.style = Paint.Style.STROKE
+            strokePaint.strokeWidth = (spec.outlineWidthPx ?: spec.relief.strokeWidthPx).toFloat()
+            strokePaint.strokeJoin = Paint.Join.ROUND
+            strokePaint.color = outline
+            strokePaint.alpha = (Color.alpha(outline) * alpha).roundToInt().coerceIn(0, 255)
+            if (strokePaint.strokeWidth > 0f) bandCanvas.drawText(text, x, baseline, strokePaint)
+            bandCanvas.drawText(text, x, baseline, fillPaint)
+            if (strike) {
+                val y = baseline - size * 0.34f
+                val w = fillPaint.measureText(text)
+                val strikePaint = Paint(Paint.ANTI_ALIAS_FLAG)
+                strikePaint.color = accentColor
+                strikePaint.strokeWidth = TextDecorationGeometry.strikethroughWidthPx(size, spec.strikethroughWidthPx)
+                strikePaint.setAlpha((255f * alpha).roundToInt().coerceIn(0, 255))
+                bandCanvas.drawLine(x - 7f, y, x + w + 7f, y, strikePaint)
+            }
+        }
+        fun wrap(text: String, size: Float): List<String> {
+            if (text.isBlank()) return emptyList()
+            fillPaint.textSize = size
+            val lines = mutableListOf<String>(); var current = ""
+            for (word in text.split(Regex("\\s+"))) {
+                val candidate = if (current.isEmpty()) word else "$current $word"
+                if (current.isNotEmpty() && fillPaint.measureText(candidate) > maxWidth) { lines += current; current = word }
+                else current = candidate
+            }
+            if (current.isNotEmpty()) lines += current
+            return lines
+        }
+        fun block(text: String, color: Int, size: Float, strike: Boolean = false) {
+            var fontSize = size
+            var lines = wrap(text, fontSize)
+            while (fontSize > 24f && lines.any { fillPaint.measureText(it) > maxWidth }) {
+                fontSize -= 1f; lines = wrap(text, fontSize)
+            }
+            lines.forEach { line ->
+                fillPaint.textSize = fontSize
+                val x = (bandBitmap.width - fillPaint.measureText(line)) * 0.5f
+                val baseline = cursorTop + fontSize
+                drawText(line, x, baseline, color, fontSize, strike)
+                cursorTop += fontSize * 1.18f
+            }
+        }
+
+        if (window.textKind == "prix") {
+            block(white, whiteColor, (window.beforePriceFontPx ?: 55.0).toFloat(), strike = true)
+            block(accent, accentColor, (window.afterPriceFontPx ?: 89.0).toFloat())
+            val condition = resolve(window.conditionTextTemplate)
+            if (condition.isNotBlank() || !spec.conditionOnlyIfNonEmpty) {
+                block(condition, whiteColor, (window.conditionFontPx ?: 37.0).toFloat())
+            }
+            return
+        }
+        if (white.isBlank()) { block(accent, accentColor, spec.defaultStyle.fontSizePx.toFloat()); return }
+        if (accent.isBlank()) { block(white, whiteColor, spec.defaultStyle.fontSizePx.toFloat()); return }
+        val size = spec.defaultStyle.fontSizePx.toFloat()
+        fillPaint.textSize = size
+        val gap = fillPaint.measureText(" ")
+        val combinedWidth = fillPaint.measureText(white) + gap + fillPaint.measureText(accent)
+        if (combinedWidth <= maxWidth) {
+            val x = (bandBitmap.width - combinedWidth) * 0.5f
+            val baseline = cursorTop + size
+            drawText(white, x, baseline, whiteColor, size)
+            drawText(accent, x + fillPaint.measureText(white) + gap, baseline, accentColor, size)
+        } else {
+            block(white, whiteColor, size)
+            block(accent, accentColor, size)
         }
     }
 

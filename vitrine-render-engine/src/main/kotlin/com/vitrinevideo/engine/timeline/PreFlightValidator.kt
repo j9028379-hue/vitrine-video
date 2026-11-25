@@ -109,8 +109,17 @@ object PreFlightValidator {
             if (profile.id != plan.audioProfileId) {
                 throw PreFlightException("AUDIO_PROFILE_MISMATCH", "Profil audio ${profile.id} != ${plan.audioProfileId}")
             }
-            if (!profile.mixApproved || !profile.voiceApproved) {
-                throw PreFlightException("AUDIO_NOT_APPROVED", "Profil audio non approuvé pour export")
+            if (!profile.voiceApproved) {
+                throw PreFlightException("AUDIO_NOT_APPROVED", "Voix du profil audio non approuvée pour export")
+            }
+            // A founder record is an explicit commercial approval of the playable
+            // selection. It does not rewrite `mix_valide`, which stays a technical
+            // state and remains visible in reports.
+            if (!profile.mixApproved && !profile.hasFounderApprovedSelection) {
+                throw PreFlightException(
+                    "AUDIO_NOT_APPROVED",
+                    "Mix techniquement non validé et aucune approbation fondateur couvrant toutes les pistes lisibles"
+                )
             }
         }
 

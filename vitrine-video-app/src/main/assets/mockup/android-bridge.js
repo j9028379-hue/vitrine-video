@@ -15,6 +15,7 @@
     error: ""
   };
   let guideAudioListener = null;
+  let activeTemplateFormat = "t1";
 
   function applyGuideAudioSnapshot(raw) {
     if (!raw || typeof raw !== "object") return;
@@ -137,7 +138,7 @@
         card.setAttribute("data-soon-label", label);
       }
     });
-    ["t2", "t4"].forEach((f) => {
+    ["t2"].forEach((f) => {
       const card = document.querySelector(`.format-card[data-format="${f}"]`);
       if (card) {
         card.setAttribute("data-coming-soon", "true");
@@ -159,6 +160,15 @@
     const val = (id) => {
       const el = document.getElementById(id);
       return el ? String(el.value) : "";
+    };
+    if (activeTemplateFormat === "t4") return {
+      commerce: val("q-nom"),
+      produit: val("q-produit"),
+      habituel: val("q-prix"),
+      promo: val("q-promo"),
+      fin: val("q-fin"),
+      localisation: val("q-quartier"),
+      whatsapp: val("q-whatsapp")
     };
     return {
       nom: val("q-nom"),
@@ -188,11 +198,13 @@
         el.value = v;
       }
     };
-    setVal("q-nom", resp.nom || "");
+    setVal("q-nom", resp.nom || resp.commerce || "");
     setVal("q-produit", resp.produit || "");
-    setVal("q-prix", resp.prix || "");
+    setVal("q-prix", resp.prix || resp.habituel || "");
+    setVal("q-promo", resp.promo || "");
+    setVal("q-fin", resp.fin || "");
     setVal("q-accroche", resp.accroche || resp.demonstration || "");
-    setVal("q-quartier", resp.quartier || "");
+    setVal("q-quartier", resp.quartier || resp.localisation || "");
     setVal("q-whatsapp", resp.whatsapp || "");
   }
 
@@ -297,7 +309,7 @@
       );
     });
 
-    // Enforce T3-only operational scope on #s-formats
+    // Keep unsupported templates gated; T4 is backed by its verified package.
     const formatsWrap = document.querySelector("#s-formats .formats");
     if (formatsWrap) {
       formatsWrap.addEventListener(
@@ -306,7 +318,7 @@
           const card = e.target.closest(".format-card");
           if (!card) return;
           const fmt = card.dataset.format || card.id.replace(/^format-/, "");
-          if (fmt !== "t1" && fmt !== "t3") {
+          if (fmt !== "t1" && fmt !== "t3" && fmt !== "t4") {
             e.preventDefault();
             e.stopImmediatePropagation();
             const fr = getCurrentLang() === "fr";
@@ -318,8 +330,9 @@
             );
             return;
           }
+          activeTemplateFormat = fmt;
           if (hasBridge()) {
-            window.VitrineAndroid.onTemplateSelected(fmt === "t1" ? "COMMERCE-T1" : "COMMERCE-T3");
+            window.VitrineAndroid.onTemplateSelected(fmt === "t1" ? "COMMERCE-T1" : fmt === "t4" ? "COMMERCE-T4" : "COMMERCE-T3");
             try {
               const saved = JSON.parse(window.VitrineAndroid.getSavedResponsesJson() || "{}");
               if (Object.keys(saved).length > 0) {

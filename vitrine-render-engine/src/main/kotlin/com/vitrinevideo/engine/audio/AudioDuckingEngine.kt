@@ -48,14 +48,20 @@ class AudioDuckingEngine(
         while (idx < sampleCountFrames) {
             val block = min(hopSamples, sampleCountFrames - idx)
             var sumSq = 0.0
+            var musicSumSq = 0.0
             for (f in 0 until block) {
                 val base = (idx + f) * channels
                 val l = capturePcm[base] / 32768.0
                 val r = if (channels > 1) capturePcm[base + 1] / 32768.0 else l
                 val mono = 0.5 * (l + r)
                 sumSq += mono * mono
+                val ml = musicPcm[base] / 32768.0
+                val mr = if (channels > 1) musicPcm[base + 1] / 32768.0 else ml
+                val musicMono = 0.5 * (ml + mr)
+                musicSumSq += musicMono * musicMono
             }
             val rms = sqrt(sumSq / block)
+            val musicRms = sqrt(musicSumSq / block)
             val speechDetected = config.includeCaptureVoice && rms >= voiceVadThreshold
             if (speechDetected) {
                 lastVoiceHoldHops = 8 // 80 ms hold
@@ -69,7 +75,12 @@ class AudioDuckingEngine(
             totalDuckingHops++
             if (duckEnvelope > 0.25) activeDuckingHops++
 
-            val musicGain = (bgLinear + (duckLinear - bgLinear) * duckEnvelope.toFloat()) * musicBaseScale
+            var musicGain = (bgLinear + (duckLinear - bgLinear) * duckEnvelope.toFloat()) * musicBaseScale
+            val requiredGap = config.minimumVoiceMusicGapDb
+            if (requiredGap != null && config.includeCaptureVoice && rms > voiceVadThreshold && musicRms > 1e-9) {
+                val maxMusicGain = (rms / (musicRms * 10.0.pow(requiredGap / 20.0))).toFloat()
+                musicGain = min(musicGain, maxMusicGain.coerceAtLeast(0f))
+            }
             for (f in 0 until block) {
                 val base = (idx + f) * channels
                 for (c in 0 until channels) {

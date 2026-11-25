@@ -132,11 +132,54 @@ data class SceneCaptureGuideSpec(
     val guideImageRelPath: String? = null,
     val guideAudioRelPath: String? = null,
     val microphoneActive: Boolean = true,
-    val keptDurationSec: Int = 0
+    val keptDurationSec: Int = 0,
+    val filmingInstruction: String = "",
+    val spokenGuidance: String = "",
+    val exampleSpeech: String = "",
+    val guideScreenNumber: Int? = null,
+    val recordScreenNumber: Int? = null,
+    val reviewScreenNumber: Int? = null,
+    val reviewInstruction: String = "",
+    val reviewButtonLabel: String = ""
 )
 
 object GuidedCaptureGuideParser {
     fun parseFromEcransJson(rawJson: String): List<SceneCaptureGuideSpec> {
+        val trimmed = rawJson.trimStart()
+        if (trimmed.startsWith("[")) {
+            val screens = JSONArray(rawJson)
+            val byScene = linkedMapOf<String, MutableList<JSONObject>>()
+            for (i in 0 until screens.length()) {
+                val item = screens.getJSONObject(i)
+                val id = item.optString("scene", "")
+                if (id.matches(Regex("S[1-4]"))) byScene.getOrPut(id) { mutableListOf() }.add(item)
+            }
+            if (byScene.isNotEmpty()) return byScene.entries.sortedBy { it.key.drop(1).toInt() }.map { (id, states) ->
+                val guide = states.firstOrNull { it.optString("etat") == "guide" } ?: JSONObject()
+                val recording = states.firstOrNull { it.optString("etat") == "enregistrement" } ?: JSONObject()
+                val review = states.firstOrNull { it.optString("etat") == "verification" } ?: JSONObject()
+                val n = id.drop(1).toInt()
+                val blocks = guide.optJSONObject("blocs") ?: JSONObject()
+                val list = { key: String -> blocks.optJSONArray(key)?.let { a -> (0 until a.length()).map { a.optString(it) } }.orEmpty() }
+                SceneCaptureGuideSpec(
+                    sceneNumber = n, sceneId = id,
+                    durationSec = guide.optInt("duree_s", recording.optInt("duree_s", 0)),
+                    title = guide.optString("titre", ""),
+                    onScreenPrompt = recording.optString("indication", guide.optString("titre", "")),
+                    whatToFilm = blocks.optString("CE QUE TU VAS FILMER", ""),
+                    thingsToFilm = list("À FILMER"), thingsToAvoid = list("À ÉVITER"),
+                    microphoneActive = true,
+                    filmingInstruction = blocks.optString("CE QUE TU DOIS FAIRE", ""),
+                    spokenGuidance = guide.optString("parole", ""),
+                    exampleSpeech = guide.optString("exemple", ""),
+                    guideScreenNumber = guide.optInt("numero"),
+                    recordScreenNumber = recording.optInt("numero"),
+                    reviewScreenNumber = review.optInt("numero"),
+                    reviewInstruction = review.optString("consigne", ""),
+                    reviewButtonLabel = review.optString("bouton", "")
+                )
+            }
+        }
         val root = JSONObject(rawJson)
         root.optJSONArray("scenes")?.let { scenes ->
             return (0 until scenes.length()).mapIndexed { index, i ->

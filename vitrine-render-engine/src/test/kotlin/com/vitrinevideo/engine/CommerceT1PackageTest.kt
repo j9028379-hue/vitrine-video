@@ -9,6 +9,7 @@ import com.vitrinevideo.engine.video.TransitionGeometry
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -19,8 +20,61 @@ class CommerceT1PackageTest {
     @get:Rule val tmp = TemporaryFolder()
 
     @Test
+    fun t1AccrocheTextUsesReadableJsonTypographyAndFitsLongCopy() {
+        val zip = TestAssetLocator.packageZip("COMMERCE-T1-2.0.0.zip")
+        val pkg = TemplatePackageLoader.importZip(zip, tmp.newFolder("typography-contract"))
+        val overlay = pkg.renderPlan.textOverlay!!
+        val detail = overlay.windows.first { it.fieldKey == "accroche" }
+        val candidate = JSONObject(pkg.resolvePackageRelative("templates/commerce/commerce-t1/montage/contrat-candidat.json").readText())
+        val detailJson = candidate.getJSONArray("calques").let { array -> (0 until array.length()).map { array.getJSONObject(it) }.first { it.getString("id") == "detail" } }
+        assertEquals("{accroche}", detailJson.getString("texte"))
+        assertEquals("serif", detailJson.getString("police"))
+        assertEquals(74, detailJson.getInt("taille_px"))
+        val typography = candidate.getJSONObject("typographie")
+        assertEquals(listOf(255, 245, 224), (0 until typography.getJSONArray("encre_rgb").length()).map { typography.getJSONArray("encre_rgb").getInt(it) })
+        assertEquals(listOf(45, 28, 21), (0 until typography.getJSONArray("relief_rgb").length()).map { typography.getJSONArray("relief_rgb").getInt(it) })
+        assertEquals("accroche", detail.fieldKey)
+        assertNull(detail.templateLines)
+        assertEquals(74.0, detail.overrideStyle!!.fontSizePx, 0.001)
+        assertEquals(168.0, detail.maxHeightPx!!, 0.001)
+        assertEquals(360.0, detail.centerX!!, 0.001)
+        assertEquals(927.0, detail.customY!!, 0.001)
+        assertTrue(detail.fontRelativePath!!.contains("DMSerifDisplay-Regular.ttf"))
+        assertEquals(2, detail.maxLines)
+
+        val measure: (String, Float) -> Float = { text, size -> text.length * size * 0.52f }
+        val sampleCopy = "Disponible dès maintenant"
+        val oldContract = detail.copy(
+            maxHeightPx = 132.0,
+            overrideStyle = detail.overrideStyle!!.copy(fontSizePx = 68.0, lineSpacingPx = 73.44)
+        )
+        val oldLayout = TextFieldResolver.layoutWindow(oldContract, overlay, mapOf("accroche" to sampleCopy), measure)!!
+        assertEquals("pre-fix default height cap reproduced the tiny text", 14f, oldLayout.fontSizePx, 0.001f)
+
+        val short = TextFieldResolver.layoutWindow(detail, overlay, mapOf("accroche" to sampleCopy), measure)!!
+        assertEquals("Disponible dès maintenant", TextFieldResolver.resolveFieldText(detail, overlay, mapOf("accroche" to "Disponible dès maintenant")))
+        assertEquals(2, short.lines.size)
+        assertEquals(74f, short.fontSizePx, 0.001f)
+        assertTrue(short.lines.all { measure(it, short.fontSizePx) <= 606f })
+        assertEquals(927f, short.baseY, 0.001f)
+
+        val longerCopy = "Disponible dès maintenant — venez découvrir notre sélection de produits et profiter de nos conseils personnalisés à Kandi dès aujourd’hui."
+        val long = TextFieldResolver.layoutWindow(detail, overlay, mapOf("accroche" to longerCopy), measure)!!
+        assertEquals(longerCopy, TextFieldResolver.resolveFieldText(detail, overlay, mapOf("accroche" to longerCopy)))
+        assertTrue("long dynamic text remains above the engine floor", long.fontSizePx > 14f)
+        assertTrue("dynamic lines remain within the JSON width", long.lines.all { measure(it, long.fontSizePx) <= 606f })
+        assertEquals(927f, long.baseY, 0.001f)
+
+        // Unrelated commercial layers retain their existing typography and positions.
+        val product = overlay.windows.first { it.fieldKey == "produit" }
+        val offer = overlay.windows.first { it.fieldKey == "prix" }
+        assertEquals(68.0, product.overrideStyle!!.fontSizePx, 0.001)
+        assertEquals(78.0, offer.overrideStyle!!.fontSizePx, 0.001)
+    }
+
+    @Test
     fun importsT1PackageWithFreeTextContractAndContractRelativeAssets() {
-        val zip = File("/home/user/vitrine-render-engine/vitrine-video-app/src/main/assets/packages/COMMERCE-T1-2.0.0.zip")
+        val zip = TestAssetLocator.packageZip("COMMERCE-T1-2.0.0.zip")
         assertTrue("Runtime T1 ZIP missing", zip.isFile)
         val pkg = TemplatePackageLoader.importZip(zip, tmp.newFolder("registry"))
 

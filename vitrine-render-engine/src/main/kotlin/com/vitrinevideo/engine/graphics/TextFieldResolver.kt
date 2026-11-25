@@ -2,6 +2,7 @@ package com.vitrinevideo.engine.graphics
 
 import com.vitrinevideo.engine.interpreter.TextOverlaySpec
 import com.vitrinevideo.engine.interpreter.TextWindowSpec
+import java.util.Locale
 
 data class ResolvedTextWindow(
     val spec: TextWindowSpec,
@@ -24,6 +25,19 @@ object TextFieldResolver {
         spec: TextOverlaySpec,
         responses: Map<String, String>
     ): String {
+        if (window.whiteTextTemplate != null || window.accentTextTemplate != null) {
+            fun render(template: String?): String = template.orEmpty().replace(Regex("\\{([a-zA-Z0-9_]+)\\}")) { m ->
+                responses[m.groupValues[1]]?.trim().orEmpty()
+            }.trim()
+            val toCase: (String) -> String = if (spec.caseMode.equals("majuscules", ignoreCase = true)) {
+                { it.uppercase(Locale.ROOT) }
+            } else {
+                { it }
+            }
+            val white = toCase(render(window.whiteTextTemplate))
+            val accent = toCase(render(window.accentTextTemplate))
+            return listOf(white, accent).filter { it.isNotBlank() }.joinToString(" ")
+        }
         val tplLines = window.templateLines
         if (tplLines != null) {
             val rendered = tplLines.map { line ->

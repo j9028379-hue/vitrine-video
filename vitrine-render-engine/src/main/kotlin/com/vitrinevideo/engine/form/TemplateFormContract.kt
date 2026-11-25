@@ -47,6 +47,29 @@ data class RenderJobSchemaConstraints(
 object TemplateFormParser {
 
     fun parseQuestions(rawJson: String): TemplateFormSpec {
+        val trimmed = rawJson.trimStart()
+        if (trimmed.startsWith("[")) {
+            val groups = JSONArray(rawJson)
+            val questions = mutableListOf<TemplateFormQuestion>()
+            for (i in 0 until groups.length()) {
+                val group = groups.getJSONObject(i)
+                val prompt = group.optString("question", "")
+                val fields = group.optJSONArray("champs") ?: continue
+                for (j in 0 until fields.length()) {
+                    val field = fields.getJSONObject(j)
+                    val key = field.optString("cle", "").trim()
+                    if (key.isEmpty()) throw TemplateFormValidationException("FORM_INVALID_KEY", "Clé vide à l'index $i/$j de form/questions.json")
+                    questions += TemplateFormQuestion(
+                        key = key, prompt = prompt.ifBlank { field.optString("libelle", key) },
+                        example = field.optString("exemple", ""),
+                        required = field.optBoolean("obligatoire", true),
+                        valueType = field.optString("type", "texte")
+                    )
+                }
+            }
+            if (questions.isEmpty()) throw TemplateFormValidationException("FORM_EMPTY_QUESTIONS", "Aucune question définie dans form/questions.json")
+            return TemplateFormSpec("Formulaire gabarit", questions)
+        }
         val root = JSONObject(rawJson)
         val title = root.optString("titre", "").ifBlank { "Formulaire gabarit" }
         if (!root.has("champs") && !root.has("questions")) {

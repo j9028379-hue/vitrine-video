@@ -169,13 +169,18 @@ private class VitrineSceneShaderProgram(
         main.setFloatUniform("uMainAngleDeg", transform.angleDeg)
 
         val grid = shot.gridLayout
-        if (grid != null && grid.viewports.size >= 4) {
+        if (grid != null && grid.viewports.size >= grid.rows * grid.columns) {
+            val (cellSpanX, cellSpanY) = GridCellGeometry.samplingSpan(grid.rows, grid.columns)
+            main.setFloatsUniform("uCellSpan", floatArrayOf(cellSpanX, cellSpanY))
             main.setIntUniform("uIsGrid", 1)
-            main.setFloatUniform("uHalfDivX", (grid.dividerPx.toFloat() * 0.5f) / outWidth.toFloat())
-            main.setFloatUniform("uHalfDivY", (grid.dividerPx.toFloat() * 0.5f) / outHeight.toFloat())
-            val order = state.gridOrder ?: listOf(0, 1, 2, 3)
+            main.setIntUniform("uGridRows", grid.rows)
+            main.setIntUniform("uGridColumns", grid.columns)
+            main.setFloatUniform("uHalfDivX", if (grid.columns > 1) (grid.dividerPx.toFloat() * 0.5f) / outWidth.toFloat() else 0f)
+            main.setFloatUniform("uHalfDivY", if (grid.rows > 1) (grid.dividerPx.toFloat() * 0.5f) / outHeight.toFloat() else 0f)
+            val order = state.gridOrder ?: (0 until (grid.rows * grid.columns)).toList()
             for (cell in 0 until 4) {
-                val vp = grid.viewports[order[cell].coerceIn(0, grid.viewports.lastIndex)]
+                val orderIndex = order.getOrElse(cell) { cell % grid.viewports.size }.coerceIn(0, grid.viewports.lastIndex)
+                val vp = grid.viewports[orderIndex]
                 main.setFloatsUniform(
                     "uGridCell$cell",
                     floatArrayOf(vp.cx.toFloat(), vp.cy.toFloat(), vp.zoom.toFloat(), 0f)
@@ -184,6 +189,7 @@ private class VitrineSceneShaderProgram(
             main.setFloatsUniform("uMainCrop", floatArrayOf(0.5f, 0.5f, 1f, 0f))
             main.setFloatUniform("uMainPanY", 0f)
         } else {
+            main.setFloatsUniform("uCellSpan", floatArrayOf(1f, 1f))
             main.setIntUniform("uIsGrid", 0)
             main.setFloatUniform("uHalfDivX", 0f)
             main.setFloatUniform("uHalfDivY", 0f)
@@ -304,18 +310,24 @@ private class VitrineSceneShaderProgram(
         copy.setFloatUniform("uMainAngleDeg", shot.motion.endAngleDeg.toFloat())
 
         val grid = shot.gridLayout
-        if (grid != null && grid.viewports.size >= 4) {
+        if (grid != null && grid.viewports.size >= grid.rows * grid.columns) {
+            val (cellSpanX, cellSpanY) = GridCellGeometry.samplingSpan(grid.rows, grid.columns)
+            copy.setFloatsUniform("uCellSpan", floatArrayOf(cellSpanX, cellSpanY))
             copy.setIntUniform("uIsGrid", 1)
-            copy.setFloatUniform("uHalfDivX", (grid.dividerPx * 0.5f) / outWidth)
-            copy.setFloatUniform("uHalfDivY", (grid.dividerPx * 0.5f) / outHeight)
-            val order = gridOrder ?: listOf(0, 1, 2, 3)
+            copy.setIntUniform("uGridRows", grid.rows)
+            copy.setIntUniform("uGridColumns", grid.columns)
+            copy.setFloatUniform("uHalfDivX", if (grid.columns > 1) (grid.dividerPx * 0.5f) / outWidth else 0f)
+            copy.setFloatUniform("uHalfDivY", if (grid.rows > 1) (grid.dividerPx * 0.5f) / outHeight else 0f)
+            val order = gridOrder ?: (0 until (grid.rows * grid.columns)).toList()
             for (c in 0 until 4) {
-                val vp = grid.viewports[order[c].coerceIn(0, grid.viewports.lastIndex)]
+                val orderIndex = order.getOrElse(c) { c % grid.viewports.size }.coerceIn(0, grid.viewports.lastIndex)
+                val vp = grid.viewports[orderIndex]
                 copy.setFloatsUniform("uGridCell$c", floatArrayOf(vp.cx.toFloat(), vp.cy.toFloat(), vp.zoom.toFloat(), 0f))
             }
             copy.setFloatsUniform("uMainCrop", floatArrayOf(0.5f, 0.5f, 1f, 0f))
             copy.setFloatUniform("uMainPanY", 0f)
         } else {
+            copy.setFloatsUniform("uCellSpan", floatArrayOf(1f, 1f))
             copy.setIntUniform("uIsGrid", 0)
             copy.setFloatUniform("uHalfDivX", 0f)
             copy.setFloatUniform("uHalfDivY", 0f)
@@ -391,6 +403,8 @@ private class VitrineSceneShaderProgram(
             uniform vec2 uAspectScale;
             uniform float uMainAngleDeg;
             uniform int uIsGrid;
+            uniform int uGridRows;
+            uniform int uGridColumns;
             uniform float uHalfDivX;
             uniform float uHalfDivY;
             uniform vec4 uGridCell0;
@@ -399,12 +413,13 @@ private class VitrineSceneShaderProgram(
             uniform vec4 uGridCell3;
             uniform vec4 uMainCrop;
             uniform float uMainPanY;
+            uniform vec2 uCellSpan;
 
-            vec4 sampleCropped(vec2 localUv, float cx, float cy, float zoom, float panX, float panY) {
+            vec4 sampleCropped(vec2 localUv, float cx, float cy, float zoom, float panX, float panY, vec2 targetAspectScale) {
                 float angle = uMainAngleDeg * 0.01745329252;
                 vec2 centered = localUv - vec2(0.5);
                 localUv = vec2(centered.x * cos(angle) - centered.y * sin(angle), centered.x * sin(angle) + centered.y * cos(angle)) + vec2(0.5);
-                vec2 span = uAspectScale / max(zoom, 0.01);
+                vec2 span = targetAspectScale / max(zoom, 0.01);
                 vec2 halfSpan = 0.5 * span;
                 vec2 center = clamp(vec2(cx + panX, cy + panY), halfSpan, max(halfSpan, vec2(1.0) - halfSpan));
                 vec2 uv = center + (localUv - vec2(0.5)) * span;
@@ -414,21 +429,22 @@ private class VitrineSceneShaderProgram(
 
             vec4 sampleScenePixel(vec2 topDownUv) {
                 if (uIsGrid == 0) {
-                    return sampleCropped(topDownUv, uMainCrop.x, uMainCrop.y, uMainCrop.z, uMainCrop.w, uMainPanY);
+                    return sampleCropped(topDownUv, uMainCrop.x, uMainCrop.y, uMainCrop.z, uMainCrop.w, uMainPanY, uAspectScale);
                 }
-                if (abs(topDownUv.x - 0.5) < uHalfDivX || abs(topDownUv.y - 0.5) < uHalfDivY) {
+                if ((uGridColumns > 1 && abs(topDownUv.x - 0.5) < uHalfDivX) ||
+                    (uGridRows > 1 && abs(topDownUv.y - 0.5) < uHalfDivY)) {
                     return vec4(0.067, 0.067, 0.067, 1.0); // #111111
                 }
-                int col = topDownUv.x < 0.5 ? 0 : 1;
-                int row = topDownUv.y < 0.5 ? 0 : 1;
-                int cell = row * 2 + col;
-                vec2 cellOrigin = vec2(float(col) * 0.5, float(row) * 0.5);
-                vec2 cellUv = (topDownUv - cellOrigin) * 2.0;
+                int col = uGridColumns > 1 && topDownUv.x >= 0.5 ? 1 : 0;
+                int row = uGridRows > 1 && topDownUv.y >= 0.5 ? 1 : 0;
+                int cell = row * uGridColumns + col;
+                vec2 cellOrigin = vec2(float(col) / float(uGridColumns), float(row) / float(uGridRows));
+                vec2 cellUv = (topDownUv - cellOrigin) * vec2(float(uGridColumns), float(uGridRows));
                 vec4 cfg = uGridCell0;
                 if (cell == 1) { cfg = uGridCell1; }
                 else if (cell == 2) { cfg = uGridCell2; }
                 else if (cell == 3) { cfg = uGridCell3; }
-                return sampleCropped(cellUv, cfg.x, cfg.y, cfg.z, 0.0, 0.0);
+                return sampleCropped(cellUv, cfg.x, cfg.y, cfg.z, 0.0, 0.0, uAspectScale * uCellSpan);
             }
         """
 

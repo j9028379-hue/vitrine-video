@@ -24,26 +24,31 @@ object UniversalJsonInterpreter {
         return plan
     }
 
-    fun parseAudioProfile(profileFile: File): AudioProfileSpec {
+    fun parseAudioProfile(profileFile: File, founderApprovalJson: String? = null): AudioProfileSpec {
         require(profileFile.exists()) { "Fichier profil audio introuvable: ${profileFile.path}" }
-        return parseAudioProfileJson(profileFile.readText())
+        return parseAudioProfileJson(profileFile.readText(), founderApprovalJson)
     }
 
-    fun parseAudioProfileJson(rawJson: String): AudioProfileSpec {
+    fun parseAudioProfileJson(rawJson: String, founderApprovalJson: String? = null): AudioProfileSpec {
         val json = JSONObject(rawJson)
         val status = json.optString("statut", "validé")
         val approvedArr = json.getJSONArray("pistes_approuvees")
         val approvedIds = (0 until approvedArr.length()).map { approvedArr.getInt(it) }
         val pistesArr = json.getJSONArray("pistes")
-        val tracks = (0 until pistesArr.length()).map { i ->
+        val tracks = (0 until pistesArr.length()).mapNotNull { i ->
             val t = pistesArr.getJSONObject(i)
+            // Profiles may list approved reference tracks that are intentionally not
+            // redistributed. Keep approval metadata in the package, but only expose
+            // playable MP3s to the universal renderer/rotation pool.
+            val path = t.optString("fichier", "").takeIf { it.isNotBlank() && it != "null" }
+            if ((t.has("redistribution_mp3") && !t.optBoolean("redistribution_mp3")) || path == null) return@mapNotNull null
             ApprovedTrack(
                 number = t.getInt("numero"),
                 title = t.getString("titre"),
                 artist = t.optString("artiste", t.optString("auteur", "")),
-                licence = t.getString("licence"),
-                credit = t.getString("credit"),
-                relativePath = t.getString("fichier"),
+                licence = t.optString("licence", ""),
+                credit = t.optString("credit", ""),
+                relativePath = path,
                 sha256 = t.optString("extrait_sha256", t.optString("sha256", "")),
                 preMeasuredLufs = if (t.has("pre_measured_lufs")) t.getDouble("pre_measured_lufs") else null
             )
@@ -56,18 +61,32 @@ object UniversalJsonInterpreter {
             bgGainDb = mixJson.optDouble("fond_db", -3.0),
             underSpeechGainDb = mixJson.optDouble("sous_parole_db", -10.0),
             attackMs = mixJson.optInt("attaque_ms", 120),
-            releaseMs = mixJson.optInt("relachement_ms", 450)
+            releaseMs = mixJson.optInt("relachement_ms", 450),
+            minimumVoiceMusicGapDb = if (mixJson.has("ecart_min_db")) mixJson.optDouble("ecart_min_db") else null
         )
-        return AudioProfileSpec(
+        // T1/T3 use `voix_approuvee`/`mix_approuve`; T4 publishes the same
+        // technical state as `voix_complete_validee`/`mix_valide`. Both spellings
+        // remain authoritative and are never silently upgraded.
+        val profile = AudioProfileSpec(
             id = json.getString("id"),
             version = json.optString("version", "1.0.0"),
             status = status,
             rotationMode = json.optString("rotation", "cycle_1_2_3_4_apres_succes"),
             approvedNumbers = approvedIds,
-            voiceApproved = json.optBoolean("voix_approuvee", true),
-            mixApproved = json.optBoolean("mix_approuve", true),
+            voiceApproved = json.optBoolean("voix_approuvee", json.optBoolean("voix_complete_validee", true)),
+            mixApproved = json.optBoolean("mix_approuve", json.optBoolean("mix_valide", true)),
             tracks = tracks,
             mix = mix
+        )
+        if (founderApprovalJson.isNullOrBlank()) return profile
+        val approval = runCatching { FounderAudioApprovalParser.parseAll(founderApprovalJson) }
+            .getOrNull()
+            ?.firstOrNull { it.profileId == profile.id }
+            ?: return profile
+        return profile.copy(
+            founderApprovalId = approval.approvalId,
+            founderApprovedTrackNumbers = approval.approvedTrackNumbers,
+            founderApprovedFiles = approval.approvedFiles
         )
     }
 

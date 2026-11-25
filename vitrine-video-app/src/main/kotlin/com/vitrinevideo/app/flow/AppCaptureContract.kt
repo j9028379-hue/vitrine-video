@@ -74,6 +74,11 @@ object MockupResponseMapper {
     fun normalizeRawResponses(raw: Map<String, String>, templateId: String = "COMMERCE-T3"): Map<String, String> {
         val out = LinkedHashMap(raw)
         when (templateId) {
+            "COMMERCE-T4" -> {
+                // `fin` is optional in the founder's form, while its v1 render-job schema
+                // includes the key in `required`; preserve omission as an empty optional value.
+                if (!out.containsKey("fin")) out["fin"] = ""
+            }
             "COMMERCE-T1" -> {
                 val legacyBridgeValue = out.remove("demonstration")
                 if (!out.containsKey("accroche") && legacyBridgeValue != null) out["accroche"] = legacyBridgeValue

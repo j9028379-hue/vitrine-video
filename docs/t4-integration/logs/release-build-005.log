@@ -1,0 +1,128 @@
+To honour the JVM settings for this build a single-use Daemon process will be forked. For more on this, please refer to https://docs.gradle.org/8.10.2/userguide/gradle_daemon.html#sec:disabling_the_daemon in the Gradle documentation.
+Daemon will be stopped at the end of the build 
+> Task :vitrine-render-engine:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :vitrine-render-engine:preBuild UP-TO-DATE
+> Task :vitrine-render-engine:preReleaseBuild UP-TO-DATE
+> Task :vitrine-render-engine:generateReleaseResValues UP-TO-DATE
+> Task :vitrine-render-engine:generateReleaseResources UP-TO-DATE
+> Task :vitrine-render-engine:packageReleaseResources UP-TO-DATE
+> Task :vitrine-render-engine:parseReleaseLocalResources UP-TO-DATE
+> Task :vitrine-render-engine:generateReleaseRFile UP-TO-DATE
+> Task :vitrine-render-engine:compileReleaseKotlin UP-TO-DATE
+> Task :vitrine-render-engine:javaPreCompileRelease UP-TO-DATE
+> Task :vitrine-render-engine:compileReleaseJavaWithJavac NO-SOURCE
+> Task :vitrine-render-engine:extractProguardFiles UP-TO-DATE
+> Task :vitrine-render-engine:processReleaseManifest UP-TO-DATE
+> Task :vitrine-render-engine:generateReleaseLintVitalModel UP-TO-DATE
+> Task :vitrine-render-engine:lintVitalAnalyzeRelease
+> Task :vitrine-render-engine:prepareLintJarForPublish
+> Task :vitrine-render-engine:bundleLibRuntimeToJarRelease
+> Task :vitrine-render-engine:processReleaseJavaRes
+> Task :vitrine-render-engine:createFullJarRelease
+> Task :vitrine-render-engine:generateReleaseLintModel
+> Task :vitrine-video-app:buildKotlinToolingMetadata
+> Task :vitrine-render-engine:bundleLibCompileToJarRelease
+> Task :vitrine-video-app:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :vitrine-render-engine:compileReleaseLibraryResources
+> Task :vitrine-render-engine:writeReleaseAarMetadata
+> Task :vitrine-video-app:preBuild UP-TO-DATE
+> Task :vitrine-video-app:preReleaseBuild UP-TO-DATE
+> Task :vitrine-video-app:checkReleaseAarMetadata
+> Task :vitrine-video-app:generateReleaseResValues
+> Task :vitrine-video-app:mapReleaseSourceSetPaths
+> Task :vitrine-video-app:generateReleaseResources
+> Task :vitrine-video-app:mergeReleaseResources
+> Task :vitrine-video-app:packageReleaseResources
+> Task :vitrine-video-app:parseReleaseLocalResources
+> Task :vitrine-video-app:createReleaseCompatibleScreenManifests
+> Task :vitrine-render-engine:extractDeepLinksRelease
+> Task :vitrine-video-app:extractDeepLinksRelease
+> Task :vitrine-video-app:processReleaseMainManifest
+> Task :vitrine-video-app:processReleaseManifest
+> Task :vitrine-video-app:processReleaseManifestForPackage
+> Task :vitrine-video-app:processReleaseResources
+> Task :vitrine-video-app:compileReleaseKotlin
+> Task :vitrine-video-app:javaPreCompileRelease
+> Task :vitrine-video-app:compileReleaseJavaWithJavac NO-SOURCE
+> Task :vitrine-video-app:extractProguardFiles
+> Task :vitrine-video-app:generateReleaseLintVitalReportModel
+> Task :vitrine-render-engine:mergeReleaseJniLibFolders
+> Task :vitrine-render-engine:mergeReleaseNativeLibs NO-SOURCE
+> Task :vitrine-render-engine:stripReleaseDebugSymbols NO-SOURCE
+> Task :vitrine-render-engine:copyReleaseJniLibsProjectAndLocalJars
+> Task :vitrine-render-engine:extractDeepLinksForAarRelease
+> Task :vitrine-render-engine:extractReleaseAnnotations
+> Task :vitrine-render-engine:mergeReleaseGeneratedProguardFiles
+> Task :vitrine-render-engine:mergeReleaseConsumerProguardFiles
+> Task :vitrine-render-engine:mergeReleaseShaders
+> Task :vitrine-render-engine:compileReleaseShaders NO-SOURCE
+> Task :vitrine-render-engine:generateReleaseAssets UP-TO-DATE
+> Task :vitrine-render-engine:packageReleaseAssets
+> Task :vitrine-render-engine:prepareReleaseArtProfile
+> Task :vitrine-render-engine:mergeReleaseJavaResource
+> Task :vitrine-render-engine:syncReleaseLibJars
+> Task :vitrine-render-engine:bundleReleaseLocalLintAar
+> Task :vitrine-render-engine:writeReleaseLintModelMetadata
+The Daemon will expire after the build after running out of JVM Metaspace.
+The project memory settings are likely not configured or are configured to an insufficient value.
+The daemon will restart for the next build, which may increase subsequent build times.
+These settings can be adjusted by setting 'org.gradle.jvmargs' in 'gradle.properties'.
+The currently configured max heap space is '1.1 GiB' and the configured max metaspace is '320 MiB'.
+For more information on how to set these values, please refer to https://docs.gradle.org/8.10.2/userguide/build_environment.html#sec:configuring_jvm_memory in the Gradle documentation.
+To disable this warning, set 'org.gradle.daemon.performance.disable-logging=true'.
+> Task :vitrine-video-app:lintVitalAnalyzeRelease
+> Task :vitrine-video-app:lintVitalReportRelease
+> Task :vitrine-video-app:lintVitalRelease
+> Task :vitrine-render-engine:copyReleaseJniLibsProjectOnly
+> Task :vitrine-video-app:mergeReleaseJniLibFolders
+> Task :vitrine-video-app:mergeReleaseNativeLibs
+
+> Task :vitrine-video-app:stripReleaseDebugSymbols
+Unable to strip the following libraries, packaging them as they are: libimage_processing_util_jni.so.
+
+> Task :vitrine-video-app:extractReleaseNativeSymbolTables
+> Task :vitrine-video-app:mergeReleaseNativeDebugMetadata NO-SOURCE
+> Task :vitrine-video-app:checkReleaseDuplicateClasses
+> Task :vitrine-video-app:dexBuilderRelease
+> Task :vitrine-video-app:desugarReleaseFileDependencies
+> Task :vitrine-video-app:mergeReleaseStartupProfile
+> Task :vitrine-video-app:mergeExtDexRelease
+
+The message received from the daemon indicates that the daemon has disappeared.
+Build request sent: Build{id=f2870fbd-f62f-4b80-92aa-c6ff8954647c, currentDir=/home/user/vitrine-render-engine}
+Attempting to read last messages from the daemon log...
+Daemon pid: 3050
+  log file: /home/user/.gradle/daemon/8.10.2/daemon-3050.out.log
+----- Last 20 lines from daemon log file - daemon-3050.out.log -----
+2026-11-24T17:55:57.752+0000 [DEBUG] [org.gradle.launcher.daemon.server.DaemonStateCoordinator] daemon is running. Sleeping until state changes.
+2026-11-24T17:55:57.757+0000 [INFO] [org.gradle.launcher.daemon.server.exec.StartBuildOrRespondWithBusy] Daemon is about to start building Build{id=f2870fbd-f62f-4b80-92aa-c6ff8954647c, currentDir=/home/user/vitrine-render-engine}. Dispatching build started information...
+2026-11-24T17:55:57.757+0000 [DEBUG] [org.gradle.launcher.daemon.server.SynchronizedDispatchConnection] thread 21: dispatching org.gradle.launcher.daemon.protocol.BuildStarted@3d42ec79
+2026-11-24T17:55:57.758+0000 [DEBUG] [org.gradle.launcher.daemon.server.exec.EstablishBuildEnvironment] Configuring env variables: [PATH, E2B_TEMPLATE_ID, E2B_SANDBOX_ID, SHELL, E2B_EVENTS_ADDRESS, JAVA_HOME, NODE_OPTIONS, ANDROID_SDK_ROOT, USER, ANDROID_HOME, PS1, E2B_SANDBOX, LOGNAME, PWD, HOME, SHLVL, _]
+2026-11-24T17:55:57.762+0000 [DEBUG] [org.gradle.launcher.daemon.server.exec.LogToClient] About to start relaying all logs to the client via the connection.
+2026-11-24T17:55:57.763+0000 [INFO] [org.gradle.launcher.daemon.server.exec.LogToClient] The client will now receive all logging from the daemon (pid: 3050). The daemon log file: /home/user/.gradle/daemon/8.10.2/daemon-3050.out.log
+2026-11-24T17:55:57.765+0000 [DEBUG] [org.gradle.launcher.daemon.server.exec.RequestStopIfSingleUsedDaemon] Requesting daemon stop after processing Build{id=f2870fbd-f62f-4b80-92aa-c6ff8954647c, currentDir=/home/user/vitrine-render-engine}
+2026-11-24T17:55:57.765+0000 [LIFECYCLE] [org.gradle.launcher.daemon.server.DaemonStateCoordinator] Daemon will be stopped at the end of the build 
+2026-11-24T17:55:57.766+0000 [DEBUG] [org.gradle.launcher.daemon.server.DaemonStateCoordinator] Stop as soon as idle requested. The daemon is busy
+2026-11-24T17:55:57.767+0000 [DEBUG] [org.gradle.launcher.daemon.server.exec.ExecuteBuild] The daemon has started executing the build.
+2026-11-24T17:55:57.767+0000 [DEBUG] [org.gradle.launcher.daemon.server.exec.ExecuteBuild] Executing build with daemon context: DefaultDaemonContext[uid=c5711c96-5e53-4706-906d-455b25682b2e,javaHome=/home/user/.cache/d53-tools/jdk17,javaVersion=17,javaVendor=Eclipse Adoptium,daemonRegistryDir=/home/user/.gradle/daemon,pid=3050,idleTimeout=120000,priority=NORMAL,applyInstrumentationAgent=true,nativeServicesMode=ENABLED,daemonOpts=-XX:MaxMetaspaceSize=320m,--add-opens=java.base/java.util=ALL-UNNAMED,--add-opens=java.base/java.lang=ALL-UNNAMED,--add-opens=java.base/java.lang.invoke=ALL-UNNAMED,--add-opens=java.prefs/java.util.prefs=ALL-UNNAMED,--add-exports=jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED,--add-exports=jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED,--add-opens=java.base/java.nio.charset=ALL-UNNAMED,--add-opens=java.base/java.net=ALL-UNNAMED,--add-opens=java.base/java.util.concurrent.atomic=ALL-UNNAMED,-Xmx1200m,-Dfile.encoding=US-ASCII,-Duser.country=US,-Duser.language=en,-Duser.variant]
+2026-11-24T17:55:57.768+0000 [DEBUG] [org.gradle.launcher.daemon.server.DaemonStateCoordinator] daemon stop has been requested. Sleeping until state changes.
+The Daemon will expire after the build after running out of JVM Metaspace.
+The project memory settings are likely not configured or are configured to an insufficient value.
+The daemon will restart for the next build, which may increase subsequent build times.
+These settings can be adjusted by setting 'org.gradle.jvmargs' in 'gradle.properties'.
+The currently configured max heap space is '1.1 GiB' and the configured max metaspace is '320 MiB'.
+For more information on how to set these values, please refer to https://docs.gradle.org/8.10.2/userguide/build_environment.html#sec:configuring_jvm_memory in the Gradle documentation.
+To disable this warning, set 'org.gradle.daemon.performance.disable-logging=true'.
+Unable to strip the following libraries, packaging them as they are: libimage_processing_util_jni.so.----- End of the daemon log -----
+
+
+FAILURE: Build failed with an exception.
+
+* What went wrong:
+Gradle build daemon disappeared unexpectedly (it may have been killed or may have crashed)
+
+* Try:
+> Run with --stacktrace option to get the stack trace.
+> Run with --info or --debug option to get more log output.
+> Run with --scan to get full insights.
+> Get more help at https://help.gradle.org.

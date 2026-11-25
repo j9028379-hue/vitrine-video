@@ -25,6 +25,21 @@ interface RotationPersistence {
     fun findTrackForJob(profileId: String, runId: String): Int?
     fun getLastTrack(profileId: String): Int?
     fun recordSuccess(profileId: String, runId: String, trackNumber: Int)
+    fun getHistory(profileId: String): List<Int> = emptyList()
+}
+
+/** Balanced random choice across playable tracks; consecutive deliveries never repeat. */
+object BalancedAvailableTrackRotationAlgorithm {
+    fun choose(availableNumbers: List<Int>, history: List<Int>, randomIndex: (Int) -> Int = { (0 until it).random() }): Int {
+        val available = availableNumbers.distinct().sorted()
+        require(available.isNotEmpty()) { "Aucune piste musicale disponible" }
+        val previous = history.lastOrNull()
+        val candidates = available.filter { it != previous }.ifEmpty { available }
+        val counts = history.groupingBy { it }.eachCount()
+        val minCount = candidates.minOf { counts[it] ?: 0 }
+        val leastUsed = candidates.filter { (counts[it] ?: 0) == minCount }
+        return leastUsed[randomIndex(leastUsed.size)]
+    }
 }
 
 /**
@@ -69,6 +84,17 @@ class AndroidSqliteRotationStore(
         }
     }
 
+    override fun getHistory(profileId: String): List<Int> {
+        writableDatabase.rawQuery(
+            "SELECT piste FROM livraisons WHERE profil = ? ORDER BY seq ASC",
+            arrayOf(profileId)
+        ).use { c ->
+            val rows = mutableListOf<Int>()
+            while (c.moveToNext()) rows += c.getInt(0)
+            return rows
+        }
+    }
+
     override fun recordSuccess(profileId: String, runId: String, trackNumber: Int) {
         val db = writableDatabase
         db.beginTransactionNonExclusive()
@@ -90,12 +116,18 @@ class TrackRotationCoordinator(
 ) {
     fun selectTrackForRender(profile: AudioProfileSpec, runId: String): Pair<ApprovedTrack, File> {
         val existing = store.findTrackForJob(profile.id, runId)
-        val trackNumber = existing ?: CyclicRotationAlgorithm.nextTrackNumber(
-            lastDeliveredTrack = store.getLastTrack(profile.id),
-            approvedNumbers = profile.approvedNumbers
-        )
+        val availableNumbers = profile.approvedNumbers.filter { n -> profile.tracks.any { it.number == n } }
+        require(availableNumbers.isNotEmpty()) { "Aucune piste approuvée avec fichier disponible pour ${profile.id}" }
+        val trackNumber = existing ?: if (profile.rotationMode.contains("équilibré", ignoreCase = true) || profile.rotationMode.contains("balanced", ignoreCase = true)) {
+            BalancedAvailableTrackRotationAlgorithm.choose(availableNumbers, store.getHistory(profile.id))
+        } else {
+            CyclicRotationAlgorithm.nextTrackNumber(
+                lastDeliveredTrack = store.getLastTrack(profile.id),
+                approvedNumbers = availableNumbers
+            )
+        }
         val track = profile.tracks.firstOrNull { it.number == trackNumber }
-            ?: throw IllegalStateException("Piste #$trackNumber absente du profil ${profile.id}")
+            ?: throw IllegalStateException("Piste #$trackNumber absente ou non redistribuable dans le profil ${profile.id}")
 
         val file = resolveTrackFile(track)
         require(file.exists()) { "Fichier audio introuvable: ${file.path}" }

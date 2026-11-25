@@ -17,7 +17,16 @@ data class GridLayoutSpec(
     val dividerPx: Int,
     val backgroundColorHex: String = "#111111",
     val viewports: List<ViewportSpec>,
-    val cellCuts: List<GridCellCut>
+    val cellCuts: List<GridCellCut>,
+    val rows: Int = 2,
+    val columns: Int = 2
+)
+
+data class FrameStyleCut(
+    val atFrame: Int,
+    val style: String,
+    val zoom: Double? = null,
+    val viewports: List<ViewportSpec> = emptyList()
 )
 
 data class MotionSpec(
@@ -143,7 +152,17 @@ data class TextWindowSpec(
     val inkColorHex: String? = null,
     val reliefColorHex: String? = null,
     val skipAutoWhatsappPrefix: Boolean = false,
-    val overrideStyle: TextStyleSpec? = null
+    val overrideStyle: TextStyleSpec? = null,
+    /** T4 source-specific paired copy; kept as templates rather than flattened into demo text. */
+    val textKind: String? = null,
+    val whiteTextTemplate: String? = null,
+    val accentTextTemplate: String? = null,
+    val whiteColorHex: String? = null,
+    val accentColorHex: String? = null,
+    val beforePriceFontPx: Double? = null,
+    val afterPriceFontPx: Double? = null,
+    val conditionTextTemplate: String? = null,
+    val conditionFontPx: Double? = null
 )
 
 data class ColorGradingSpec(
@@ -189,7 +208,18 @@ data class TextOverlaySpec(
     val fieldBindings: Map<String, List<String>>,
     val maxLinesByField: Map<String, Int>,
     val windows: List<TextWindowSpec>,
-    val fadeFrames: Int = 16
+    val fadeFrames: Int = 16,
+    val outlineColorHex: String? = null,
+    val outlineWidthPx: Double? = null,
+    val shadowOffsetYPx: Double? = null,
+    val defaultTextY: Double? = null,
+    val accentColorHex: String? = null,
+    /** Verbatim `texte.casse` value from the partition; drives capitalization at draw time. */
+    val caseMode: String = "",
+    /** Verbatim `texte.prix_barre_px` value; null means the engine legacy fallback applies. */
+    val strikethroughWidthPx: Double? = null,
+    /** Verbatim `texte.condition_si_non_vide` value. */
+    val conditionOnlyIfNonEmpty: Boolean = false
 )
 
 data class AudioMixConfig(
@@ -201,7 +231,8 @@ data class AudioMixConfig(
     val attackMs: Int = 120,
     val releaseMs: Int = 450,
     val speechMarginDb: Double = -6.0,
-    val peakLimitDb: Double = -2.6
+    val peakLimitDb: Double = -2.6,
+    val minimumVoiceMusicGapDb: Double? = null
 )
 
 data class ApprovedTrack(
@@ -224,8 +255,19 @@ data class AudioProfileSpec(
     val voiceApproved: Boolean,
     val mixApproved: Boolean,
     val tracks: List<ApprovedTrack>,
-    val mix: AudioMixConfig
-)
+    val mix: AudioMixConfig,
+    /** Explicit founder approval record, never inferred from a technical mix flag. */
+    val founderApprovalId: String = "",
+    val founderApprovedTrackNumbers: Set<Int> = emptySet(),
+    val founderApprovedFiles: Set<String> = emptySet()
+) {
+    /** True only when an explicit versioned record covers every playable track. */
+    val hasFounderApprovedSelection: Boolean
+        get() = founderApprovalId.isNotBlank() &&
+            founderApprovedTrackNumbers.isNotEmpty() &&
+            tracks.isNotEmpty() &&
+            tracks.all { it.number in founderApprovedTrackNumbers && it.relativePath in founderApprovedFiles }
+}
 
 data class RenderPlan(
     val templateId: String,
@@ -242,7 +284,10 @@ data class RenderPlan(
     val colorGrading: ColorGradingSpec = ColorGradingSpec(mode = colorMode),
     val audioProfileId: String,
     val requiredCapabilities: Set<CapabilityId>,
-    val unknownCapabilities: List<String>
+    val unknownCapabilities: List<String>,
+    val frameStyleCuts: List<FrameStyleCut> = emptyList(),
+    /** Verbatim `effets.type` value (e.g. `coupe_franche`); cuts stay hard unless a `liaison` says otherwise. */
+    val cutMode: String = ""
 ) {
     val durationSec: Double get() = totalFrames.toDouble() / fps.toDouble()
 }

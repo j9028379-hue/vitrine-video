@@ -1,0 +1,21 @@
+name: Vitrine Video CI
+
+on:
+  push:
+    branches:
+      - '**'
+  workflow_dispatch:
+    inputs:
+      run_render:
+        description: "Attempt the optional on-device render probe"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  pipeline:
+    uses: ./.github/workflows/_android-ci.yml
+    with:
+      run_render: ${{ github.event_name == 'workflow_dispatch' && inputs.run_render || false }}

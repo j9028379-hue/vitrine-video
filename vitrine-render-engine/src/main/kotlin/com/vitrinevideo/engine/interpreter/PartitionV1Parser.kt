@@ -97,7 +97,32 @@ object PartitionV1Parser {
             }
         }
 
-        val effetCoupes = json.optJSONObject("effets")?.optJSONArray("coupes")
+        val effects = json.optJSONObject("effets")
+        val cutMode = effects?.optString("type", "").orEmpty()
+        if (cutMode.isNotBlank()) {
+            when (cutMode.lowercase()) {
+                "coupe_franche", "coupe", "cut" -> required += CapabilityId.TRANSITION_CUT
+                else -> unknown += "effets.type:$cutMode"
+            }
+        }
+        val effetCoupes = effects?.optJSONArray("coupes")
+        val frameStyleCuts = buildList {
+            if (effetCoupes != null) for (i in 0 until effetCoupes.length()) {
+                val c = effetCoupes.getJSONObject(i)
+                val style = c.optString("cadre", "")
+                if (style.isNotBlank()) {
+                    val views = if (style == "double") {
+                        val source = effects?.optJSONArray("double") ?: JSONArray()
+                        (0 until source.length()).mapNotNull { j ->
+                            val row = source.optJSONArray(j) ?: return@mapNotNull null
+                            if (row.length() < 3) null else ViewportSpec(row.getDouble(1), row.getDouble(2), row.getDouble(0))
+                        }
+                    } else emptyList()
+                    val fallbackZoom = effects?.optDouble(style, Double.NaN)?.takeUnless { it.isNaN() }
+                    add(FrameStyleCut(c.getInt("image"), style, c.optDouble("zoom", fallbackZoom ?: Double.NaN).takeUnless { it.isNaN() }, views))
+                }
+            }
+        }
         val shotZoomEvents = mutableListOf<Pair<Int, Double>>()
         if (effetCoupes != null) {
             for (i in 0 until effetCoupes.length()) {
@@ -120,7 +145,10 @@ object PartitionV1Parser {
             }
             val role = s.optString("role", s.optString("titre", ""))
             val grid = gridByStartFrame[debut]
-            val sceneCuts = buildSceneShots(id, debut, finExclue, grid, shotZoomEvents)
+            if (frameStyleCuts.any { it.style == "double" && it.atFrame in debut until finExclue }) {
+                required += CapabilityId.VIDEO_GRID_2X2_SINGLE_SOURCE
+            }
+            val sceneCuts = buildSceneShots(id, debut, finExclue, grid, shotZoomEvents, frameStyleCuts)
             scenes += SceneSpec(
                 id = id,
                 startFrame = debut,
@@ -177,7 +205,9 @@ object PartitionV1Parser {
             colorGrading = colorGrading,
             audioProfileId = audioProfileId,
             requiredCapabilities = required,
-            unknownCapabilities = unknown
+            unknownCapabilities = unknown,
+            frameStyleCuts = frameStyleCuts,
+            cutMode = cutMode
         )
     }
 
@@ -186,8 +216,26 @@ object PartitionV1Parser {
         debut: Int,
         finExclue: Int,
         grid: GridLayoutSpec?,
-        zoomEvents: List<Pair<Int, Double>>
+        zoomEvents: List<Pair<Int, Double>>,
+        frameStyleCuts: List<FrameStyleCut>
     ): List<CutSegmentSpec> {
+        val inSceneStyles = frameStyleCuts.filter { it.atFrame in debut until finExclue }.sortedBy { it.atFrame }
+        if (inSceneStyles.isNotEmpty()) {
+            val boundaries = (listOf(debut) + inSceneStyles.map { it.atFrame } + listOf(finExclue)).distinct().sorted()
+            return boundaries.zipWithNext().mapIndexed { idx, (a, b) ->
+                val style = inSceneStyles.lastOrNull { it.atFrame <= a }
+                val doubleGrid = style?.takeIf { it.style == "double" && it.viewports.size >= 2 }?.let {
+                    GridLayoutSpec(dividerPx = 0, viewports = it.viewports, cellCuts = emptyList(), rows = 2, columns = 1)
+                }
+                CutSegmentSpec(
+                    shotId = "${sceneId}_P${idx + 1}", sceneId = sceneId,
+                    sourceInFrame = a - debut, sourceOutFrame = b - debut,
+                    outStartFrame = a, outEndFrameExcluded = b,
+                    viewport = ViewportSpec(0.5, 0.5, style?.zoom ?: 1.0),
+                    gridLayout = doubleGrid
+                )
+            }
+        }
         val inSceneZooms = zoomEvents.filter { (img, _) -> img in debut until finExclue }.sortedBy { it.first }
         if (grid != null || inSceneZooms.isEmpty()) {
             return listOf(
@@ -240,29 +288,30 @@ object PartitionV1Parser {
         val weight = t.optInt("graisse", 400)
         val rawFontPath = t.optString("fonte_fichier", t.optString("fonte", ""))
         val fontRelPath = if (rawFontPath.startsWith("assets/")) "docs/$rawFontPath" else rawFontPath
-        val fontSha256 = t.optString("fonte_sha256", "")
-        val colorHex = t.optString("couleur", "#FFFFFF")
+        val fontSha256 = t.optString("fonte_sha256", t.optString("sha256", ""))
+        val colorHex = t.optString("couleur", t.optString("blanc", "#FFFFFF"))
         val alignment = t.optString("alignement", "centre")
         val absentPriceRule = t.optString("prix_absent", "")
 
         val styleObj = t.optJSONObject("style")
         val defaultStyle = if (styleObj != null) {
             TextStyleSpec(
-                fontSizePx = styleObj.optDouble("taille_px", 60.0),
-                maxWidthPx = styleObj.optDouble("largeur_max_px", width * 0.9),
-                lineSpacingPx = styleObj.optDouble("interligne_px", 72.0),
-                twoLineBaseY = styleObj.optDouble("base_ligne_un_sur_deux_y", height * 0.48),
-                singleLineBaseY = styleObj.optDouble("base_ligne_unique_y", height * 0.52),
+                fontSizePx = styleObj.optDouble("taille_px", t.optDouble("taille", 60.0)),
+                maxWidthPx = styleObj.optDouble("largeur_max_px", t.optDouble("largeur", width * 0.9)),
+                lineSpacingPx = styleObj.optDouble("interligne_px", t.optDouble("taille", 60.0) * 1.18),
+                twoLineBaseY = styleObj.optDouble("base_ligne_un_sur_deux_y", t.optDouble("y", height * 0.48) + t.optDouble("taille", 60.0)),
+                singleLineBaseY = styleObj.optDouble("base_ligne_unique_y", t.optDouble("y", height * 0.52) + t.optDouble("taille", 60.0)),
                 emRefPx = styleObj.optDouble("em_ref_px", 66.0)
             )
         } else {
-            val sz = t.optDouble("taille_px", 43.0)
+            val sz = t.optDouble("taille_px", t.optDouble("taille", 43.0))
+            val y = t.optDouble("y", height * 0.52)
             TextStyleSpec(
                 fontSizePx = sz,
                 maxWidthPx = t.optDouble("largeur", width * 0.88),
-                lineSpacingPx = sz * 1.22,
-                twoLineBaseY = height * 0.48,
-                singleLineBaseY = height * 0.52,
+                lineSpacingPx = sz * 1.18,
+                twoLineBaseY = y + sz,
+                singleLineBaseY = y + sz,
                 emRefPx = sz
             )
         }
@@ -299,7 +348,10 @@ object PartitionV1Parser {
                 strokeWidthPx = reliefObj.optDouble("largeur_trait_px", 2.0)
             )
         } else {
-            TextReliefSpec("rgba(0,0,0,0.45)", 0.0, 3.0, 8.0, "rgba(0,0,0,0)", 0.0)
+            TextReliefSpec(
+                "rgba(0,0,0,0.45)", 0.0, t.optDouble("ombre_px", 3.0), 0.0,
+                t.optString("contour", "rgba(0,0,0,0)"), t.optDouble("trait_px", 0.0)
+            )
         }
 
         val waveObj = t.optJSONObject("vague")
@@ -366,7 +418,7 @@ object PartitionV1Parser {
                 }
             }
             required += entryAnim.capability
-            val strikethrough = w.optBoolean("barre", false)
+            val strikethrough = w.optBoolean("barre", w.optString("type", "") == "prix")
             if (strikethrough) required += CapabilityId.TEXT_STRIKETHROUGH
 
             val templateLines = w.optJSONArray("lignes")?.let { arr ->
@@ -376,13 +428,22 @@ object PartitionV1Parser {
             windows += TextWindowSpec(
                 startFrame = debut,
                 endFrameExcluded = finExclue,
-                fieldKey = fieldKey,
+                fieldKey = if (w.has("champ")) fieldKey else "t4_window_$i",
                 templateLines = templateLines,
                 entryAnim = entryAnim,
                 exitFadeFrames = t.optInt("sortie_images", 0),
                 strikethrough = strikethrough,
                 customY = if (w.has("y")) w.getDouble("y") else null,
-                maxLines = maxLinesMap[fieldKey]
+                maxLines = maxLinesMap[fieldKey],
+                textKind = w.optString("type", "").ifBlank { null },
+                whiteTextTemplate = w.optString("blanc", "").ifBlank { null },
+                accentTextTemplate = w.optString("accent", "").ifBlank { null },
+                whiteColorHex = t.optString("blanc", "#FFFFFF"),
+                accentColorHex = t.optString("accent", "").ifBlank { null },
+                beforePriceFontPx = t.optDouble("prix_avant_px", 0.0).takeIf { it > 0 },
+                afterPriceFontPx = t.optDouble("prix_apres_px", 0.0).takeIf { it > 0 },
+                conditionTextTemplate = t.optString("condition", "").ifBlank { null },
+                conditionFontPx = t.optDouble("condition_px", 0.0).takeIf { it > 0 }
             )
         }
 
@@ -403,7 +464,15 @@ object PartitionV1Parser {
             fieldBindings = bindings,
             maxLinesByField = maxLinesMap,
             windows = windows,
-            fadeFrames = t.optInt("entree_images", 16)
+            fadeFrames = t.optInt("entree_images", 16),
+            outlineColorHex = t.optString("contour", "").ifBlank { null },
+            outlineWidthPx = t.optDouble("trait_px", 0.0).takeIf { it > 0 },
+            shadowOffsetYPx = t.optDouble("ombre_px", 0.0).takeIf { it > 0 },
+            defaultTextY = t.optDouble("y", 0.0).takeIf { it > 0 },
+            accentColorHex = t.optString("accent", "").ifBlank { null },
+            caseMode = t.optString("casse", ""),
+            strikethroughWidthPx = t.optDouble("prix_barre_px", 0.0).takeIf { it > 0 },
+            conditionOnlyIfNonEmpty = t.optBoolean("condition_si_non_vide", false)
         )
     }
 }

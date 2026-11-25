@@ -1,0 +1,45 @@
+To honour the JVM settings for this build a single-use Daemon process will be forked. For more on this, please refer to https://docs.gradle.org/8.10.2/userguide/gradle_daemon.html#sec:disabling_the_daemon in the Gradle documentation.
+Daemon will be stopped at the end of the build 
+> Task :vitrine-render-engine:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :vitrine-render-engine:preBuild UP-TO-DATE
+> Task :vitrine-render-engine:preDebugBuild UP-TO-DATE
+> Task :vitrine-render-engine:generateDebugResValues UP-TO-DATE
+> Task :vitrine-render-engine:generateDebugResources UP-TO-DATE
+> Task :vitrine-render-engine:packageDebugResources UP-TO-DATE
+> Task :vitrine-render-engine:parseDebugLocalResources UP-TO-DATE
+> Task :vitrine-render-engine:generateDebugRFile UP-TO-DATE
+> Task :vitrine-render-engine:compileDebugKotlin
+> Task :vitrine-render-engine:javaPreCompileDebug
+> Task :vitrine-render-engine:compileDebugJavaWithJavac NO-SOURCE
+> Task :vitrine-render-engine:bundleLibRuntimeToJarDebug
+> Task :vitrine-render-engine:bundleLibCompileToJarDebug
+> Task :vitrine-render-engine:preDebugUnitTestBuild UP-TO-DATE
+> Task :vitrine-render-engine:generateDebugUnitTestStubRFile
+
+> Task :vitrine-render-engine:compileDebugUnitTestKotlin
+e: file:///home/user/vitrine-render-engine/vitrine-render-engine/src/test/kotlin/com/vitrinevideo/engine/T4PackageIntegrationTest.kt:35:62 Only safe (?.) or non-null asserted (!!.) calls are allowed on a nullable receiver of type 'com.vitrinevideo.engine.interpreter.AudioProfileSpec?'.
+e: file:///home/user/vitrine-render-engine/vitrine-render-engine/src/test/kotlin/com/vitrinevideo/engine/T4PackageIntegrationTest.kt:36:59 Only safe (?.) or non-null asserted (!!.) calls are allowed on a nullable receiver of type 'com.vitrinevideo.engine.interpreter.AudioProfileSpec?'.
+e: file:///home/user/vitrine-render-engine/vitrine-render-engine/src/test/kotlin/com/vitrinevideo/engine/T4PackageIntegrationTest.kt:37:61 Only safe (?.) or non-null asserted (!!.) calls are allowed on a nullable receiver of type 'com.vitrinevideo.engine.interpreter.AudioProfileSpec?'.
+e: file:///home/user/vitrine-render-engine/vitrine-render-engine/src/test/kotlin/com/vitrinevideo/engine/T4PackageIntegrationTest.kt:38:49 Only safe (?.) or non-null asserted (!!.) calls are allowed on a nullable receiver of type 'com.vitrinevideo.engine.interpreter.AudioProfileSpec?'.
+e: file:///home/user/vitrine-render-engine/vitrine-render-engine/src/test/kotlin/com/vitrinevideo/engine/T4PackageIntegrationTest.kt:39:48 Only safe (?.) or non-null asserted (!!.) calls are allowed on a nullable receiver of type 'com.vitrinevideo.engine.interpreter.AudioProfileSpec?'.
+e: file:///home/user/vitrine-render-engine/vitrine-render-engine/src/test/kotlin/com/vitrinevideo/engine/T4PackageIntegrationTest.kt:40:49 Only safe (?.) or non-null asserted (!!.) calls are allowed on a nullable receiver of type 'com.vitrinevideo.engine.interpreter.AudioProfileSpec?'.
+e: file:///home/user/vitrine-render-engine/vitrine-render-engine/src/test/kotlin/com/vitrinevideo/engine/T4PackageIntegrationTest.kt:41:47 Only safe (?.) or non-null asserted (!!.) calls are allowed on a nullable receiver of type 'com.vitrinevideo.engine.interpreter.AudioProfileSpec?'.
+e: file:///home/user/vitrine-render-engine/vitrine-render-engine/src/test/kotlin/com/vitrinevideo/engine/T4PackageIntegrationTest.kt:49:41 Only safe (?.) or non-null asserted (!!.) calls are allowed on a nullable receiver of type 'com.vitrinevideo.engine.interpreter.AudioProfileSpec?'.
+
+> Task :vitrine-render-engine:compileDebugUnitTestKotlin FAILED
+
+FAILURE: Build failed with an exception.
+
+* What went wrong:
+Execution failed for task ':vitrine-render-engine:compileDebugUnitTestKotlin'.
+> A failure occurred while executing org.jetbrains.kotlin.compilerRunner.GradleCompilerRunnerWithWorkers$GradleKotlinCompilerWorkAction
+   > Compilation error. See log for more details
+
+* Try:
+> Run with --stacktrace option to get the stack trace.
+> Run with --info or --debug option to get more log output.
+> Run with --scan to get full insights.
+> Get more help at https://help.gradle.org.
+
+BUILD FAILED in 44s
+11 actionable tasks: 6 executed, 5 up-to-date

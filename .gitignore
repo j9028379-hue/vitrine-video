@@ -19,6 +19,7 @@ node_modules/
 .dev.vars
 __pycache__/
 .pytest_cache/
+.kaggle/remote-kernel/
 dist/
 /tmp/
 vitrine-server/out/

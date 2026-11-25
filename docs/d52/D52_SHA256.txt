@@ -1,0 +1,10 @@
+# D52 SHA-256 checksums
+# Computed from the finalized local deliverables; this checksum file intentionally does not hash itself.
+# The T1 ZIP line records the corrected package embedded in the APK.
+
+b6a91179237e52c81134c63f80b2721b5d484ee416324600d371c0b4d44eec92  VitrineVideo-D52.apk
+7d75ad87a92ae7085a297d6ba9f054865a9f1da40f1f9cd011dbf21d5e4013e3  D52_TYPOGRAPHY_REPORT.md
+454d84ba866f6dd99a75d2737b61be5ea30396909b915accbb4571fef221174c  D52_TEST_RESULTS.md
+f0319ed8fa75136cba716429dcb73f5592a43b0144cf8e2081c250e5cf968d30  COMMERCE-T1-2.0.0.zip (source package; embedded in APK)
+
+APK Drive md5Checksum: e548d85b2baf350bf40a1789a4134fe4 (matches local MD5).

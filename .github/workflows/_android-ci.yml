@@ -1,0 +1,221 @@
+name: Vitrine Video — reusable Android CI
+
+on:
+  workflow_call:
+    inputs:
+      run_render:
+        description: "Attempt on-device render pass"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+env:
+  GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx3g -Dkotlin.daemon.jvm.options=-Xmx1g"
+
+jobs:
+  tests:
+    name: JVM test suites
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Android SDK command-line tools
+        uses: android-actions/setup-android@v3
+
+      - name: Android SDK Platform 35 + Build Tools
+        run: |
+          set -euo pipefail
+          yes | sdkmanager --licenses >/dev/null 2>&1 || true
+          sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0"
+
+      - name: local.properties (generated, never committed)
+        run: |
+          set -euo pipefail
+          echo "sdk.dir=${ANDROID_HOME:-$ANDROID_SDK_ROOT}" > local.properties
+          test -s local.properties
+
+      - name: Gradle wrapper 8.10.2 + cache
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: wrapper
+          cache-enabled: true
+
+      - name: Wrapper sanity
+        run: |
+          chmod +x gradlew
+          ./gradlew --version
+
+      - name: Engine unit tests
+        run: ./gradlew :vitrine-render-engine:testDebugUnitTest --stacktrace
+
+      - name: App unit tests
+        run: ./gradlew :vitrine-video-app:testDebugUnitTest --stacktrace
+
+      - name: JUnit XML summary
+        if: always()
+        run: |
+          python3 - <<'PY'
+          import glob, xml.etree.ElementTree as ET
+          total=fail=err=skip=0
+          for f in glob.glob('**/build/test-results/**/*.xml', recursive=True):
+              r=ET.parse(f).getroot()
+              total+=int(r.get('tests') or 0); fail+=int(r.get('failures') or 0)
+              err+=int(r.get('errors') or 0); skip+=int(r.get('skipped') or 0)
+          print(f'JUNIT_TOTAL={total} FAILURES={fail} ERRORS={err} SKIPPED={skip}')
+          PY
+
+      - name: Upload JUnit reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: junit-reports
+          path: |
+            **/build/test-results/**/*.xml
+            **/build/reports/tests/**
+          if-no-files-found: warn
+
+  build:
+    name: Debug + release APK
+    needs: tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Android SDK command-line tools
+        uses: android-actions/setup-android@v3
+
+      - name: Android SDK Platform 35 + Build Tools
+        run: |
+          set -euo pipefail
+          yes | sdkmanager --licenses >/dev/null 2>&1 || true
+          sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0"
+
+      - name: local.properties
+        run: echo "sdk.dir=${ANDROID_HOME:-$ANDROID_SDK_ROOT}" > local.properties
+
+      - name: Gradle cache
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: wrapper
+          cache-enabled: true
+
+      - name: assembleDebug + assembleRelease
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleDebug assembleRelease --stacktrace
+
+      - name: APK integrity, signature and SHA-256
+        run: |
+          set -euo pipefail
+          mkdir -p ci-artifacts
+          : > ci-artifacts/SHA256SUMS.txt
+          DEBUG_APK=$(find . -path '*/build/outputs/apk/debug/*.apk' -type f | head -n 1)
+          RELEASE_APK=$(find . -path '*/build/outputs/apk/release/*.apk' -type f | head -n 1)
+          test -n "$DEBUG_APK" && test -s "$DEBUG_APK"
+          test -n "$RELEASE_APK" && test -s "$RELEASE_APK"
+          cp "$DEBUG_APK" ci-artifacts/VitrineVideo-debug.apk
+          APKSIGNER="$ANDROID_HOME/build-tools/35.0.0/apksigner"
+          "$APKSIGNER" verify --verbose ci-artifacts/VitrineVideo-debug.apk
+          if [[ "$RELEASE_APK" == *unsigned* ]]; then
+            # CI-only verification key: never committed, never used for a store build.
+            keytool -genkeypair -keystore ci-artifacts/ci-only.jks \
+              -storepass vitrine-ci-only -keypass vitrine-ci-only \
+              -alias ci-only -keyalg RSA -keysize 2048 -validity 1 \
+              -dname "CN=Vitrine CI verification only" >/dev/null 2>&1
+            cp "$RELEASE_APK" ci-artifacts/VitrineVideo-release-ci-signed.apk
+            "$APKSIGNER" sign --ks ci-artifacts/ci-only.jks \
+              --ks-pass pass:vitrine-ci-only --key-pass pass:vitrine-ci-only \
+              ci-artifacts/VitrineVideo-release-ci-signed.apk >/dev/null 2>&1
+          else
+            cp "$RELEASE_APK" ci-artifacts/VitrineVideo-release.apk
+          fi
+          for f in ci-artifacts/*.apk; do
+            stat -c '%n %s bytes' "$f"
+            sha256sum "$f" >> ci-artifacts/SHA256SUMS.txt
+          done
+          "$APKSIGNER" verify --verbose ci-artifacts/VitrineVideo-release*.apk
+          cat ci-artifacts/SHA256SUMS.txt
+
+      - name: Upload APKs and integrity report
+        uses: actions/upload-artifact@v4
+        with:
+          name: apk-release-evidence
+          path: ci-artifacts/*
+          if-no-files-found: error
+
+  render:
+    name: Optional on-device render probe
+    needs: build
+    if: ${{ inputs.run_render }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Android SDK command-line tools
+        uses: android-actions/setup-android@v3
+
+      - name: Android SDK Platform 35 + Build Tools
+        run: |
+          set -euo pipefail
+          yes | sdkmanager --licenses >/dev/null 2>&1 || true
+          sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0" "emulator"
+
+      - name: local.properties
+        run: echo "sdk.dir=${ANDROID_HOME:-$ANDROID_SDK_ROOT}" > local.properties
+
+      - name: Gradle cache
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: wrapper
+          cache-enabled: true
+
+      - name: Emulator instrumented render probe
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          target: google_apis
+          arch: x86_64
+          profile: pixel_5
+          disable-animations: true
+          script: |
+            chmod +x gradlew
+            ./gradlew :vitrine-render-engine:connectedDebugAndroidTest --stacktrace
+
+      - name: Collect on-device output
+        if: always()
+        run: |
+          mkdir -p render-evidence
+          adb shell find /sdcard/Android/data -name '*.mp4' -o -name 'resultat.json' 2>/dev/null || true
+          adb pull /sdcard/Android/data/com.vitrinevideo.engine/files/ render-evidence/ 2>/dev/null || true
+          find render-evidence -type f -exec sha256sum {} \; > render-evidence/SHA256SUMS.txt || true
+
+      - name: Upload render evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: render-evidence
+          path: render-evidence/**
+          if-no-files-found: warn

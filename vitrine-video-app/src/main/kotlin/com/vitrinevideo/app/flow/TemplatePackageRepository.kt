@@ -18,7 +18,8 @@ object TemplatePackageRepository {
     private data class Asset(val path: String, val version: String)
     private val supported = mapOf(
         "COMMERCE-T1" to Asset("packages/COMMERCE-T1-2.0.0.zip", "2.0.0"),
-        "COMMERCE-T3" to Asset("packages/COMMERCE-T3-1.0.0.zip", "1.0.0")
+        "COMMERCE-T3" to Asset("packages/COMMERCE-T3-1.0.0.zip", "1.0.0"),
+        "COMMERCE-T4" to Asset("packages/COMMERCE-T4-1.0.0.zip", "1.0.0")
     )
 
     @Synchronized
