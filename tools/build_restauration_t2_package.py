@@ -292,10 +292,17 @@ def build_form(form_src) -> dict:
         "schema_version": "1.0.0",
         "template_id": TEMPLATE_ID,
         "version": VERSION,
-        "title": form_src["title"],
-        "additionalProperties": form_src["additionalProperties"],
-        "fields": form_src["fields"],
+        "titre": form_src["title"],
         "source_contract": "contracts/form/questions_T2.json",
+        # Universal loader keys: `cle` / `question` / `obligatoire`. Official
+        # questions are copied verbatim from form/questions_T2.json above.
+        "champs": [{
+            "cle": f["id"],
+            "question": f["question"],
+            "obligatoire": f["required"],
+            "exemple": f.get("helper", ""),
+            "type": "texte",
+        } for f in form_src["fields"]],
     }
 
 
