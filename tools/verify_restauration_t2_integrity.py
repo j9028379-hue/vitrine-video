@@ -157,10 +157,11 @@ def main() -> None:
     for selected in commerce_formats:
         active = [fmt for fmt in commerce_formats if fmt == selected]
         check(f"format selection {selected} activates exactly one card", active == [selected])
-    check("Restauration T2 enabled, other restaurant templates gated",
+    check("Restauration T2/T5 enabled, unavailable restaurant templates gated",
           'sector !== "commerce" && sector !== "resto"' in bridge
-          and '["t1", "t2", "t3", "t4", "r2"].includes(fmt)' in bridge
-          and 'fmt === "r2" ? "RESTAURATION-T2"' in bridge)
+          and '["t1", "t2", "t3", "t4", "r2", "r4"].includes(fmt)' in bridge
+          and 'fmt === "r2" ? "RESTAURATION-T2"' in bridge
+          and 'fmt === "r4" ? "RESTAURATION-T5"' in bridge)
 
     Path("ci-artifacts").mkdir(exist_ok=True)
     Path("ci-artifacts/RESTAURATION_T2_INTEGRITY_REPORT.txt").write_text("\n".join(lines) + "\n")

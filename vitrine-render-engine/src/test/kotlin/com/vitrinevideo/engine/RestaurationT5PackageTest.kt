@@ -115,8 +115,8 @@ class RestaurationT5PackageTest {
         )
         for (scene in plan.scenes) {
             val length = scene.endFrameExcluded - scene.startFrame
-            assertEquals(0, scene.shots.minOf { it.sourceInFrame }, scene.id)
-            assertEquals(length, scene.shots.maxOf { it.sourceOutFrame }, scene.id)
+            assertTrue("${scene.id}: sourceIn", scene.shots.minOf { it.sourceInFrame } == 0)
+            assertTrue("${scene.id}: sourceOut", scene.shots.maxOf { it.sourceOutFrame } == length)
             // The timeline offset (S2 starts at 180) must never become a source offset.
             assertFalse(scene.shots.any { it.sourceInFrame == scene.startFrame && scene.startFrame > 0 })
         }
