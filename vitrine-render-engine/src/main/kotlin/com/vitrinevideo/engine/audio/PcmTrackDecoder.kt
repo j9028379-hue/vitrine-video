@@ -53,6 +53,11 @@ object PcmTrackDecoder {
             var inputDone = false
             var outputDone = false
             val outBytes = ByteArray(16384)
+            val resampler = if (srcCh == targetChannels && srcRate == targetSampleRate) {
+                null
+            } else {
+                StreamingStereoResampler(srcRate, targetSampleRate)
+            }
 
             BufferedOutputStream(FileOutputStream(destPcmFile), 32 * 1024).use { bos ->
                 while (!outputDone && writtenFrames < maxFrames) {
@@ -81,7 +86,7 @@ object PcmTrackDecoder {
                             val shorts = ShortArray(shortCount)
                             buf.order(ByteOrder.LITTLE_ENDIAN).asShortBuffer().get(shorts)
 
-                            val resampled = resampleToTarget(shorts, srcCh, srcRate, targetChannels, targetSampleRate)
+                            val resampled = resampler?.resampleStereo(shorts, srcCh) ?: shorts
                             val frameCount = resampled.size / targetChannels
                             val framesToWrite = min(frameCount.toLong(), maxFrames - writtenFrames).toInt()
                             val sampleLimit = framesToWrite * targetChannels
@@ -111,39 +116,5 @@ object PcmTrackDecoder {
             try { codec?.release() } catch (_: Throwable) {}
             extractor.release()
         }
-    }
-
-    private fun resampleToTarget(
-        src: ShortArray,
-        srcCh: Int,
-        srcRate: Int,
-        dstCh: Int,
-        dstRate: Int
-    ): ShortArray {
-        val srcFrames = src.size / maxOf(1, srcCh)
-        if (srcFrames == 0) return ShortArray(0)
-        if (srcCh == dstCh && srcRate == dstRate) return src
-
-        val dstFrames = ((srcFrames.toLong() * dstRate) / srcRate).toInt().coerceAtLeast(1)
-        val out = ShortArray(dstFrames * dstCh)
-        for (df in 0 until dstFrames) {
-            val pos = (df.toDouble() * srcRate) / dstRate
-            val i0 = pos.toInt().coerceIn(0, srcFrames - 1)
-            val i1 = (i0 + 1).coerceIn(0, srcFrames - 1)
-            val frac = (pos - i0).toFloat()
-            val l0 = src[i0 * srcCh].toFloat()
-            val l1 = src[i1 * srcCh].toFloat()
-            val l = (l0 + (l1 - l0) * frac).toInt().coerceIn(-32768, 32767).toShort()
-            if (dstCh == 1) {
-                out[df] = l
-            } else {
-                val r0 = if (srcCh > 1) src[i0 * srcCh + 1].toFloat() else l0
-                val r1 = if (srcCh > 1) src[i1 * srcCh + 1].toFloat() else l1
-                val r = (r0 + (r1 - r0) * frac).toInt().coerceIn(-32768, 32767).toShort()
-                out[df * 2] = l
-                out[df * 2 + 1] = r
-            }
-        }
-        return out
     }
 }

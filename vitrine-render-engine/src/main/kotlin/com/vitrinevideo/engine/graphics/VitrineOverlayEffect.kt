@@ -34,7 +34,7 @@ class VitrineBitmapTextOverlay(
     private val plan: RenderPlan,
     private val spec: TextOverlaySpec,
     private val responses: Map<String, String>,
-    fontFile: File?,
+    private val fontFile: File?,
     private val fontFiles: Map<String, File> = emptyMap()
 ) : BitmapOverlay() {
 
@@ -47,13 +47,17 @@ class VitrineBitmapTextOverlay(
     )
 
     private val timeline = TimelineEngine(plan)
-    private val typeface: Typeface = if (fontFile != null && fontFile.exists()) {
-        Typeface.createFromFile(fontFile)
-    } else {
-        Typeface.create(spec.fontFamily, if (spec.fontWeight >= 600) Typeface.BOLD else Typeface.NORMAL)
-    }
+    private val typefaceRequest: TextTypefaceRequest = TextTypefaceRequest.from(
+        spec,
+        fontFile != null && fontFile.exists() && fontFile.length() > 0L
+    )
+    private val typeface: Typeface = EngineTypefaceFactory.create(typefaceRequest, fontFile)
     private val typefacesByPath: Map<String, Typeface> = fontFiles.mapNotNull { (path, file) ->
-        if (file.exists() && file.length() > 0L) runCatching { path to Typeface.createFromFile(file) }.getOrNull() else null
+        if (file.exists() && file.length() > 0L) {
+            runCatching {
+                path to EngineTypefaceFactory.create(typefaceRequest.copy(fontPath = path), file)
+            }.getOrNull()
+        } else null
     }.toMap()
 
     private val fillPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {

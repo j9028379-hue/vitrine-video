@@ -161,7 +161,8 @@ class VitrineAudioProcessor(
     }
 
     override fun onFlush() {
-        musicFrameCursor = 0.0
+        // Keep the music cursor: Media3 may flush between guided-capture scenes,
+        // but the T4 bed must stay continuous instead of restarting at 0.
     }
 
     override fun onReset() {

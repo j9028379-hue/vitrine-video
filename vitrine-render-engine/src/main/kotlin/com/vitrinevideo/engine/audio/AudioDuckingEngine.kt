@@ -13,8 +13,18 @@ class AudioDuckingEngine(
     private val config: AudioMixConfig
 ) {
     private val bgLinear = dbToLinear(config.bgGainDb).toFloat()
-    private val duckLinear = dbToLinear(config.underSpeechGainDb).toFloat()
+
+    /**
+     * T4 declares `ecart_min_db: 8`; T1/T3 do not. The gap is enforced by the
+     * smoothed ducking envelope, never by a per-hop instantaneous gain jump
+     * (which made the music pump and sound like scratching under speech).
+     */
+    val effectiveDuckGainDb: Double = config.minimumVoiceMusicGapDb?.let { gap ->
+        minOf(config.underSpeechGainDb, config.bgGainDb - gap)
+    } ?: config.underSpeechGainDb
+    private val duckLinear = dbToLinear(effectiveDuckGainDb).toFloat()
     private val peakLimitLinear = dbToLinear(config.peakLimitDb).toFloat()
+    private val limiterKneeLinear = peakLimitLinear * 0.6f
 
     // Pre-gain to normalize typical -14..-16 LUFS pop/afrobeat beds toward targetLufs
     private val musicBaseScale: Float = run {
@@ -37,6 +47,10 @@ class AudioDuckingEngine(
         private set
     var activeDuckingHops: Long = 0L
         private set
+    var maxAppliedMusicGain: Float = 0f
+        private set
+    var minAppliedMusicGain: Float = Float.MAX_VALUE
+        private set
 
     fun processInterleavedPcm16(
         capturePcm: ShortArray,
@@ -48,20 +62,14 @@ class AudioDuckingEngine(
         while (idx < sampleCountFrames) {
             val block = min(hopSamples, sampleCountFrames - idx)
             var sumSq = 0.0
-            var musicSumSq = 0.0
             for (f in 0 until block) {
                 val base = (idx + f) * channels
                 val l = capturePcm[base] / 32768.0
                 val r = if (channels > 1) capturePcm[base + 1] / 32768.0 else l
                 val mono = 0.5 * (l + r)
                 sumSq += mono * mono
-                val ml = musicPcm[base] / 32768.0
-                val mr = if (channels > 1) musicPcm[base + 1] / 32768.0 else ml
-                val musicMono = 0.5 * (ml + mr)
-                musicSumSq += musicMono * musicMono
             }
             val rms = sqrt(sumSq / block)
-            val musicRms = sqrt(musicSumSq / block)
             val speechDetected = config.includeCaptureVoice && rms >= voiceVadThreshold
             if (speechDetected) {
                 lastVoiceHoldHops = 8 // 80 ms hold
@@ -75,30 +83,31 @@ class AudioDuckingEngine(
             totalDuckingHops++
             if (duckEnvelope > 0.25) activeDuckingHops++
 
-            var musicGain = (bgLinear + (duckLinear - bgLinear) * duckEnvelope.toFloat()) * musicBaseScale
-            val requiredGap = config.minimumVoiceMusicGapDb
-            if (requiredGap != null && config.includeCaptureVoice && rms > voiceVadThreshold && musicRms > 1e-9) {
-                val maxMusicGain = (rms / (musicRms * 10.0.pow(requiredGap / 20.0))).toFloat()
-                musicGain = min(musicGain, maxMusicGain.coerceAtLeast(0f))
-            }
+            val musicGain = (bgLinear + (duckLinear - bgLinear) * duckEnvelope.toFloat()) * musicBaseScale
+            if (musicGain > maxAppliedMusicGain) maxAppliedMusicGain = musicGain
+            if (musicGain < minAppliedMusicGain) minAppliedMusicGain = musicGain
             for (f in 0 until block) {
                 val base = (idx + f) * channels
                 for (c in 0 until channels) {
                     val pos = base + c
                     val cap = if (config.includeCaptureVoice) capturePcm[pos] / 32768.0f else 0f
                     val mus = (musicPcm[pos] / 32768.0f) * musicGain
-                    var mixed = cap + mus
-                    val absVal = abs(mixed)
-                    if (absVal > peakLimitLinear) {
-                        mixed = sign(mixed) * (peakLimitLinear + (absVal - peakLimitLinear) * 0.05f)
-                        mixed = mixed.coerceIn(-peakLimitLinear, peakLimitLinear)
-                    }
+                    val mixed = softLimit(cap + mus)
                     if (abs(mixed) > maxPeakLinear) maxPeakLinear = abs(mixed)
                     outPcm[pos] = (mixed * 32767f).roundToInt().coerceIn(-32768, 32767).toShort()
                 }
             }
             idx += block
         }
+    }
+
+    /** Continuous soft-knee ceiling: avoids flat-topping while never exceeding the declared peak. */
+    private fun softLimit(sample: Float): Float {
+        val magnitude = abs(sample)
+        if (magnitude <= limiterKneeLinear) return sample
+        val headroom = (peakLimitLinear - limiterKneeLinear).coerceAtLeast(1e-6f)
+        val shaped = limiterKneeLinear + headroom * tanh((magnitude - limiterKneeLinear) / headroom)
+        return sign(sample) * min(shaped, peakLimitLinear)
     }
 
     companion object {
