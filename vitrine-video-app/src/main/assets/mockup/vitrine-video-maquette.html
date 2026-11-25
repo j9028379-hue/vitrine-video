@@ -1998,7 +1998,7 @@ body{
     fields.forEach(f=>{const input=$("#"+f.id),label=input.closest(".field").querySelector("label");label.textContent=fr?f.fr:f.en;input.placeholder=fr?f.pfr:f.pen;input.required=f.required!==false;input.removeAttribute("minlength");input.removeAttribute("maxlength");input.removeAttribute("pattern");});
     if(state.format==="r3"){
       const rules={"q-nom":[1,40],"q-produit":[1,32],"q-prix":[1,7,"^[0-9 .]+$"],"q-whatsapp":[4,20],"q-quartier":[1,40],"q-accroche":[0,48]};
-      Object.entries(rules).forEach(([id,[min,max,pattern]])=>{const input=$("#"+id);input.minLength=min;input.maxLength=max;if(pattern)input.pattern=pattern;});
+      Object.entries(rules).forEach(([id,[min,max,pattern]])=>{const input=$("#"+id);input.setAttribute("minlength",String(min));input.setAttribute("maxlength",String(max));if(pattern)input.setAttribute("pattern",pattern);});
     }
     $("#s-questions .h-sub").textContent=fr?"Réponds à ces questions pour personnaliser ta publicité.":"Answer these questions to personalize your ad.";
   }

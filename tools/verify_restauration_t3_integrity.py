@@ -95,6 +95,7 @@ def main() -> None:
         forbidden_text=("Casa Tacos","tacos maison","2 500 francs","t3_voice_stem","VOIX CANDIDATE")
         all_text="\n".join(d.decode("utf-8",errors="ignore") for d in entries.values())
         check("no Casa Tacos fixed narration / candidate voice copy in package",all(term.lower() not in all_text.lower() for term in forbidden_text))
+        check("no registered fixed/candidate voice IDs or voice stems", "voice-02" not in all_text.lower() and "registered_voice_id" not in all_text.lower() and "stem_sha256" not in all_text.lower())
 
     library=json.loads((MUSIC_DIR/"library.json").read_text(encoding="utf-8"))
     check("four protected vault entries only",len(library["tracks"])==4 and len(list(MUSIC_DIR.glob("*.mp3.vault")))==4)

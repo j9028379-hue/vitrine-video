@@ -393,8 +393,9 @@ def build_partition(template: dict, flow: dict, motion: dict, transitions: dict,
         "audio":{"voix_off_ajoutee":False,"musique_ajoutee":True,
             "source":"Voix du commerçant captée avec le microphone à vitesse 1×, si présente; sinon musique seule; aucun sous-titre automatique.",
             "mix":{"fond_db":-3.0,"sous_parole_db":-10.0,"attaque_ms":120,"relachement_ms":450,"lufs":-16.0,"true_peak_dbtp_max":-2.0,"delivery_audio":"AAC stereo 48 kHz"}},
-        "polices":{"serif":"display_serif","script":"light_sans","utility":"utility",
-            "fallback":"display_serif", **font_files},
+        "polices":{"serif":font_files["display_serif"],"script":font_files["light_sans"],
+            "utility":font_files["utility"],"fallback":font_files["display_serif"],
+            **font_files},
         "font_hashes":font_role_hashes,
         "typographie":{"encre_rgb":[255,249,239],"relief_rgb":[0,0,0],
             "outline_rgba":"rgba(18,12,8,0.90)","outline_width_px":2.0,"shadow_rgba":"rgba(0,0,0,0.90)","shadow_dy_px":4.0},
@@ -518,6 +519,21 @@ def main() -> None:
     audio_catalogue=build_audio_catalogue(pack)
     prefix="templates/restauration/restauration-t3/"
     pkg_files={"contracts/"+p:data for p,data in source.items() if not (p.startswith(FONT_ROOT) and p.endswith(".ttf"))}
+    # Source schemas still bind generated voice identifiers and fixed stems. The
+    # shipped schemas are data-only contracts for merchant-captured scene audio.
+    voice_mix_schema=json.loads(pkg_files["contracts/schemas/T3_voice_mix.schema.json"])
+    voice_mix_schema["required"]=[key for key in voice_mix_schema["required"] if key!="voice"]
+    voice_mix_schema["properties"].pop("voice",None)
+    voice_mix_schema["properties"]["captured_scene_audio"]={"const":True}
+    pkg_files["contracts/schemas/T3_voice_mix.schema.json"]=jdump(voice_mix_schema)
+    job_schema=json.loads(pkg_files["contracts/schemas/render_job.schema.json"])
+    job_voice=job_schema["properties"]["voice"]
+    job_voice["required"]=[key for key in job_voice["required"] if key!="registered_voice_id"]
+    job_voice["properties"].pop("registered_voice_id",None)
+    job_voice["properties"]["mode"]={"const":"captured_scene_audio"}
+    job_voice["properties"].pop("fallback_contract",None)
+    job_voice["required"]=[key for key in job_voice["required"] if key!="fallback_contract"]
+    pkg_files["contracts/schemas/render_job.schema.json"]=jdump(job_schema)
     pkg_files["contracts/"+TEMPLATE]=jdump(template_runtime)
     # The Casa Tacos source mix file is intentionally not copied. Its safe
     # parameter-only derivative is the runtime audio contract below.

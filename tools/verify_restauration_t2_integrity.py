@@ -159,7 +159,8 @@ def main() -> None:
         check(f"format selection {selected} activates exactly one card", active == [selected])
     check("Restauration T2/T5 enabled, unavailable restaurant templates gated",
           'sector !== "commerce" && sector !== "resto"' in bridge
-          and '["t1", "t2", "t3", "t4", "r2", "r4"].includes(fmt)' in bridge
+          and '["t1", "t2", "t3", "t4", "r2", "r3", "r4"].includes(fmt)' in bridge
+          and 'fmt === "r3" ? "RESTAURATION-T3"' in bridge
           and 'fmt === "r2" ? "RESTAURATION-T2"' in bridge
           and 'fmt === "r4" ? "RESTAURATION-T5"' in bridge)
 
