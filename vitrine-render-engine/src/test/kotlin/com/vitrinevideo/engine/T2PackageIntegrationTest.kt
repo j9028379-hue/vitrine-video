@@ -39,7 +39,7 @@ class T2PackageIntegrationTest {
         assertEquals(listOf(0, 180, 420, 630, 900),
             pkg.renderPlan.scenes.flatMap { listOf(it.startFrame, it.endFrameExcluded) }
                 .distinct().sorted())
-        assertEquals(12, pkg.captureGuides.size)
+        assertEquals(4, pkg.captureGuides.size) // twelve A/B/C screens collapse into four verified scene takes
         assertEquals(6, pkg.formSpec.questions.size)
         assertEquals("afrobeat_arrivage_commerce", pkg.renderPlan.audioProfileId)
         assertEquals(pkg.renderPlan.audioProfileId, pkg.audioProfile?.id)
