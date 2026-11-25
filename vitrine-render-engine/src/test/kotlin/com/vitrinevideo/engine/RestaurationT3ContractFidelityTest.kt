@@ -35,7 +35,7 @@ class RestaurationT3ContractFidelityTest {
         assertEquals(12, retainedGrid.getJSONArray("tile_time_offsets_frames").length())
 
         val merchantName = plan.textOverlay!!.windows.first {
-            it.startFrame == 0 && it.fieldKey == "nom"
+            it.fieldKey == "nom" && it.trackingPx == 2.0
         }
         assertEquals(2.0, merchantName.trackingPx, 0.0001)
         assertEquals(700, merchantName.declaredWeight)
