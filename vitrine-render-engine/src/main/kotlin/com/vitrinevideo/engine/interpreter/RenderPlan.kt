@@ -146,7 +146,15 @@ data class TransitionSpec(
     val type: TransitionType,
     val motifId: String = "",
     /** Declared wipe travel. "left" reveals incoming from the right edge; "right" from the left. */
-    val direction: String = "right"
+    val direction: String = "right",
+    /**
+     * Declared full-frame travel: both frames slide together across the whole
+     * canvas (dish swipe / camera whip) instead of a hard mask wipe. Optional and
+     * off by default, so every existing contract keeps its exact geometry.
+     */
+    val slideWhip: Boolean = false,
+    /** Motion-blur strength in destination pixels at mid-transition; 0 disables it. */
+    val whipBlurPx: Double = 5.0
 )
 
 data class TextStyleSpec(
@@ -215,6 +223,12 @@ data class TextWindowSpec(
     val inkColorHex: String? = null,
     val reliefColorHex: String? = null,
     val skipAutoWhatsappPrefix: Boolean = false,
+    /**
+     * Declared variable-font weight for this text window (0 = inherit the
+     * template-level weight). Restauration T5 declares 800/900 Playfair; other
+     * templates leave it unset so their current rendering is untouched.
+     */
+    val declaredWeight: Int = 0,
     val overrideStyle: TextStyleSpec? = null,
     /** T4 source-specific paired copy; kept as templates rather than flattened into demo text. */
     val textKind: String? = null,

@@ -31,6 +31,11 @@ jobs:
       - name: Verify RESTAURATION-T5 archive inventory, package and sealed music
         run: python3 tools/verify_restauration_t5_integrity.py
 
+      - name: Prove T5 typography weights and transition travel
+        run: |
+          python3 -m pip install --quiet fonttools pillow
+          python3 tools/prove_t5_typography_and_transitions.py
+
       - name: Upload T2/T5 evidence
         if: always()
         uses: actions/upload-artifact@v4
@@ -40,6 +45,9 @@ jobs:
             ci-artifacts/T2_INTEGRITY_REPORT.txt
             ci-artifacts/RESTAURATION_T2_INTEGRITY_REPORT.txt
             ci-artifacts/T5_INTEGRITY_REPORT.txt
+            docs/restauration_t5/proofs/T5_TYPOGRAPHY_PROOF.png
+            docs/restauration_t5/proofs/T5_TYPOGRAPHY_REPORT.txt
+            docs/restauration_t5/proofs/T5_TRANSITIONS_REPORT.txt
           if-no-files-found: warn
 
   tests:

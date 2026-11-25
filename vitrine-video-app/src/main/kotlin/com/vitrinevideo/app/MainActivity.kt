@@ -39,6 +39,7 @@ import com.vitrinevideo.app.audio.GuideAudioPlayer
 import com.vitrinevideo.app.audio.GuideAudioState
 import com.vitrinevideo.app.bridge.AssetWebViewClient
 import com.vitrinevideo.app.camera.CameraXSceneRecorder
+import com.vitrinevideo.app.camera.RecordingCountdown
 import com.vitrinevideo.app.flow.CapturedSceneTake
 import com.vitrinevideo.app.flow.MockupResponseMapper
 import com.vitrinevideo.app.flow.RealSessionViolationException
@@ -133,6 +134,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var finNewVideoBtn: Button
 
     private lateinit var cameraRecorder: CameraXSceneRecorder
+    private lateinit var recordingCountdown: RecordingCountdown
     private lateinit var mediaPlayer: VitrineMediaPlayer
     private lateinit var guideAudioPlayer: GuideAudioPlayer
     private lateinit var sessionManager: SessionLifecycleManager
@@ -186,6 +188,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         buildLayout()
+        recordingCountdown = RecordingCountdown(cameraOverlay) { fr() }
         setupWindowInsets()
         setupWebView()
         preloadTemplatePackage()
@@ -1067,9 +1070,22 @@ class MainActivity : AppCompatActivity() {
             cameraRecorder.cancelActiveRecording()
             return
         }
+        // The shared 3-2-1 / ON FILME ! sequence runs for every shipped template,
+        // strictly between the merchant's tap and the real CameraX start, so the
+        // official scene duration still begins at the actual recording start.
+        if (::recordingCountdown.isInitialized && recordingCountdown.isRunning) return
+        camActionBtn.isEnabled = false
+        camRecIndicator.text = if (fr()) "PRÊT ?" else "READY?"
+        camRecIndicator.background = pillDrawable("#2D3347")
+        recordingCountdown.start { beginCameraRecording() }
+    }
+
+    private fun beginCameraRecording() {
+        if (isRecordingNow) return
         val spec = getSceneGuideSpec(activeSceneIndex)
         val capturesDir = sessionManager.currentSessionCaptureDir()
         isRecordingNow = true
+        camActionBtn.isEnabled = true
         camRecIndicator.text = if (fr()) "● ON FILME" else "● FILMING"
         camRecIndicator.background = pillDrawable("#D92D20")
         camActionBtn.background = pillDrawable("#3A4571")
@@ -1120,6 +1136,13 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun handleCameraBackClick() {
+        if (::recordingCountdown.isInitialized && recordingCountdown.isRunning) {
+            recordingCountdown.cancel()
+            camActionBtn.isEnabled = true
+            camRecIndicator.text = if (fr()) "CAMÉRA PRÊTE" else "CAMERA READY"
+            camRecIndicator.background = pillDrawable("#2D3347")
+            return
+        }
         if (isRecordingNow) {
             cameraRecorder.cancelActiveRecording()
             return
@@ -1256,6 +1279,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun returnToSceneGuide(sceneIndex: Int) {
+        if (::recordingCountdown.isInitialized) recordingCountdown.cancel()
         mediaPlayer.release()
         cameraRecorder.unbind()
         showOverlay(OverlayState.NONE)
@@ -1276,7 +1300,7 @@ class MainActivity : AppCompatActivity() {
         rndTitle.text = if (fr()) "Montage automatique : $selectedTemplateName" else "Automatic editing: $selectedTemplateName"
         rndPercentText.text = "0%"
         rndProgressBar.progress = 0
-        rndStageText.text = if (fr()) "Préparation du paquet et vérification des 4 scènes..." else "Preparing package and verifying 4 scenes..."
+        rndStageText.text = if (fr()) "Préparation de tes 4 scènes..." else "Preparing your 4 scenes..."
         rndErrorBox.visibility = View.GONE
         rndRetryBtn.text = if (fr()) "RÉESSAYER LE MONTAGE" else "RETRY RENDER"
         rndBackScenesBtn.text = if (fr()) "RETOUR AUX SCÈNES" else "BACK TO SCENES"
@@ -1308,10 +1332,13 @@ class MainActivity : AppCompatActivity() {
                     rejectedPreviousCaptureSha256s = verifiedInputs.rejectedPreviousCaptureSha256s,
                     listener = object : RenderListener {
                         override fun onProgress(progress: RenderProgress) {
+                            // The engine's stage text is diagnostic; the merchant gets
+                            // the same progress in commercial words.
+                            android.util.Log.d("VitrineRender", "${progress.stage} ${progress.percent}% ${progress.message}")
                             runOnUiThread {
                                 rndPercentText.text = "${progress.percent}%"
                                 rndProgressBar.progress = progress.percent
-                                rndStageText.text = progress.message
+                                rndStageText.text = merchantRenderStage(progress)
                             }
                         }
 
@@ -1336,7 +1363,12 @@ class MainActivity : AppCompatActivity() {
                         override fun onFailed(error: RenderOutcome.Failure) {
                             sessionManager.onRenderFailed()
                             runOnUiThread {
-                                showRenderError("[${error.error.stage} / ${error.error.code}] ${error.error.message}")
+                                // Internal stage/code stays in the diagnostics log.
+                                android.util.Log.e(
+                                    "VitrineRender",
+                                    "[${error.error.stage}/${error.error.code}] ${error.error.message}"
+                                )
+                                showRenderError(error.error.message)
                             }
                         }
                     }
@@ -1344,18 +1376,45 @@ class MainActivity : AppCompatActivity() {
                 if (outcome is RenderOutcome.Failure && rndErrorBox.visibility != View.VISIBLE) {
                     sessionManager.onRenderFailed()
                     runOnUiThread {
-                        showRenderError("[${outcome.error.stage} / ${outcome.error.code}] ${outcome.error.message}")
+                        android.util.Log.e(
+                            "VitrineRender",
+                            "[${outcome.error.stage}/${outcome.error.code}] ${outcome.error.message}"
+                        )
+                        showRenderError(outcome.error.message)
                     }
                 }
             } catch (e: RealSessionViolationException) {
                 sessionManager.onRenderFailed()
-                runOnUiThread { showRenderError("[${e.code}] ${e.message}") }
+                runOnUiThread {
+                    android.util.Log.e("VitrineRender", "[${e.code}] ${e.message}")
+                    showRenderError(e.message.orEmpty())
+                }
             } catch (t: Throwable) {
                 sessionManager.onRenderFailed()
-                runOnUiThread { showRenderError(t.message ?: "Erreur montage inconnue") }
+                runOnUiThread {
+                    android.util.Log.e("VitrineRender", "unexpected render failure", t)
+                    showRenderError(
+                        t.message ?: if (fr()) "Le montage n'a pas pu aboutir. Réessaie." else "Rendering failed. Try again."
+                    )
+                }
             }
         }
     }
+
+    /** Merchant wording for a render stage; engine strings stay in the log. */
+    private fun merchantRenderStage(progress: RenderProgress): String {
+        val percent = progress.percent
+        return when {
+            percent >= 96 -> if (fr()) "Dernières finitions..." else "Finishing touches..."
+            percent >= 60 -> if (fr()) "Création de ta vidéo ($percent%)" else "Creating your video ($percent%)"
+            percent >= 15 -> if (fr()) "Assemblage de tes 4 scènes ($percent%)" else "Putting your 4 scenes together ($percent%)"
+            else -> if (fr()) "Préparation de ta vidéo ($percent%)" else "Preparing your video ($percent%)"
+        }
+    }
+
+    /** Neutral merchant-facing music label; never a technical template name. */
+    private fun defaultMusicCredit(): String =
+        if (fr()) "Musique de ta publicité" else "Music in your ad"
 
     private fun showRenderError(details: String) {
         rndStageText.text = if (fr()) "Le montage n'a pas pu aboutir." else "Rendering failed."
@@ -1365,22 +1424,21 @@ class MainActivity : AppCompatActivity() {
 
     private fun showFinalPlayer(success: RenderOutcome.Success, mp4File: File, publishedLocation: String) {
         showOverlay(OverlayState.FINAL_PLAYER)
-        val rep = success.report
-        val renderedTemplate = sessionManager.templateId
-        finTitle.text = if (fr()) "Ta publicité $renderedTemplate est prête !" else "Your $renderedTemplate ad is ready!"
+        // Merchant-facing name, never the internal template id.
+        finTitle.text = if (fr()) "Ta publicité est prête !" else "Your ad is ready!"
         finReplaySoundBtn.text = if (fr()) "🔊 Revoir depuis le début avec le son" else "🔊 Replay from start with sound"
         finShareBtn.text = if (fr()) "PARTAGER / ENREGISTRER LA VIDÉO" else "SHARE / SAVE VIDEO"
         finNewVideoBtn.text = if (fr()) "CRÉER UNE NOUVELLE VIDÉO" else "CREATE A NEW VIDEO"
 
-        val credit = success.result.musicCredit ?: "Musique COMMERCE-T3"
+        val credit = success.result.musicCredit ?: defaultMusicCredit()
+        // Merchant-facing summary only: no technical format/codec diagnostics.
+        // The verified-format proof stays in the engine report and the logs.
         finStatsText.text = if (fr()) {
-            "Format vérifié : ${rep.width}×${rep.height} · ${rep.fps} fps · ${rep.frames} images · ${"%.1f".format(rep.durationSec)} s\n" +
-                "Codecs : ${rep.codec} + AAC · Audio vérifié\n" +
+            "Ta vidéo est prête et enregistrée sur ton téléphone.\n" +
                 "Musique : $credit\n" +
                 "Enregistrée dans : $publishedLocation"
         } else {
-            "Verified format: ${rep.width}×${rep.height} · ${rep.fps} fps · ${rep.frames} frames · ${"%.1f".format(rep.durationSec)} s\n" +
-                "Codecs: ${rep.codec} + AAC · Audio verified\n" +
+            "Your video is ready and saved on your phone.\n" +
                 "Music: $credit\n" +
                 "Saved to: $publishedLocation"
         }
@@ -1402,7 +1460,13 @@ class MainActivity : AppCompatActivity() {
                 }
 
                 override fun onPlaybackError(message: String) {
-                    finStatsText.append("\nLecture: $message")
+                    // Technical playback text stays in the logcat/diagnostics;
+                    // the merchant only gets an actionable, plain message.
+                    android.util.Log.w("VitrineFinalPlayer", "playback error: $message")
+                    finStatsText.append(
+                        if (fr()) "\nImpossible de relire la vidéo ici. Tu peux quand même la partager."
+                        else "\nPlayback isn't available here. You can still share the video."
+                    )
                 }
             }
         )
@@ -1502,6 +1566,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun onDestroy() {
+        if (::recordingCountdown.isInitialized) recordingCountdown.cancel()
         super.onDestroy()
         cameraRecorder.unbind()
         guideAudioPlayer.release()

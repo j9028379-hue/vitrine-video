@@ -20,15 +20,20 @@ data class TextTypefaceRequest(
     val syntheticBoldFallback: Boolean
 ) {
     companion object {
-        fun from(spec: TextOverlaySpec, fontFileAvailable: Boolean): TextTypefaceRequest {
-            val mustApplyWeight = fontFileAvailable && spec.fontWeight >= 600
+        fun from(
+            spec: TextOverlaySpec,
+            fontFileAvailable: Boolean,
+            declaredWeight: Int = spec.fontWeight
+        ): TextTypefaceRequest {
+            val weight = if (declaredWeight in 100..900) declaredWeight else spec.fontWeight
+            val mustApplyWeight = fontFileAvailable && weight >= 600
             return TextTypefaceRequest(
                 fontPath = spec.fontRelativePath,
                 family = spec.fontFamily,
-                declaredWeight = spec.fontWeight,
+                declaredWeight = weight,
                 applyDeclaredWeight = mustApplyWeight,
-                variationSettings = if (mustApplyWeight) "'wght' ${spec.fontWeight}" else null,
-                syntheticBoldFallback = !fontFileAvailable && spec.fontWeight >= 600
+                variationSettings = if (mustApplyWeight) "'wght' $weight" else null,
+                syntheticBoldFallback = !fontFileAvailable && weight >= 600
             )
         }
     }

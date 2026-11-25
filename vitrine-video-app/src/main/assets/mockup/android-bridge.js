@@ -157,30 +157,14 @@
   }
 
   /**
-   * T5 only: a transient 3-2-1 before the camera opens. It is not one of the
-   * 12 stable screens, is never recorded into the take, and adds no duration.
+   * The merchant-visible 3-2-1 / ON FILME ! sequence is owned by the native
+   * RecordingCountdown component so it runs exactly once, for every shipped
+   * template, between the tap and the real CameraX start. The web layer only
+   * hands the scene over; it never draws a second countdown.
    */
-  function startWithCountdown(sceneIdx) {
-    const overlay = document.createElement("div");
-    overlay.className = "vitrine-countdown";
-    overlay.setAttribute("role", "status");
-    overlay.setAttribute("aria-live", "polite");
-    overlay.textContent = "3";
-    document.body.appendChild(overlay);
-    let remaining = 3;
-    const tick = () => {
-      if (remaining > 0) {
-        overlay.textContent = String(remaining--);
-        setTimeout(tick, 700);
-      } else {
-        overlay.textContent = "ON FILME !";
-        setTimeout(() => {
-          overlay.remove();
-          if (hasBridge()) window.VitrineAndroid.openSceneCamera(sceneIdx);
-        }, 450);
-      }
-    };
-    tick();
+  function startSceneCapture(sceneIdx) {
+    if (!hasBridge()) return;
+    window.VitrineAndroid.openSceneCamera(sceneIdx);
   }
 
   function collectFormResponses() {
@@ -426,11 +410,7 @@
             const flow = window.__vitrineFlow && window.__vitrineFlow.getState();
             const sceneIdx = flow ? flow.scene : 0;
             if (!hasBridge()) return;
-            if (activeTemplateFormat === "r4") {
-              startWithCountdown(sceneIdx);
-            } else {
-              window.VitrineAndroid.openSceneCamera(sceneIdx);
-            }
+            startSceneCapture(sceneIdx);
             return;
           }
 

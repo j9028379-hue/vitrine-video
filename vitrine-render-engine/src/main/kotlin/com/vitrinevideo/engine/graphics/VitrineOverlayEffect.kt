@@ -52,13 +52,37 @@ class VitrineBitmapTextOverlay(
         fontFile != null && fontFile.exists() && fontFile.length() > 0L
     )
     private val typeface: Typeface = EngineTypefaceFactory.create(typefaceRequest, fontFile)
-    private val typefacesByPath: Map<String, Typeface> = fontFiles.mapNotNull { (path, file) ->
-        if (file.exists() && file.length() > 0L) {
+    /**
+     * Variable fonts ship as their default instance (Playfair Display defaults to
+     * Regular 400), so a declared ExtraBold/Black must be instantiated explicitly.
+     * Keyed by `path@weight`; the weightless key keeps the template default.
+     */
+    private fun weightKey(path: String, weight: Int): String = if (weight in 100..900) "$path@$weight" else path
+
+    private val typefacesByPath: Map<String, Typeface> = run {
+        val declaredWeights = (spec.windows.map { it.declaredWeight } + spec.fontWeight)
+            .filter { it in 100..900 }
+            .distinct()
+        val usable = fontFiles.filterValues { it.exists() && it.length() > 0L }
+        val byPath = usable.mapNotNull { (path, file) ->
             runCatching {
                 path to EngineTypefaceFactory.create(typefaceRequest.copy(fontPath = path), file)
             }.getOrNull()
-        } else null
-    }.toMap()
+        }.toMap()
+        val byWeight = usable.flatMap { (path, file) ->
+            declaredWeights
+                .filter { it != spec.fontWeight }
+                .mapNotNull { weight ->
+                    runCatching {
+                        weightKey(path, weight) to EngineTypefaceFactory.create(
+                            typefaceRequest.copy(fontPath = path, declaredWeight = weight),
+                            file
+                        )
+                    }.getOrNull()
+                }
+        }.toMap()
+        byPath + byWeight
+    }
 
     private val fillPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         this.typeface = this@VitrineBitmapTextOverlay.typeface
@@ -92,7 +116,9 @@ class VitrineBitmapTextOverlay(
                 Typeface.create(family, Typeface.NORMAL)
             }
         }
-        return window.fontRelativePath?.let { typefacesByPath[it] } ?: typeface
+        val weight = window.declaredWeight
+        return window.fontRelativePath?.let { typefacesByPath[weightKey(it, weight)] ?: typefacesByPath[it] }
+            ?: typeface
     }
 
     private val pendingResponses = AtomicReference<Map<String, String>?>(null)

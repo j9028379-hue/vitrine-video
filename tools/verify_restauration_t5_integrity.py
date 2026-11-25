@@ -75,6 +75,8 @@ def main() -> None:
                      or "cloudflare" in n.lower() or "ui-screens" in n.lower() or "rushes" in n.lower()]
         check("no raw audio, ZIP, rush, UI proof or Cloudflare artefact", not forbidden)
         contract = json.loads(entries["templates/restauration/restauration-t5/montage/contrat-candidat.json"])
+        montage = json.loads(entries["contracts/montage/T5_MONTAGE_COMPLET_V3_0_0.json"])
+        motion = json.loads(entries["contracts/config/T5_TEXT_MOTION_V4_0_0.json"])
         check("engine contract id/version", contract["template_id"] == TEMPLATE and contract["version"] == VERSION)
         check("720x1280 30fps 900 frames / four scenes", (
             contract["largeur"], contract["hauteur"], contract["duree_s"],
@@ -84,18 +86,35 @@ def main() -> None:
               [(s["id"], s["capture_s"], s["source_s"]) for s in contract["scenes"]] == [
                   ("S1", 6, [0, 6]), ("S2", 8, [0, 8]), ("S3", 7, [0, 7]), ("S4", 9, [0, 9])])
         check("three full-frame transitions at the declared cuts", [
-            (e["source_cut_frame"], e["source_duration_frames"], e["direction"], e["transition_moteur"])
+            (e["source_cut_frame"], e["source_duration_frames"], e["direction"], e["transition_moteur"],
+             e["source_family"], e["full_frame_travel"], e["motion_blur_px"])
             for e in contract["effets"]
-        ] == [(180, 8, "left", "wipe_directionnel"), (420, 8, "right", "wipe_directionnel"),
-              (630, 8, "left", "wipe_directionnel")])
+        ] == [(180, 8, "left", "wipe_directionnel", "dish_swipe_camera_whip", True, 5.0),
+              (420, 8, "right", "wipe_directionnel", "dish_swipe_camera_whip", True, 5.0),
+              (630, 8, "left", "wipe_directionnel", "dish_swipe_camera_whip", True, 5.0)])
+        check("montage keeps the T1 reference family, direction and 8-frame windows",
+              [(t["family"], t["direction"], t["duration_frames"], t["cut_frame"])
+               for t in montage["transitions"]] == [
+                  ("dish_swipe_camera_whip", "left", 8, 180),
+                  ("dish_swipe_camera_whip", "right", 8, 420),
+                  ("dish_swipe_camera_whip", "left", 8, 630)])
         check("whole-block fades with declared 1.2 line height and Playfair font",
               contract["fade_frames"] == 3 and all(l["mouvement"] == "fondu" and l["interligne_ratio"] == 1.2
                                                    for l in contract["calques"])
               and all(v == "PlayfairDisplay[wght].ttf" for v in contract["polices"].values()))
+        # The packaged Playfair is a variable font whose default instance is
+        # Regular 400: the approved ExtraBold/Black only exists if every layer
+        # carries its declared weight.
+        expected_weights = {
+            f"T5_{scene}_{field['id']}": field["weight"]
+            for scene, block in motion["scenes"].items() for field in block["fields"]
+        }
+        check("every T5 layer declares its approved Playfair weight (800/900)",
+              {l["id"]: l["poids"] for l in contract["calques"]} == expected_weights
+              and set(expected_weights.values()) == {800, 900})
         fields = {layer["texte"][1:-1] for layer in contract["calques"]}
         check("exactly six merchant-bound fields", fields == {"nom", "offre", "contenu", "prix", "whatsapp", "quartier"})
         runtime = json.loads(entries["contracts/config/T5_RUNTIME_CONTRACT_V3_0_0.json"])
-        montage = json.loads(entries["contracts/montage/T5_MONTAGE_COMPLET_V3_0_0.json"])
         check("runtime points at official montage and V4 text motion", (
             runtime["montage_contract"], runtime["text_motion_contract"],
             [b["duration_ms"] // 1000 for b in runtime["scene_bindings"]]

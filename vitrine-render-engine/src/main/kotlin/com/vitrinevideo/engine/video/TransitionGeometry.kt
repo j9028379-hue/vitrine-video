@@ -14,7 +14,13 @@ data class TransitionMaskState(
     val diagonalTopX: Float = 0f,
     val diagonalBottomX: Float = 0f,
     val alphaIncoming: Float = 1f,
-    val direction: String = "right"
+    val direction: String = "right",
+    /** True when both frames must travel across the canvas (dish swipe / camera whip). */
+    val slideWhip: Boolean = false,
+    /** Normalized travel already covered in [0..1]; 0 = outgoing only, 1 = incoming only. */
+    val slideProgress: Float = 0f,
+    /** Normalized motion-blur radius applied to the composed whip frame. */
+    val blurRadius: Float = 0f
 )
 
 /**
@@ -62,12 +68,27 @@ object TransitionGeometry {
             TransitionType.WIPE_DIRECTIONNEL -> {
                 // Full-frame wipe only: no cards, mosaics or decorative layers.
                 // An existing contract without a declared direction keeps the
-                // historical left-edge reveal.
-                val rect = if (spec.direction.equals("left", ignoreCase = true))
-                    NormalizedRect(1f - q, 0f, q, 1f)
-                else
-                    NormalizedRect(0f, 0f, q, 1f)
-                TransitionMaskState(spec.type, q, rects = listOf(rect), direction = spec.direction)
+                // historical left-edge reveal. A contract that declares the
+                // reference whip instead slides both frames across the canvas,
+                // exactly like the measured T1 cut (8 frames, smoothstep travel,
+                // motion blur peaking at mid-transition).
+                if (spec.slideWhip) {
+                    val ridge = 1f - kotlin.math.abs(2f * u - 1f)
+                    TransitionMaskState(
+                        type = spec.type,
+                        progressQ = q,
+                        direction = spec.direction,
+                        slideWhip = true,
+                        slideProgress = q,
+                        blurRadius = (spec.whipBlurPx / 720.0 * ridge).toFloat().coerceIn(0f, 0.02f)
+                    )
+                } else {
+                    val rect = if (spec.direction.equals("left", ignoreCase = true))
+                        NormalizedRect(1f - q, 0f, q, 1f)
+                    else
+                        NormalizedRect(0f, 0f, q, 1f)
+                    TransitionMaskState(spec.type, q, rects = listOf(rect), direction = spec.direction)
+                }
             }
             TransitionType.CROSSFADE -> {
                 TransitionMaskState(spec.type, q, alphaIncoming = q)

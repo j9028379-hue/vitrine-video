@@ -645,19 +645,5 @@ body {
   text-align: center;
 }
 
-/* T5 transient countdown: commercial feedback only, never a stable screen. */
-.vitrine-countdown {
-  position: fixed;
-  inset: 0;
-  z-index: 9999;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  pointer-events: none;
-  background: rgba(10, 21, 80, 0.55);
-  color: #FFFFFF;
-  font-size: 76px;
-  font-weight: 900;
-  letter-spacing: 2px;
-  text-shadow: 0 4px 18px rgba(0, 0, 0, 0.45);
-}
+/* The 3-2-1 / ON FILME ! sequence is drawn by the native RecordingCountdown
+   component (one owner for every template), never by the web layer. */

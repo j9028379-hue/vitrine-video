@@ -88,9 +88,11 @@ CROSS_REFERENCE_SHA = {
 }
 
 SUCCESSOR = {"1": "2", "2": "3", "3": "4", "4": "1"}
-# The montage declares full-frame dish_swipe/camera_whip transitions. The
-# universal engine has one directional wipe primitive for both gestures; the
-# official ids, frame windows and directions stay verbatim in the adapter.
+# The montage declares full-frame dish_swipe/camera_whip transitions (the
+# owner-approved T1 reference), measured as an eight-frame lateral travel with
+# smoothstep easing and a motion-blur seam. The universal engine implements that
+# as its full-frame travelling-wipe primitive; the official ids, frame windows,
+# directions and durations stay verbatim from the montage contract.
 TRANSITION_ADAPTER = {
     "T5_T1_DISH_SWIPE_LEFT": ("T5L", "wipe_directionnel", "left"),
     "T5_T1_CAMERA_WHIP_RIGHT": ("T5R", "wipe_directionnel", "right"),
@@ -201,6 +203,12 @@ def build_partition(template, runtime, montage, motion, form, guide, font_sha):
             "reference": 1,
             "transition_moteur": primitive,
             "direction": direction,
+            # Both shots travel together across the full canvas, with the
+            # reference motion-blur seam. Declared here, never hardcoded in the
+            # engine: any contract without this flag keeps the mask wipe.
+            "full_frame_travel": True,
+            "motion_blur_px": 5.0,
+            "source_family": tr["family"],
             "source_cut_frame": tr["cut_frame"],
             "source_duration_frames": tr["duration_frames"],
         })
@@ -225,6 +233,10 @@ def build_partition(template, runtime, montage, motion, form, guide, font_sha):
                 "sortie": 3,
                 "mouvement": "fondu",
                 "interligne_ratio": field["line_height_ratio"],
+                # Approved Playfair Display ExtraBold/Black per text motion V4.
+                # The variable TTF defaults to Regular 400, so the weight must be
+                # declared here for the universal engine to instantiate it.
+                "poids": field["weight"],
                 "sans_prefixe_whatsapp": field["id"] == "whatsapp",
             })
         base += block["scene_frames"]

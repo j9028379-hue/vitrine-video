@@ -10,6 +10,7 @@ import com.vitrinevideo.engine.interpreter.TextEntryAnim
 import com.vitrinevideo.engine.interpreter.TransitionType
 import com.vitrinevideo.engine.pkg.TemplatePackageLoader
 import com.vitrinevideo.engine.security.InternalMusicLibrary
+import com.vitrinevideo.engine.video.TransitionGeometry
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -90,6 +91,10 @@ class RestaurationT5PackageTest {
         assertEquals(listOf(176, 416, 626), plan.transitions.map { it.startFrame })
         assertEquals(listOf(8, 8, 8), plan.transitions.map { it.durationFrames })
         assertEquals(listOf("left", "right", "left"), plan.transitions.map { it.direction })
+        // Owner-approved T1 reference: both shots travel across the full canvas
+        // with the measured 8-frame window and a motion-blur seam.
+        assertTrue(plan.transitions.all { it.slideWhip })
+        assertEquals(listOf(5.0, 5.0, 5.0), plan.transitions.map { it.whipBlurPx })
         assertTrue(plan.unknownCapabilities.isEmpty())
         assertEquals(4, pkg.captureGuides.size)
         assertEquals(listOf(6, 8, 7, 9), pkg.captureGuides.map { it.durationSec })
@@ -103,6 +108,47 @@ class RestaurationT5PackageTest {
         val runtime = JSONObject(String(files.getValue("contracts/config/T5_RUNTIME_CONTRACT_V3_0_0.json")))
         assertEquals("montage/T5_MONTAGE_COMPLET_V3_0_0.json", runtime.getString("montage_contract"))
         assertEquals("config/T5_TEXT_MOTION_V4_0_0.json", runtime.getString("text_motion_contract"))
+    }
+
+    @Test
+    fun approvedPlayfairWeightsReachTheUniversalTextPlan() {
+        val plan = load().renderPlan
+        val spec = requireNotNull(plan.textOverlay) { "T5 must carry a text overlay" }
+        // The bundled Playfair variable font defaults to Regular 400, so the
+        // approved ExtraBold/Black only renders if the weight is declared.
+        assertEquals(900, spec.fontWeight)
+        assertEquals(10, spec.windows.size)
+        val declared = spec.windows.associate { it.fieldKey to it.declaredWeight }
+        assertEquals(setOf(800, 900), declared.values.toSet())
+        assertEquals(900, declared["offre"])
+        assertEquals(900, declared["prix"])
+        assertEquals(900, declared["whatsapp"])
+        assertEquals(800, declared["nom"])
+        assertEquals(800, declared["contenu"])
+        assertEquals(800, declared["quartier"])
+        assertEquals("templates/restauration/restauration-t5/assets/fonts/PlayfairDisplay[wght].ttf",
+            spec.windows.first().fontRelativePath)
+        assertEquals("c40f2293766a503bc70cce9e512ef844a4ccb7cbcde792fe2ea31d191917d8d6",
+            spec.windows.first().fontSha256)
+        assertTrue(spec.windows.all { it.entryAnim == TextEntryAnim.FONDU })
+    }
+
+    @Test
+    fun transitionsUseTheReferenceTravelAndTouchNoOfficalDuration() {
+        val plan = load().renderPlan
+        val tr = TransitionGeometry.evaluate(plan.transitions[0], 180)
+        assertNotNull(tr)
+        assertTrue(tr!!.slideWhip)
+        assertTrue(tr.slideProgress in 0.3f..0.7f)
+        assertTrue(tr.blurRadius > 0f)
+        // The travel realises the T1 geometry: the incoming frame is fully on
+        // screen at the end of the 8-frame window and the outgoing frame at the start.
+        assertEquals(0f, TransitionGeometry.evaluate(plan.transitions[0], 176)!!.slideProgress, 0.001f)
+        assertEquals(1f, TransitionGeometry.evaluate(plan.transitions[0], 183)!!.slideProgress, 0.001f)
+        // Official durations and montage frames are untouched.
+        assertEquals(900, plan.totalFrames)
+        assertEquals(listOf(0, 180, 420, 630),
+            plan.scenes.map { it.startFrame })
     }
 
     @Test

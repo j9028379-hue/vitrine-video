@@ -56,13 +56,80 @@ class RestaurationT5AppFlowTest {
         assertTrue(bridge.contains("offre: val(\"q-produit\")"))
         assertTrue(bridge.contains("contenu: val(\"q-accroche\")"))
         assertFalse(bridge.contains("onTemplateSelected(\"RESTAURATION-T4\")"))
-        assertTrue(bridge.contains("vitrine-countdown"))
+        // One native owner for the approved sequence, for every template.
+        assertFalse(bridge.contains("startWithCountdown"))
+        assertTrue(File(assetsRoot(), "mockup/android-host.css").readText().contains("native RecordingCountdown"))
         assertTrue(html.contains("class=\"t5-guide-copy\""))
         assertTrue(html.contains("EST-CE QU'ON VOIT BIEN TOUTE LA FORMULE ?"))
         assertTrue(html.contains("MONTRE LE PLAT, LA BOISSON ET L'ACCOMPAGNEMENT."))
         assertTrue(html.contains("VOIR MON MONTAGE"))
         assertFalse(html.contains("screen_id"))
         assertFalse(html.contains("T5_CAPTURE_"))
+    }
+
+    @Test
+    fun storefrontAndCameraSurfacesCarryNoTechnicalOrTestWording() {
+        val html = File(assetsRoot(), "mockup/vitrine-video-maquette.html").readText()
+        val bridge = File(assetsRoot(), "mockup/android-bridge.js").readText()
+        val forbidden = listOf(
+            "TEST T5", "DEBUG", "MOCK", "screen_id", "route_key",
+            "capturer exactement", "vitesse naturelle",
+            "non connectée dans cette maquette", "connected by the engineer",
+            "seront connectés par l", "La maquette du parcours"
+        )
+        for (token in forbidden) {
+            assertFalse("merchant UI must not show '$token'", html.contains(token) || bridge.contains(token))
+        }
+        // Approved guide functions stay untouched.
+        for (required in listOf(
+            "COMMENCER À FILMER", "À FILMER", "À ÉVITER", "CE QUE TU DOIS FAIRE",
+            "guide-audio-toggle", "guide-audio-back", "guide-audio-forward",
+            "guide-audio-seek", "guide-audio-current", "guide-audio-duration",
+            "guide-scene-image", "t5-guide-copy"
+        )) {
+            assertTrue("approved T5 guide element missing: $required", html.contains(required))
+        }
+    }
+
+    @Test
+    fun finalScreenShowsNoTechnicalDiagnosticsToTheMerchant() {
+        val activity = File(
+            listOf(File("src/main/kotlin"), File("vitrine-video-app/src/main/kotlin")).first { it.isDirectory },
+            "com/vitrinevideo/app/MainActivity.kt"
+        ).readText()
+        // The verified format proof stays in the engine report and logcat only.
+        for (hidden in listOf("Format vérifié", "Verified format", "Codecs :", "Codecs:")) {
+            assertFalse("final screen must not show '$hidden'", activity.contains("\"$hidden"))
+        }
+        assertTrue(activity.contains("Ta vidéo est prête et enregistrée sur ton téléphone."))
+        // The internal template id must never reach the final screen either.
+        assertFalse(activity.contains("Ta publicité \$" + "renderedTemplate"))
+        assertTrue(activity.contains("Ta publicité est prête !"))
+        assertTrue(activity.contains("Log.e(\"VitrineRender\""))
+        assertTrue(activity.contains("Log.w(\"VitrineFinalPlayer\""))
+    }
+
+    @Test
+    fun countdownComponentIsSharedByEveryShippedTemplate() {
+        val activity = File(
+            listOf(File("src/main/kotlin"), File("vitrine-video-app/src/main/kotlin")).first { it.isDirectory },
+            "com/vitrinevideo/app/MainActivity.kt"
+        ).readText()
+        val component = File(
+            listOf(File("src/main/kotlin"), File("vitrine-video-app/src/main/kotlin")).first { it.isDirectory },
+            "com/vitrinevideo/app/camera/RecordingCountdown.kt"
+        ).readText()
+        // One shared component, no template branch.
+        assertFalse(component.contains("RESTAURATION-T5"))
+        assertFalse(component.contains("COMMERCE-T"))
+        // It runs before CameraX starts and after the merchant's tap.
+        assertTrue(activity.contains("recordingCountdown.start { beginCameraRecording() }"))
+        assertTrue(activity.contains("private fun beginCameraRecording()"))
+        assertTrue(activity.contains("recordingCountdown.isRunning) return"))
+        assertTrue(activity.indexOf("recordingCountdown.start {") < activity.indexOf("cameraRecorder.startRecording("))
+        // The take's own duration still starts on the real CameraX start.
+        assertTrue(component.contains("\"3\", \"2\", \"1\""))
+        assertTrue(component.contains("ON FILME !"))
     }
 
     @Test

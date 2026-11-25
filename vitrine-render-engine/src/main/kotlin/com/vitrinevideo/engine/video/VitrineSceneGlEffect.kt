@@ -280,6 +280,7 @@ private class VitrineSceneShaderProgram(
         } else floatArrayOf(0.5f, 0.15f, 0f, 0f))
 
         val zeroRect = floatArrayOf(0f, 0f, 0f, 0f)
+        main.setFloatsUniform("uWhipSlide", floatArrayOf(0f, 0f))
         if (mask == null) {
             main.setIntUniform("uTransMode", 0)
             main.setFloatUniform("uTransParam", 0f)
@@ -288,27 +289,43 @@ private class VitrineSceneShaderProgram(
                 main.setFloatsUniform("uTransRect$i", zeroRect)
             }
         } else {
-            when (mask.type) {
-                TransitionType.CROSSFADE -> {
+            when {
+                // Declared full-frame travel (dish swipe / camera whip).
+                mask.slideWhip -> {
+                    main.setIntUniform("uTransMode", 12)
+                    main.setFloatUniform("uTransParam", mask.slideProgress)
+                    main.setFloatsUniform(
+                        "uWhipSlide",
+                        floatArrayOf(
+                            if (mask.direction.equals("left", ignoreCase = true)) 1f else -1f,
+                            mask.blurRadius
+                        )
+                    )
+                    main.setFloatsUniform("uTransDiag", floatArrayOf(0f, 0f))
+                    for (i in 0 until 4) main.setFloatsUniform("uTransRect$i", zeroRect)
+                }
+                mask.type == TransitionType.CROSSFADE -> {
                     main.setIntUniform("uTransMode", 2)
                     main.setFloatUniform("uTransParam", mask.alphaIncoming)
                     main.setFloatsUniform("uTransDiag", floatArrayOf(0f, 0f))
                     for (i in 0 until 4) main.setFloatsUniform("uTransRect$i", zeroRect)
                 }
-                TransitionType.BALAYAGE_DIAGONAL -> {
+                mask.type == TransitionType.BALAYAGE_DIAGONAL -> {
                     main.setIntUniform("uTransMode", 3)
                     main.setFloatUniform("uTransParam", 0f)
                     main.setFloatsUniform("uTransDiag", floatArrayOf(mask.diagonalTopX, mask.diagonalBottomX))
                     for (i in 0 until 4) main.setFloatsUniform("uTransRect$i", zeroRect)
                 }
-                TransitionType.LAMELLES_OUVERTURE,
-                TransitionType.ECLAT_COLORE,
-                TransitionType.PAPIER_OBLIQUE,
-                TransitionType.POUSSEE_VOILE,
-                TransitionType.FENTE_HORIZONTALE,
-                TransitionType.TRANCHE_PIP,
-                TransitionType.BANDE_OBLIQUE_RECUL,
-                TransitionType.LAMELLES_FERMETURE -> {
+                mask.type in setOf(
+                    TransitionType.LAMELLES_OUVERTURE,
+                    TransitionType.ECLAT_COLORE,
+                    TransitionType.PAPIER_OBLIQUE,
+                    TransitionType.POUSSEE_VOILE,
+                    TransitionType.FENTE_HORIZONTALE,
+                    TransitionType.TRANCHE_PIP,
+                    TransitionType.BANDE_OBLIQUE_RECUL,
+                    TransitionType.LAMELLES_FERMETURE
+                ) -> {
                     val mode = when (mask.type) {
                         TransitionType.LAMELLES_OUVERTURE -> 4
                         TransitionType.ECLAT_COLORE -> 5
@@ -551,6 +568,7 @@ private class VitrineSceneShaderProgram(
             uniform vec4 uScrim;
             uniform int uTransMode;
             uniform int uHasHoldFrame;
+            uniform vec2 uWhipSlide;
             uniform float uTransParam;
             uniform vec2 uTransDiag;
             uniform vec4 uTransRect0;
@@ -588,7 +606,40 @@ private class VitrineSceneShaderProgram(
                 if (uTransMode != 0) {
                     vec2 holdUv = clamp((vTexSamplingCoord - 0.5) / max(uHoldZoom, 0.01) + 0.5, 0.0, 1.0);
                     vec4 hold = texture2D(uHoldSampler, holdUv);
-                    if (uTransMode == 2) {
+                    if (uTransMode == 12) {
+                        // Reference dish swipe / camera whip (owner-approved T1 cut):
+                        // the two shots are one continuous strip travelling across the
+                        // canvas, and the seam is motion blurred. `p` is the smoothstep
+                        // travel over the declared frames; the outgoing frame is intact
+                        // at p = 0 and the incoming one is intact at p = 1.
+                        float p = clamp(uTransParam, 0.0, 1.0);
+                        // dir = +1 travels leftwards (incoming enters from the right),
+                        // dir = -1 travels rightwards (incoming enters from the left).
+                        float dir = uWhipSlide.x < 0.0 ? -1.0 : 1.0;
+                        float edge = dir > 0.0 ? (1.0 - p) : p;
+                        float r = uWhipSlide.y;
+                        // Same translation for both shots, one canvas apart.
+                        vec2 inUv = clamp(topDownUv + vec2(dir * p - dir, 0.0), vec2(0.0), vec2(1.0));
+                        vec2 hoUv = clamp(holdUv + vec2(dir * p, 0.0), 0.0, 1.0);
+                        vec4 inPx = sampleScenePixel(inUv);
+                        vec4 hoPx = texture2D(uHoldSampler, hoUv);
+                        if (r > 0.0) {
+                            vec4 inAcc = inPx;
+                            vec4 hoAcc = hoPx;
+                            inAcc += sampleScenePixel(clamp(inUv + vec2(r, 0.0), vec2(0.0), vec2(1.0)));
+                            hoAcc += texture2D(uHoldSampler, clamp(hoUv + vec2(r, 0.0), 0.0, 1.0));
+                            inAcc += sampleScenePixel(clamp(inUv - vec2(r, 0.0), vec2(0.0), vec2(1.0)));
+                            hoAcc += texture2D(uHoldSampler, clamp(hoUv - vec2(r, 0.0), 0.0, 1.0));
+                            inAcc += sampleScenePixel(clamp(inUv + vec2(r * 0.5, 0.0), vec2(0.0), vec2(1.0)));
+                            hoAcc += texture2D(uHoldSampler, clamp(hoUv + vec2(r * 0.5, 0.0), 0.0, 1.0));
+                            inAcc += sampleScenePixel(clamp(inUv - vec2(r * 0.5, 0.0), vec2(0.0), vec2(1.0)));
+                            hoAcc += texture2D(uHoldSampler, clamp(hoUv - vec2(r * 0.5, 0.0), 0.0, 1.0));
+                            inPx = inAcc / 5.0;
+                            hoPx = hoAcc / 5.0;
+                        }
+                        bool incomingSide = dir > 0.0 ? (topDownUv.x >= edge) : (topDownUv.x < edge);
+                        composed = incomingSide ? inPx : hoPx;
+                    } else if (uTransMode == 2) {
                         composed = mix(hold, incoming, clamp(uTransParam, 0.0, 1.0));
                     } else if (uTransMode == 3) {
                         float edgeX = uTransDiag.x + (uTransDiag.y - uTransDiag.x) * topDownUv.y;

@@ -101,7 +101,12 @@ object ContratCandidatParser {
                 durationFrames = end - start,
                 type = type,
                 motifId = motif.uppercase(),
-                direction = effect.optString("direction", if (motif.uppercase() == "T5R") "right" else "left")
+                direction = effect.optString("direction", if (motif.uppercase() == "T5R") "right" else "left"),
+                // Data-driven only: a contract that declares the reference
+                // travel (dish swipe / camera whip) gets the sliding primitive;
+                // everything else keeps its current mask geometry.
+                slideWhip = effect.optBoolean("full_frame_travel", false),
+                whipBlurPx = effect.optDouble("motion_blur_px", 5.0)
             )
         }
 
@@ -173,6 +178,9 @@ object ContratCandidatParser {
                 fontSha256 = fontHash(declaredFont),
                 inkColorHex = ink, reliefColorHex = reliefHex,
                 skipAutoWhatsappPrefix = layer.optBoolean("sans_prefixe_whatsapp", layer.optString("id") == "numero"),
+                // Declared variable-font weight (Playfair 800/900 for T5). Absent
+                // in T1–T4 layers, so their rendering is unchanged.
+                declaredWeight = layer.optInt("poids", layer.optInt("graisse", 0)).takeIf { it in 100..900 } ?: 0,
                 overrideStyle = TextStyleSpec(
                     fontSizePx = layer.optDouble("taille_px", 60.0),
                     maxWidthPx = layer.optDouble("largeur_max", 606.0),
@@ -188,7 +196,11 @@ object ContratCandidatParser {
         }
         val overlaySerif = fontFile("serif")
         val textSpec = if (textWindows.isEmpty()) null else TextOverlaySpec(
-            fontFamily = "sans-serif", fontWeight = 400,
+            fontFamily = "sans-serif",
+            // Template-level weight = the heaviest declared layer weight. T5 declares
+            // 900, which is what makes its typeface request instantiate Playfair
+            // Black instead of the variable font's default Regular 400.
+            fontWeight = textWindows.mapNotNull { it.declaredWeight.takeIf { w -> w in 100..900 } }.maxOrNull() ?: 400,
             fontRelativePath = "$fontRoot/$overlaySerif", fontSha256 = fontHash(overlaySerif),
             extraFontPaths = extraFontPaths,
             extraFontSha256s = extraFontHashes,
