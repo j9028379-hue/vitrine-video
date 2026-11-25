@@ -13,6 +13,7 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.File
+import java.io.FileInputStream
 import java.util.zip.ZipInputStream
 
 /** End-to-end declarative integration of COMMERCE-T2 1.0.0 through the universal loader. */
