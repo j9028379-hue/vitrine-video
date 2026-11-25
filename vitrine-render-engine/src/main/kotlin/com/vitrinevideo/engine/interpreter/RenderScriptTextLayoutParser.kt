@@ -26,7 +26,7 @@ object RenderScriptTextLayoutParser {
 
     private val colorDefinition = Regex("""([A-Za-z_]+)=\((\d+),(\d+),(\d+)(?:,(\d+))?\)""")
     private val textCall = Regex(
-        """text\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(ans\['([^']+)'\]|'([^']+)')\s*,\s*(\d+)\s*,\s*'([^']+)'\s*,\s*([A-Za-z_]+)\s*\)"""
+        """text\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(ans\['([^']+)'\]|'([^']+)')\s*,\s*(\d+)\s*,\s*'([^']+)'\s*(?:,\s*([A-Za-z_]+))?\s*\)"""
     )
     private val sceneLine = Regex("""(?:if|elif)\s+j==(\d+)\s*:""")
     private val phaseZero = Regex("""if\s+phase==0\s*:""")
@@ -122,7 +122,9 @@ object RenderScriptTextLayoutParser {
 
     /** Window pairs are read in source order from `a,b=(...)` in the reference script. */
     private fun parseWindows(script: String, groups: List<TextGroup>): Map<Int, Pair<Int, Int>> {
-        val line = script.lineSequence().firstOrNull { it.contains("a,b=") } ?: script
+        val line = script.lineSequence().firstOrNull {
+            it.contains("a,b=") && it.contains("phase]")
+        } ?: script
         val pairs = pairPattern.findAll(line)
             .map { m -> m.groupValues[1].toInt() to m.groupValues[2].toInt() }
             .toList()
@@ -145,7 +147,7 @@ object RenderScriptTextLayoutParser {
                     fixedLabel = m.groupValues[5].takeIf { it.isNotBlank() },
                     size = m.groupValues[6].toInt(),
                     face = m.groupValues[7],
-                    colorName = m.groupValues[8]
+                    colorName = m.groupValues[8].ifBlank { "cream" }
                 )
             }.toList()
             if (calls.isNotEmpty() && sceneIndex != null) result += TextGroup(sceneIndex!!, phase, calls)
