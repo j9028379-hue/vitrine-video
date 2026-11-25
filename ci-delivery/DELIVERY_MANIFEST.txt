@@ -1,6 +1,6 @@
 # VITRINE VIDÉO — APK delivery package
-workflow_run=45614986771
-commit=700d842a03682ff8d5c9291cc809a531a6f454ef
+workflow_run=45632939634
+commit=aefeb70cf4d290de4eab1c8a17cdbac87dad1028
 branch=arena/dd66abee-vitrine-video
 
 ## APK
@@ -8,16 +8,18 @@ T2 APKs exceed GitHub's 100 MB per-file limit, so each APK is stored as verified
 Reassemble with: cat <apk>.part-* > <apk> (in lexicographic order).
 
 name=VitrineVideo-debug.apk
-size=48757496 bytes
-sha256=4bb25e2e2c12a48e8d0b2ad78795a4c28613a82abd3b0cfdf397dcf3ad9dbd46
-reassembled_sha256=4bb25e2e2c12a48e8d0b2ad78795a4c28613a82abd3b0cfdf397dcf3ad9dbd46
-chunk=VitrineVideo-debug.apk.part-00 bytes=48757496
+size=53594543 bytes
+sha256=f30b61c4bb981a116c8e6276bf1a8bdcf8fbecccb6d11e9c9ecb97ee25222f1c
+reassembled_sha256=f30b61c4bb981a116c8e6276bf1a8bdcf8fbecccb6d11e9c9ecb97ee25222f1c
+chunk=VitrineVideo-debug.apk.part-00 bytes=50331648
+chunk=VitrineVideo-debug.apk.part-01 bytes=3262895
 
 name=VitrineVideo-release-ci-signed.apk
-size=47154337 bytes
-sha256=537e43cbb1925b1280155456f625f725a9c5968fde60240fab18593ce3fc3a42
-reassembled_sha256=537e43cbb1925b1280155456f625f725a9c5968fde60240fab18593ce3fc3a42
-chunk=VitrineVideo-release-ci-signed.apk.part-00 bytes=47154337
+size=51992265 bytes
+sha256=a711a4bd7ec9a07d65f9b2c31026daa5c91ee72ee62b4b32730b5865cc322126
+reassembled_sha256=a711a4bd7ec9a07d65f9b2c31026daa5c91ee72ee62b4b32730b5865cc322126
+chunk=VitrineVideo-release-ci-signed.apk.part-00 bytes=50331648
+chunk=VitrineVideo-release-ci-signed.apk.part-01 bytes=1660617
 
 ## Source CI artifacts
 ci-delivery/artifacts/apk-release-evidence/SHA256SUMS.txt
@@ -35,6 +37,7 @@ ci-delivery/artifacts/junit-reports/vitrine-render-engine/build/reports/tests/te
 ci-delivery/artifacts/junit-reports/vitrine-render-engine/build/reports/tests/testDebugUnitTest/classes/com.vitrinevideo.engine.LocalPreviewAndVaultTest.html
 ci-delivery/artifacts/junit-reports/vitrine-render-engine/build/reports/tests/testDebugUnitTest/classes/com.vitrinevideo.engine.MemoryAndErrorGuardTest.html
 ci-delivery/artifacts/junit-reports/vitrine-render-engine/build/reports/tests/testDebugUnitTest/classes/com.vitrinevideo.engine.ProductionPackageAuditTest.html
+ci-delivery/artifacts/junit-reports/vitrine-render-engine/build/reports/tests/testDebugUnitTest/classes/com.vitrinevideo.engine.RestaurationT2PackageTest.html
 ci-delivery/artifacts/junit-reports/vitrine-render-engine/build/reports/tests/testDebugUnitTest/classes/com.vitrinevideo.engine.ServerSyncContractTest.html
 ci-delivery/artifacts/junit-reports/vitrine-render-engine/build/reports/tests/testDebugUnitTest/classes/com.vitrinevideo.engine.T2AudioAndNonRegressionTest.html
 ci-delivery/artifacts/junit-reports/vitrine-render-engine/build/reports/tests/testDebugUnitTest/classes/com.vitrinevideo.engine.T2MusicLibraryTest.html
@@ -63,6 +66,7 @@ ci-delivery/artifacts/junit-reports/vitrine-render-engine/build/test-results/tes
 ci-delivery/artifacts/junit-reports/vitrine-render-engine/build/test-results/testDebugUnitTest/TEST-com.vitrinevideo.engine.LocalPreviewAndVaultTest.xml
 ci-delivery/artifacts/junit-reports/vitrine-render-engine/build/test-results/testDebugUnitTest/TEST-com.vitrinevideo.engine.MemoryAndErrorGuardTest.xml
 ci-delivery/artifacts/junit-reports/vitrine-render-engine/build/test-results/testDebugUnitTest/TEST-com.vitrinevideo.engine.ProductionPackageAuditTest.xml
+ci-delivery/artifacts/junit-reports/vitrine-render-engine/build/test-results/testDebugUnitTest/TEST-com.vitrinevideo.engine.RestaurationT2PackageTest.xml
 ci-delivery/artifacts/junit-reports/vitrine-render-engine/build/test-results/testDebugUnitTest/TEST-com.vitrinevideo.engine.ServerSyncContractTest.xml
 ci-delivery/artifacts/junit-reports/vitrine-render-engine/build/test-results/testDebugUnitTest/TEST-com.vitrinevideo.engine.T2AudioAndNonRegressionTest.xml
 ci-delivery/artifacts/junit-reports/vitrine-render-engine/build/test-results/testDebugUnitTest/TEST-com.vitrinevideo.engine.T2MusicLibraryTest.xml
@@ -79,6 +83,7 @@ ci-delivery/artifacts/junit-reports/vitrine-render-engine/build/test-results/tes
 ci-delivery/artifacts/junit-reports/vitrine-render-engine/build/test-results/testDebugUnitTest/TEST-com.vitrinevideo.engine.UniversalInterpreterTest.xml
 ci-delivery/artifacts/junit-reports/vitrine-video-app/build/reports/tests/testDebugUnitTest/classes/com.vitrinevideo.app.AppIntegrationContractTest.html
 ci-delivery/artifacts/junit-reports/vitrine-video-app/build/reports/tests/testDebugUnitTest/classes/com.vitrinevideo.app.GuideAudioAndAssetTest.html
+ci-delivery/artifacts/junit-reports/vitrine-video-app/build/reports/tests/testDebugUnitTest/classes/com.vitrinevideo.app.RestaurationT2AppFlowTest.html
 ci-delivery/artifacts/junit-reports/vitrine-video-app/build/reports/tests/testDebugUnitTest/classes/com.vitrinevideo.app.T2AppFlowTest.html
 ci-delivery/artifacts/junit-reports/vitrine-video-app/build/reports/tests/testDebugUnitTest/classes/com.vitrinevideo.app.T4ResponseContractTest.html
 ci-delivery/artifacts/junit-reports/vitrine-video-app/build/reports/tests/testDebugUnitTest/css/base-style.css
@@ -88,8 +93,10 @@ ci-delivery/artifacts/junit-reports/vitrine-video-app/build/reports/tests/testDe
 ci-delivery/artifacts/junit-reports/vitrine-video-app/build/reports/tests/testDebugUnitTest/packages/com.vitrinevideo.app.html
 ci-delivery/artifacts/junit-reports/vitrine-video-app/build/test-results/testDebugUnitTest/TEST-com.vitrinevideo.app.AppIntegrationContractTest.xml
 ci-delivery/artifacts/junit-reports/vitrine-video-app/build/test-results/testDebugUnitTest/TEST-com.vitrinevideo.app.GuideAudioAndAssetTest.xml
+ci-delivery/artifacts/junit-reports/vitrine-video-app/build/test-results/testDebugUnitTest/TEST-com.vitrinevideo.app.RestaurationT2AppFlowTest.xml
 ci-delivery/artifacts/junit-reports/vitrine-video-app/build/test-results/testDebugUnitTest/TEST-com.vitrinevideo.app.T2AppFlowTest.xml
 ci-delivery/artifacts/junit-reports/vitrine-video-app/build/test-results/testDebugUnitTest/TEST-com.vitrinevideo.app.T4ResponseContractTest.xml
+ci-delivery/artifacts/t2-package-evidence/RESTAURATION_T2_INTEGRITY_REPORT.txt
 ci-delivery/artifacts/t2-package-evidence/T2_INTEGRITY_REPORT.txt
 ci-delivery/artifacts/test-logs/app-tests.log
 ci-delivery/artifacts/test-logs/engine-tests.log
