@@ -59,12 +59,14 @@ class ShippedTemplatesInstrumentedTest {
         val html = context.assets.open("mockup/vitrine-video-maquette.html")
             .bufferedReader().use { it.readText() }
         for (required in listOf(
-            "COMMENCER À FILMER", "À FILMER", "À ÉVITER", "CE QUE TU DOIS FAIRE",
+            "COMMENCER À FILMER", "ÉCOUTER LE CONSEIL",
             "guide-audio-toggle", "guide-audio-back", "guide-audio-forward",
             "guide-audio-seek", "guide-scene-image"
         )) {
             assertTrue("approved T5 guide function missing: $required", html.contains(required))
         }
+        // Owner correction: no explanatory text block between header and image.
+        assertFalse("T5 scene guide must not render a text block", html.contains("t5-guide-copy"))
         for (forbidden in listOf("TEST T5", "DEBUG", "MOCK", "screen_id", "non connectée")) {
             assertFalse("merchant UI must not show '$forbidden'", html.contains(forbidden))
         }

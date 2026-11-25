@@ -161,3 +161,51 @@ Vérifications faites **dans l APK**, pas seulement dans le JSON :
    fondateur : c est la seule validation qui compte.
 3. Le MP4 de référence du jingle n est pas fourni ; la géométrie suit la mesure
    T1 archivée.
+
+## 10. Correction ciblée du 25/11 — suppression du bloc textuel T5
+
+Défaut constaté sur téléphone : chaque scène T5 affichait, entre l en-tête et
+l image, une section `t5-guide-copy` (titre « VOICI NOTRE FORMULE ! », puis
+À FILMER / À ÉVITER / CE QUE TU DOIS FAIRE et les listes). Elle repoussait
+l illustration vers le bas et occupait 36 cqh au maximum.
+
+Correction (un seul fichier de présentation, `mockup/vitrine-video-maquette.html`) :
+
+- suppression du rendu de la section dans l écran GUIDE et dans l écran de
+  VÉRIFICATION (le second gardait le même panneau) ;
+- suppression du CSS `.t5-guide-copy` devenu inutile ;
+- `R4_SCENES` (titres, consignes, listes, phrase à dire) est **conservé
+  intégralement** : c est la donnée du contrat, plus rien ne l affiche ;
+- l en-tête T5 garde le compteur officiel « SCÈNE n SUR 4 — N SECONDES »
+  (donc durée visible) et le bouton GUIDE/retour.
+
+Structure rendue, vérifiée dans le DOM réel (jsdom, quatre scènes) :
+
+```
+S1  header(SCÈNE 1 SUR 4 — 6 SECONDES) → guide-scene-image(r4-scene1) → audio(r4-scene1) → COMMENCER À FILMER
+S2  header(SCÈNE 2 SUR 4 — 8 SECONDES) → guide-scene-image(r4-scene2) → audio(r4-scene2) → COMMENCER À FILMER
+S3  header(SCÈNE 3 SUR 4 — 7 SECONDES) → guide-scene-image(r4-scene3) → audio(r4-scene3) → COMMENCER À FILMER
+S4  header(SCÈNE 4 SUR 4 — 9 SECONDES) → guide-scene-image(r4-scene4) → audio(r4-scene4) → COMMENCER À FILMER
+```
+
+Plus aucune classe `t5-guide-copy` dans le HTML. Le trajet inverse a été
+mesuré : avant correction, le même harnais renvoyait
+`header → t5-guide-copy → scene-image → audio-panel`.
+
+Non-régression mesurée avec le même harnais : Commerce T1–T4, Restauration T1,
+T2 et T5 renvoient tous `header → scene-image → audio-panel`.
+
+Image : source inchangée (`assets/images/r4-sceneN-portrait.webp`,
+`object-fit: contain`, donc aucun recadrage ni déformation) ; elle occupe
+maintenant l espace libéré (min-height 68 cqh, flex 1).
+
+Défaut annexe corrigé dans le même geste : la scène 3 de T5 réutilisait
+`r4-scene1-portrait.webp` (fichier identique octet pour octet à la scène 1).
+Elle pointe désormais sur `r4-scene3-portrait.webp`, l une des quatre images
+officielles du dossier, et un test vérifie que les quatre fichiers sont
+distincts.
+
+Note honnête : cette vérification est faite sur le DOM et le code de
+présentation, pas sur un rendu pixel d Android. Le navigateur headless n a pas
+pu être téléchargé dans cet environnement ; la validation visuelle finale reste
+celle du fondateur sur son téléphone.

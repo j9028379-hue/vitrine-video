@@ -59,7 +59,9 @@ class RestaurationT5AppFlowTest {
         // One native owner for the approved sequence, for every template.
         assertFalse(bridge.contains("startWithCountdown"))
         assertTrue(File(assetsRoot(), "mockup/android-host.css").readText().contains("native RecordingCountdown"))
-        assertTrue(html.contains("class=\"t5-guide-copy\""))
+        // The explanatory text block is gone from the rendered parcours; the
+        // commercial data it used to display stays in R4_SCENES for the contract.
+        assertFalse(html.contains("t5-guide-copy"))
         assertTrue(html.contains("EST-CE QU'ON VOIT BIEN TOUTE LA FORMULE ?"))
         assertTrue(html.contains("MONTRE LE PLAT, LA BOISSON ET L'ACCOMPAGNEMENT."))
         assertTrue(html.contains("VOIR MON MONTAGE"))
@@ -82,13 +84,53 @@ class RestaurationT5AppFlowTest {
         }
         // Approved guide functions stay untouched.
         for (required in listOf(
-            "COMMENCER À FILMER", "À FILMER", "À ÉVITER", "CE QUE TU DOIS FAIRE",
+            "COMMENCER À FILMER", "ÉCOUTER LE CONSEIL",
             "guide-audio-toggle", "guide-audio-back", "guide-audio-forward",
             "guide-audio-seek", "guide-audio-current", "guide-audio-duration",
-            "guide-scene-image", "t5-guide-copy"
+            "guide-scene-image"
         )) {
             assertTrue("approved T5 guide element missing: $required", html.contains(required))
         }
+    }
+
+    /**
+     * Owner correction: a T5 scene opens on its illustration. The guide markup
+     * must render header -> image -> audio -> COMMENCER À FILMER, with no text
+     * block in between, exactly like the validated Restauration T2 screen.
+     */
+    @Test
+    fun t5SceneGuideShowsTheImageImmediatelyUnderTheHeader() {
+        val html = File(assetsRoot(), "mockup/vitrine-video-maquette.html").readText()
+        val guideStart = html.indexOf("if(flow.stage===\"guide\"){")
+        assertTrue(guideStart > 0)
+        val guideEnd = html.indexOf("const audio=$(\"#guide-audio\")", guideStart)
+        assertTrue(guideEnd > guideStart)
+        val markup = html.substring(guideStart, guideEnd)
+
+        val headerAt = markup.indexOf("guide-readable-header")
+        val imageAt = markup.indexOf("guide-scene-image")
+        val audioAt = markup.indexOf("guide-audio-panel")
+        val startAt = markup.indexOf("COMMENCER À FILMER")
+        assertTrue(headerAt in 0 until imageAt)
+        assertTrue(imageAt < audioAt)
+        assertTrue(audioAt < startAt)
+
+        // No explanatory section may sit between the header and the image.
+        val between = markup.substring(headerAt, imageAt)
+        for (banned in listOf("À FILMER", "À ÉVITER", "CE QUE TU DOIS FAIRE", "guide-copy", "instruction")) {
+            assertFalse("text block between header and image: $banned", between.contains(banned))
+        }
+
+        // Each scene keeps its own picture and its own audio guide.
+        for (n in 1..4) {
+            assertTrue(html.contains("assets/images/r4-scene$n-portrait.webp"))
+            assertTrue(html.contains("assets/audio/r4-scene$n-guide.mp3"))
+        }
+        // And the four validated images really are four distinct files.
+        val images = (1..4).map { File(assetsRoot(), "mockup/assets/images/r4-scene$it-portrait.webp") }
+        assertTrue(images.all { it.isFile && it.length() > 0 })
+        val digests = images.map { java.security.MessageDigest.getInstance("SHA-256").digest(it.readBytes()).toList() }
+        assertEquals(4, digests.distinct().size)
     }
 
     @Test

@@ -1038,6 +1038,9 @@ body{
 .guide-readable-state{padding:8px 7px;border-radius:999px;background:#FFE6D2;color:#D94C00;font-size:16px;line-height:1;font-weight:800;}
 .guide-scene-image{width:100%;min-height:68cqh;max-height:78cqh;flex:1 1 0;display:flex;align-items:center;justify-content:center;overflow:hidden;border-radius:14px;background:#fff;box-shadow:0 4px 15px rgba(80,40,20,.09);}
 .guide-scene-image.has-audio-controls{min-height:64cqh;}
+/* Scene guide: header, illustration, audio, then COMMENCER À FILMER.
+   No explanatory text block sits between the header and the image, so every
+   template (Commerce T1-T4, Restauration T2 and T5) opens on its picture. */
 .guide-scene-image img{display:block;width:100%;height:100%;max-width:100%;max-height:100%;flex:0 1 auto;object-fit:contain;border-radius:14px;user-select:none;-webkit-user-drag:none;}
 .guide-audio-panel{flex:0 0 auto;width:100%;padding:0;border:0;border-radius:0;background:transparent;box-shadow:none;}
 .guide-audio-panel audio{display:none;}
@@ -1050,12 +1053,7 @@ body{
 .guide-audio-seek{display:block;width:100%;height:24px;margin:0;accent-color:#FF5F00;cursor:pointer;touch-action:pan-x;}
 .guide-audio-time{grid-column:1/-1;display:flex;justify-content:space-between;margin:0 4px;color:#3A4571;font-size:14px;font-variant-numeric:tabular-nums;}
 .guide-readable-footer{flex:0 0 auto;padding:5px 8px calc(8px + env(safe-area-inset-bottom));background:linear-gradient(180deg,rgba(255,249,246,.2),#FFF7F2 55%);}
-/* T5 approved commercial copy panel; no IDs, contract names or technical parameters. */
-.t5-guide-copy{flex:0 0 auto;max-height:36cqh;overflow-y:auto;padding:6px 10px;border-radius:12px;background:#fff;box-shadow:0 3px 10px rgba(47,28,20,.09);font-size:12px;line-height:1.35;color:#101B52;}
-.t5-guide-copy b{display:block;font-size:14px;line-height:1.2;margin-bottom:3px;}
-.t5-guide-copy p{margin:3px 0;}
-.t5-guide-copy ul{margin:2px 0 4px;padding-left:18px;}
-.t5-guide-copy li{margin:1px 0;}
+/* Approved capture button: commercial wording only, no IDs or contract names. */
 .guide-readable-start{width:100%;min-height:60px;display:flex;align-items:center;justify-content:center;gap:12px;padding:10px 14px;border:0;border-radius:999px;background:linear-gradient(100deg,#FF6A00,#F24700);color:#fff;box-shadow:0 6px 14px rgba(224,82,0,.22);font-family:inherit;font-size:18px;line-height:1.05;font-weight:850;letter-spacing:.05px;cursor:pointer;}
 .guide-readable-start svg{width:28px;height:28px;flex:0 0 28px;}
 .guide-readable-start span{font:inherit;color:#fff;}
@@ -1632,7 +1630,7 @@ body{
   <audio class="scene-audio-source" data-template="r3" src="assets/audio/r3-scene4-guide.mp3" preload="none"></audio>
   <img class="scene-visual-source" data-template="r4" src="assets/images/r4-scene1-portrait.webp" alt="">
   <img class="scene-visual-source" data-template="r4" src="assets/images/r4-scene2-portrait.webp" alt="">
-  <img class="scene-visual-source" data-template="r4" src="assets/images/r4-scene1-portrait.webp" alt="">
+  <img class="scene-visual-source" data-template="r4" src="assets/images/r4-scene3-portrait.webp" alt="">
   <img class="scene-visual-source" data-template="r4" src="assets/images/r4-scene4-portrait.webp" alt="">
   <audio class="scene-audio-source" data-template="r4" src="assets/audio/r4-scene1-guide.mp3" preload="none"></audio>
   <audio class="scene-audio-source" data-template="r4" src="assets/audio/r4-scene2-guide.mp3" preload="none"></audio>
@@ -2121,16 +2119,8 @@ body{
       const audioLabel=fr?"ÉCOUTER LE CONSEIL":"LISTEN TO THE GUIDE IN FRENCH";
       const guideAudioSrc=SCENE_AUDIOS[flow.template][flow.scene];
       const useNativeAudio=Boolean(nativeAudio&&nativeAudio.isSupported&&nativeAudio.isSupported());
-      const t5Guide=flow.template==="r4"?`<section class="t5-guide-copy">
-        <b>${safe(s.title)} · ${safe(s.sceneCounter)}</b>
-        <p>${safe(s.instruction)}</p>
-        <p><strong>${fr?"À FILMER":"À FILMER"}</strong></p><ul>${s.needed.map(x=>`<li>${safe(x)}</li>`).join("")}</ul>
-        <p><strong>${fr?"À ÉVITER":"À ÉVITER"}</strong></p><ul>${s.avoid.map(x=>`<li>${safe(x)}</li>`).join("")}</ul>
-        <p><strong>${fr?"CE QUE TU DOIS FAIRE":"CE QUE TU DOIS FAIRE"}</strong></p><p>${safe(s.action)}</p>
-      </section>`:"";
       root.innerHTML=`<div class="guide-readable"><main class="guide-readable-main">
         <header class="guide-readable-header"><button class="guide-readable-back" id="flow-back" type="button" aria-label="${fr?"Retour":"Back"}">${backIcon}</button><b>${safe(flow.template==="r4"?s.sceneCounter:(fr?"Scène":"Scene")+" "+(flow.scene+1)+" / 4")}</b><span class="guide-readable-state">${fr?"GUIDE":"GUIDE"}</span></header>
-        ${t5Guide}
         <div class="guide-scene-image" id="guide-scene-image"><img src="${SCENE_VISUALS[flow.template][flow.scene]}" alt="${fr?"Illustration complète de la scène":"Full illustration for scene"} ${flow.scene+1}: ${safe(s.title)}"></div>
         <section class="guide-audio-panel" aria-label="${fr?"Voix off du guide":"French voice-over guide"}">
           <audio id="guide-audio" preload="${useNativeAudio?"none":"metadata"}"${useNativeAudio?"":` src="${guideAudioSrc}"`}></audio>
@@ -2237,7 +2227,6 @@ body{
       root.innerHTML=`<div class="review-scroll">${header}
         <div class="review-title-row"><span class="review-clapper">${clap}</span><h1 class="review-title">${fr?"Regarde ta vidéo":"Watch your video"}</h1><span class="review-sparks">✳</span></div>
         <div class="review-summary"><span class="review-summary-icon">${camera}</span><span class="review-summary-text">${fr?`Scène ${flow.scene+1} : ${safe(s.title)} · Ta vidéo : ${s.dur} s`:`Scene ${flow.scene+1}: ${safe(s.title)} · Your video: ${s.dur} sec`}</span><span class="review-format">9:16</span></div>
-        ${flow.template==="r4"?`<section class="t5-guide-copy"><b>${safe(s.reviewQuestion)}</b><ul>${s.reviewChecks.map(x=>`<li>${safe(x)}</li>`).join("")}</ul></section>`:""}
         <div class="review-player" aria-label="${fr?"Aperçu vidéo vertical 9:16, noir, en attente de la caméra":"Vertical 9:16 black video preview, awaiting camera connection"}">
           <button class="review-play" id="flow-play" type="button" aria-label="Lecture"><svg viewBox="0 0 24 24"><path d="m8 5 12 7-12 7z" fill="currentColor"/></svg></button>
           <div class="review-controls"><span>00:00</span><div class="review-track"><i></i></div><span>00:${String(s.dur).padStart(2,"0")}</span><button class="review-fullscreen" type="button" aria-label="Plein écran">⛶</button></div>
