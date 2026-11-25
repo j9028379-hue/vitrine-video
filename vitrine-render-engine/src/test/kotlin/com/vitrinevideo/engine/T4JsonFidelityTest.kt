@@ -129,7 +129,7 @@ class T4JsonFidelityTest {
     @Test
     fun founderApprovalIsVersionedAndDoesNotRewriteTechnicalMixState() {
         val policyRaw = TestAssetLocator
-            .projectFile("vitrine-video-app/src/main/assets/config/founder-audio-approvals.json")
+            .projectFile("vitrine-render-engine/src/main/assets/config/founder-audio-approvals.json")
             .readText()
         val approval = FounderAudioApprovalParser.parseAll(policyRaw).first { it.profileId == "promo_afrobeats" }
         assertEquals("FONDATEUR-T4-MUSIQUES-2026-11-25", approval.approvalId)

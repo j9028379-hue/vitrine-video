@@ -195,7 +195,7 @@ jobs:
         run: |
           set -euo pipefail
           yes | "$SDKMANAGER" --licenses >/dev/null 2>&1 || true
-          "$SDKMANAGER" --install "system-images;android-35;google_apis;x86_64"
+          "$SDKMANAGER" --install "system-images;android-35;google_apis;x86_64" "system-images;android-34;google_apis;x86_64"
 
       - name: local.properties
         run: echo "sdk.dir=${ANDROID_HOME:-$ANDROID_SDK_ROOT}" > local.properties
@@ -205,25 +205,47 @@ jobs:
         with:
           gradle-version: wrapper
 
-      - name: Emulator instrumented render probe
+      - name: Prepare T4 on-device fixtures
+        run: |
+          set -euo pipefail
+          rm -rf render-fixtures
+          mkdir -p render-fixtures/t4_fixture/captures
+          unzip -q vitrine-video-app/src/main/assets/packages/COMMERCE-T4-1.0.0.zip -d render-fixtures/t4_fixture
+          cp test-fixtures/t3_fixture/captures/S1.mp4 test-fixtures/t3_fixture/captures/S2.mp4              test-fixtures/t3_fixture/captures/S3.mp4 test-fixtures/t3_fixture/captures/S4.mp4              render-fixtures/t4_fixture/captures/
+          find render-fixtures/t4_fixture -maxdepth 2 -type f | head -20
+
+      - name: Emulator instrumented T4 render probe
         uses: reactivecircus/android-emulator-runner@v2
         with:
-          api-level: 35
+          api-level: 34
           target: google_apis
           arch: x86_64
           profile: pixel_5
+          ram-size: 2048M
+          cores: 2
+          emulator-boot-timeout: 900
+          force-avd-creation: true
           disable-animations: true
           script: |
             chmod +x gradlew
-            ./gradlew :vitrine-render-engine:connectedDebugAndroidTest --stacktrace
+            adb shell mkdir -p /sdcard/Android/data/com.vitrinevideo.engine/files/t4_fixture
+            adb push render-fixtures/t4_fixture/. /sdcard/Android/data/com.vitrinevideo.engine/files/t4_fixture/
+            adb shell find /sdcard/Android/data/com.vitrinevideo.engine/files/t4_fixture -type f | head -20
+            ./gradlew :vitrine-render-engine:connectedDebugAndroidTest --tests '*VitrineT4InstrumentedTest' --stacktrace
 
       - name: Collect on-device output
         if: always()
         run: |
           mkdir -p render-evidence
           adb shell find /sdcard/Android/data -name '*.mp4' -o -name 'resultat.json' 2>/dev/null || true
-          adb pull /sdcard/Android/data/com.vitrinevideo.engine/files/ render-evidence/ 2>/dev/null || true
+          adb pull /sdcard/Android/data/com.vitrinevideo.engine/cache/t4_out/ render-evidence/t4_out/ 2>/dev/null || true
+          for mp4 in render-evidence/t4_out/*.mp4; do
+            [ -f "$mp4" ] || continue
+            ffprobe -v error -show_entries format=duration:stream=codec_name,width,height,r_frame_rate,nb_frames               "$mp4" > "$mp4.ffprobe.txt" 2>&1 || true
+            ffmpeg -y -v error -i "$mp4" -vf "select='eq(n,0)+eq(n,90)+eq(n,300)+eq(n,600)'"               -vsync 0 "$mp4.frame-%02d.png" || true
+          done
           find render-evidence -type f -exec sha256sum {} \; > render-evidence/SHA256SUMS.txt || true
+          cat render-evidence/SHA256SUMS.txt || true
 
       - name: Upload render evidence
         if: always()
