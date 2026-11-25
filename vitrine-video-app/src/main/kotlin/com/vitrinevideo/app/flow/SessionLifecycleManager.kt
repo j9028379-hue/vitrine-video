@@ -85,10 +85,26 @@ class SessionLifecycleManager(
 
     fun getConsumedCaptureHashes(): Set<String> = consumedCaptureHashes.toSet()
 
-    /** Starts an isolated blank session when the merchant changes between supported Commerce templates. */
+    /** Starts an isolated blank session when the merchant changes between supported templates. */
     fun selectTemplate(newTemplateId: String) {
         require(TemplateCatalogue.isSupported(newTemplateId)) { "Gabarit non pris en charge: $newTemplateId" }
         if (templateId != newTemplateId) startNewBlankSession(newTemplateId)
+    }
+
+    /**
+     * Installs engine-derived capture requirements before the merchant can accept a scene.
+     * Previously accepted takes are re-checked; any non-conforming take is demoted so the
+     * "4 scenes ready" button can never appear on an unrenderable session.
+     */
+    fun configureForPackage(pkg: LoadedTemplatePackage) {
+        if (pkg.templateId != templateId) return
+        progression.configureRequirements(pkg)
+        val invalid = progression.invalidReadySceneIndexes()
+        if (invalid.isNotEmpty()) {
+            invalid.forEach { progression.retakeScene(it) }
+            status = CreationSessionStatus.RECORDING
+            persistActiveCheckpoint()
+        }
     }
 
     fun currentSessionCaptureDir(): File =
@@ -256,6 +272,7 @@ class SessionLifecycleManager(
         legacyCheckpointFile.delete()
 
         progression.clearAll()
+        progression.clearRequirements()
         responses.clear()
         templateId = newTemplateId
         creationId = UUID.randomUUID().toString()

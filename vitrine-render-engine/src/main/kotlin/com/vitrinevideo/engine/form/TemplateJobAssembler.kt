@@ -3,6 +3,7 @@ package com.vitrinevideo.engine.form
 import com.vitrinevideo.engine.api.CaptureClip
 import com.vitrinevideo.engine.api.RenderRequest
 import com.vitrinevideo.engine.capture.CapturePermissionsSnapshot
+import com.vitrinevideo.engine.capture.CaptureDurationPolicy
 import com.vitrinevideo.engine.capture.CaptureSessionState
 import com.vitrinevideo.engine.capture.GuidedCaptureSession
 import com.vitrinevideo.engine.capture.SceneCaptureDescriptor
@@ -267,11 +268,11 @@ object TemplateJobAssembler {
                 )
             }
 
-            val requiredSourceFrames = sc.shots.maxOfOrNull { it.sourceOutFrame }
-                ?: (sc.endFrameExcluded - sc.startFrame)
-            val requiredUs = (requiredSourceFrames.toLong() * 1_000_000L) / pkg.renderPlan.fps
-            val allowFreeze = sc.shots.any { it.freezeTailFrames > 0 }
-            if (!allowFreeze && cap.durationUs > 0L && cap.durationUs + 150_000L < requiredUs) {
+            val requiredUs = CaptureDurationPolicy.requiredDurationUs(sc, pkg.renderPlan.fps)
+            val allowFreeze = CaptureDurationPolicy.allowsFrozenTail(sc)
+            if (!allowFreeze && cap.durationUs > 0L &&
+                cap.durationUs + CaptureDurationPolicy.DURATION_TOLERANCE_US < requiredUs
+            ) {
                 throw TemplateFormValidationException(
                     "CAPTURE_TOO_SHORT",
                     "Durée capture ${sc.id} insuffisante (${cap.durationUs / 1000} ms < ${requiredUs / 1000} ms)"

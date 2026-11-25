@@ -43,6 +43,7 @@ import com.vitrinevideo.app.flow.CapturedSceneTake
 import com.vitrinevideo.app.flow.MockupResponseMapper
 import com.vitrinevideo.app.flow.RealSessionViolationException
 import com.vitrinevideo.app.flow.SessionLifecycleManager
+import com.vitrinevideo.app.flow.TemplateCatalogue
 import com.vitrinevideo.app.flow.TemplatePackageRepository
 import com.vitrinevideo.app.player.VitrineMediaPlayer
 import com.vitrinevideo.engine.api.RenderListener
@@ -930,7 +931,12 @@ class MainActivity : AppCompatActivity() {
     private fun preloadTemplatePackage(templateId: String = sessionManager.templateId) {
         ioExec.execute {
             runCatching { TemplatePackageRepository.ensureLoaded(applicationContext, templateId) }
-                .onSuccess { pkg -> if (sessionManager.templateId == templateId) loadedPackage = pkg }
+                .onSuccess { pkg ->
+                    if (sessionManager.templateId == templateId) {
+                        loadedPackage = pkg
+                        sessionManager.configureForPackage(pkg)
+                    }
+                }
         }
     }
 
@@ -1266,7 +1272,8 @@ class MainActivity : AppCompatActivity() {
         showOverlay(OverlayState.RENDERING)
 
         val selectedTemplate = sessionManager.templateId
-        rndTitle.text = if (fr()) "Montage automatique $selectedTemplate" else "Automatic $selectedTemplate Editing"
+        val selectedTemplateName = TemplateCatalogue.displayName(selectedTemplate, fr())
+        rndTitle.text = if (fr()) "Montage automatique : $selectedTemplateName" else "Automatic editing: $selectedTemplateName"
         rndPercentText.text = "0%"
         rndProgressBar.progress = 0
         rndStageText.text = if (fr()) "Préparation du paquet et vérification des 4 scènes..." else "Preparing package and verifying 4 scenes..."

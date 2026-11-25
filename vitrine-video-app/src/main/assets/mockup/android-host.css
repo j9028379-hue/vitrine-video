@@ -487,10 +487,6 @@ body {
   overflow-wrap: normal !important;
 }
 
-.format-card[data-format="t3"] .format-card__title {
-  padding-right: 0 !important;
-}
-
 .format-card__desc {
   font-size: clamp(12px, 3.4vw, 14.5px) !important;
 }
@@ -631,11 +627,6 @@ body {
   font-weight: 800;
   letter-spacing: 0.3px;
   pointer-events: none;
-}
-
-.format-card[data-format="t3"] {
-  border: 2px solid #FF6A00 !important;
-  box-shadow: 0 12px 28px rgba(255, 95, 0, 0.16) !important;
 }
 
 .vitrine-scene-saved-pill {

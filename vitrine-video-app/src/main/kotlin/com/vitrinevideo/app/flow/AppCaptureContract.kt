@@ -1,6 +1,9 @@
 package com.vitrinevideo.app.flow
 
+import com.vitrinevideo.engine.capture.CaptureDurationPolicy
 import com.vitrinevideo.engine.capture.SceneCaptureDescriptor
+import com.vitrinevideo.engine.capture.SceneCaptureValidationSnapshot
+import com.vitrinevideo.engine.capture.SceneCaptureValidator
 import com.vitrinevideo.engine.capture.SceneRecordingStatus
 import com.vitrinevideo.engine.form.TemplateFormValidationException
 import com.vitrinevideo.engine.form.TemplateJobAssembler
@@ -31,7 +34,26 @@ data class CapturedSceneTake(
     val source: CaptureSource,
     val validatedByMerchant: Boolean,
     val recordedAtEpochMs: Long
-)
+) {
+    fun snapshot(): SceneCaptureValidationSnapshot {
+        val file = File(filePath)
+        return SceneCaptureValidationSnapshot(
+            sceneId = sceneId,
+            filePath = filePath,
+            fileExists = file.exists(),
+            fileReadable = file.canRead(),
+            fileNonEmpty = file.length() > 0L,
+            durationUs = durationUs,
+            width = width,
+            height = height,
+            rotation = rotation,
+            hasVideoStream = width > 0 && height > 0,
+            audioPresent = audioPresent,
+            sha256 = sha256,
+            fromRealCamera = source == CaptureSource.CAMERAX_REAL
+        )
+    }
+}
 
 class RealSessionViolationException(
     val code: String,
@@ -118,6 +140,27 @@ class CaptureProgressionStateMachine(
     private val takes = linkedMapOf<String, CapturedSceneTake>()
     private val pendingTakes = linkedMapOf<String, CapturedSceneTake>()
     private val visitedScreenSet = sortedSetOf<Int>()
+    private var sceneRequirements: Map<String, Pair<Long, Boolean>> = emptyMap()
+
+    /** Installs the exact engine requirements so readiness and render use one contract. */
+    fun configureRequirements(pkg: LoadedTemplatePackage) {
+        val mapped = pkg.renderPlan.scenes.associate { sc ->
+            sc.id to (CaptureDurationPolicy.requiredDurationUs(sc, pkg.renderPlan.fps) to
+                CaptureDurationPolicy.allowsFrozenTail(sc))
+        }
+        if (mapped.keys == sceneIds.toSet()) sceneRequirements = mapped
+    }
+
+    fun clearRequirements() {
+        sceneRequirements = emptyMap()
+    }
+
+    fun invalidReadySceneIndexes(): List<Int> = sceneIds.indices.filter { index ->
+        val id = sceneIds[index]
+        val take = takes[id]?.takeIf { it.validatedByMerchant } ?: return@filter false
+        val (requiredUs, allowFreeze) = sceneRequirements[id] ?: return@filter false
+        SceneCaptureValidator.validate(take.snapshot(), requiredUs, allowFreeze) != null
+    }
 
     fun canOpenSceneCamera(sceneIndex: Int): Boolean {
         if (sceneIndex !in sceneIds.indices) return false
@@ -165,6 +208,12 @@ class CaptureProgressionStateMachine(
                 "MISSING_PENDING_TAKE",
                 "Aucune prise enregistrée à valider pour $sceneId."
             )
+        val failure = sceneRequirements[sceneId]?.let { (requiredUs, allowFreeze) ->
+            SceneCaptureValidator.validate(take.snapshot(), requiredUs, allowFreeze)
+        }
+        if (failure != null) {
+            throw RealSessionViolationException(failure.code, failure.message)
+        }
         val accepted = take.copy(validatedByMerchant = true)
         takes[sceneId] = accepted
         pendingTakes.remove(sceneId)
@@ -189,6 +238,12 @@ class CaptureProgressionStateMachine(
             return
         }
         if (take.validatedByMerchant && take.sceneIndex in sceneIds.indices) {
+            val (requiredUs, allowFreeze) = sceneRequirements[take.sceneId]
+            if (requiredUs != null &&
+                SceneCaptureValidator.validate(take.snapshot(), requiredUs, allowFreeze) != null
+            ) {
+                return
+            }
             takes[take.sceneId] = take
             visitedScreenSet += (take.sceneIndex * 3) + 1
             visitedScreenSet += (take.sceneIndex * 3) + 2
@@ -208,7 +263,8 @@ class CaptureProgressionStateMachine(
 
     fun allValidatedTakes(): List<CapturedSceneTake> = sceneIds.mapNotNull { takes[it] }
 
-    fun isAllScenesValidated(): Boolean = sceneIds.all { takes[it]?.validatedByMerchant == true }
+    fun isAllScenesValidated(): Boolean =
+        sceneIds.all { takes[it]?.validatedByMerchant == true } && invalidReadySceneIndexes().isEmpty()
 
     fun visitedScreens(): List<Int> = visitedScreenSet.toList()
 
@@ -292,15 +348,27 @@ object RealSessionGuard {
                     "Empreinte SHA-256 manquante ou dupliquée pour ${sc.id}."
                 )
             }
-            val requiredSourceFrames = sc.shots.maxOfOrNull { it.sourceOutFrame }
-                ?: (sc.endFrameExcluded - sc.startFrame)
-            val requiredUs = (requiredSourceFrames.toLong() * 1_000_000L) / pkg.renderPlan.fps
-            val allowFreeze = sc.shots.any { it.freezeTailFrames > 0 }
-            if (!allowFreeze && take.durationUs + 150_000L < requiredUs) {
-                throw RealSessionViolationException(
-                    "CAPTURE_DURATION_TOO_SHORT",
-                    "La scène ${sc.id} dure ${take.durationUs / 1000} ms (< ${requiredUs / 1000} ms requis)."
-                )
+            val failure = SceneCaptureValidator.validate(
+                SceneCaptureValidationSnapshot(
+                    sceneId = sc.id,
+                    filePath = take.filePath,
+                    fileExists = file.exists(),
+                    fileReadable = file.canRead(),
+                    fileNonEmpty = file.length() > 0L,
+                    durationUs = take.durationUs,
+                    width = take.width,
+                    height = take.height,
+                    rotation = take.rotation,
+                    hasVideoStream = take.width > 0 && take.height > 0,
+                    audioPresent = take.audioPresent,
+                    sha256 = take.sha256,
+                    fromRealCamera = take.source == CaptureSource.CAMERAX_REAL
+                ),
+                requiredDurationUs = CaptureDurationPolicy.requiredDurationUs(sc, pkg.renderPlan.fps),
+                allowFrozenTail = CaptureDurationPolicy.allowsFrozenTail(sc)
+            )
+            if (failure != null) {
+                throw RealSessionViolationException(failure.code, failure.message)
             }
 
             descriptors += SceneCaptureDescriptor(

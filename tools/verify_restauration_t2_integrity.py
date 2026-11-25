@@ -16,8 +16,10 @@ PACKAGE = Path("vitrine-video-app/src/main/assets/packages/RESTAURATION-T2-1.0.0
 MUSIC = Path("vitrine-video-app/src/main/assets/music") / TEMPLATE / VERSION
 INVENTORY = Path("docs/restauration_t2/SOURCE_INVENTORY.txt")
 MATRIX = Path("docs/restauration_t2/VERSION_REFERENCE_MATRIX.txt")
+WHITELIST = Path("docs/TEMPLATE_SOURCE_WHITELIST.md")
 BRIDGE = Path("vitrine-video-app/src/main/assets/mockup/android-bridge.js")
 HTML = Path("vitrine-video-app/src/main/assets/mockup/vitrine-video-maquette.html")
+CSS = Path("vitrine-video-app/src/main/assets/mockup/android-host.css")
 
 
 def sha(data: bytes) -> str:
@@ -53,6 +55,8 @@ def main() -> None:
     check("official archive SHA anchored in inventory", INVENTORY.is_file() and f"SHA256 {SOURCE_SHA}" in INVENTORY.read_text())
     check("195 archive entries classified", "ENTRIES 195" in INVENTORY.read_text())
     check("version/reference matrix present", MATRIX.is_file() and "silent_no_audio_stream" in MATRIX.read_text())
+    check("future template source whitelist present", WHITELIST.is_file() and
+          "Liste blanche des fichiers" in WHITELIST.read_text())
 
     with zipfile.ZipFile(PACKAGE) as z:
         entries = {n: z.read(n) for n in z.namelist() if not n.endswith("/")}
@@ -76,6 +80,26 @@ def main() -> None:
         check("four dynamic graphic blocks", len({layer["bloc"] for layer in contract["calques"]}) == 4)
         check("six bound merchant fields", {layer["texte"][1:-1] for layer in contract["calques"]} ==
               {"nom", "produit", "prix", "whatsapp", "quartier", "accroche"})
+        expected_scenes = [("S1", 6, [0, 6]), ("S2", 8, [0, 8]), ("S3", 7, [0, 7]), ("S4", 9, [0, 9])]
+        check("capture durations are source-relative, not timeline offsets",
+              [(s["id"], s["capture_s"], s["source_s"]) for s in contract["scenes"]] == expected_scenes)
+        runtime = json.loads(entries["contracts/config/T2_runtime_contract_v1_0_0.json"])
+        check("runtime capture_bindings agree with every scene",
+              [(b["scene"], b["duration_ms"] // 1000) for b in runtime["capture_bindings"]] ==
+              [(s["id"], s["capture_s"]) for s in contract["scenes"]])
+        guide = json.loads(entries["templates/restauration/restauration-t2/capture-guide/ecrans.json"])
+        by_scene_state = {(e["scene"], e["etat"]): e for e in guide["ecrans"]}
+        check("12 stable screens carry the four official durations",
+              len(guide["ecrans"]) == 12 and
+              all(by_scene_state[(int(n[1:]), "B")]["duree_proposee_s"] == secs
+                  for n, secs, _ in expected_scenes))
+        forbidden_ui_labels = ("T2_", "screen_id", "purpose", "capturer exactement", "debug", "test")
+        check("camera guide UI has no template IDs or developer instructions",
+              not any(token in json.dumps(guide["ecrans"], ensure_ascii=False) for token in forbidden_ui_labels))
+        check("recording screens reuse the merchant-facing title and framing advice",
+              all(by_scene_state[(int(n[1:]), "B")]["titre"] == by_scene_state[(int(n[1:]), "A")]["titre"] and
+                  by_scene_state[(int(n[1:]), "B")]["consigne"].strip()
+                  for n, _, _ in expected_scenes))
         fonts = json.loads(entries["contracts/config/T2_text_motion_v0_3_0.json"])["fonts"]
         font_prefix = "templates/restauration/restauration-t2/assets/fonts/"
         declared_fonts = {Path(v["file"]).name: v["sha256"] for v in fonts.values()}
@@ -123,7 +147,16 @@ def main() -> None:
     bridge = BRIDGE.read_text()
     check("format cards neutral at rest, active only on click",
           "format-card--featured" not in html and "function applyFormatCardSelection()" in html
-          and "state.selectedFormat=selectedFormat" in html)
+          and "state.selectedFormat=selectedFormat" in html
+          and 'card.classList.toggle("is-selected", card.dataset.format===state.selectedFormat)' in html)
+    css = CSS.read_text()
+    check("no template-specific active styling in host CSS", '[data-format="t3"]' not in css)
+    commerce_formats = ["t1", "t2", "t3", "t4"]
+    check("all four commerce formats share the same generic click whitelist",
+          all(f'selectedFormat==="{fmt}"' in html for fmt in commerce_formats))
+    for selected in commerce_formats:
+        active = [fmt for fmt in commerce_formats if fmt == selected]
+        check(f"format selection {selected} activates exactly one card", active == [selected])
     check("Restauration T2 enabled, other restaurant templates gated",
           'sector !== "commerce" && sector !== "resto"' in bridge
           and '["t1", "t2", "t3", "t4", "r2"].includes(fmt)' in bridge

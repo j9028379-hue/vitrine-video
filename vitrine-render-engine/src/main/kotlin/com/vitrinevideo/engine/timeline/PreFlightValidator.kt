@@ -7,6 +7,7 @@ import com.vitrinevideo.engine.api.CaptureClip
 import com.vitrinevideo.engine.api.EngineConfig
 import com.vitrinevideo.engine.api.RenderRequest
 import com.vitrinevideo.engine.capture.AndroidMediaExtractorProbe
+import com.vitrinevideo.engine.capture.CaptureDurationPolicy
 import com.vitrinevideo.engine.capture.VideoMetadataProbe
 import com.vitrinevideo.engine.interpreter.AudioProfileSpec
 import com.vitrinevideo.engine.interpreter.RenderPlan
@@ -245,17 +246,17 @@ object PreFlightValidator {
         }
 
         val sceneSpec = plan.scenes.first { it.id == cap.sceneId }
-        val requiredSourceFrames = sceneSpec.shots.maxOfOrNull { it.sourceOutFrame }
-            ?: (sceneSpec.endFrameExcluded - sceneSpec.startFrame)
-        val requiredDurationUs = (requiredSourceFrames.toLong() * 1_000_000L) / plan.fps
+        val requiredDurationUs = CaptureDurationPolicy.requiredDurationUs(sceneSpec, plan.fps)
 
         val probed = probe.probe(cap.file)
             ?: throw PreFlightException("INVALID_VIDEO_STREAM", "Fichier vidéo illisible ou conteneur MP4 corrompu pour ${cap.sceneId}")
         if (!probed.hasVideo || probed.width <= 0 || probed.height <= 0) {
             throw PreFlightException("INVALID_VIDEO_STREAM", "Aucune piste vidéo valide dans ${cap.sceneId}")
         }
-        val allowFreeze = sceneSpec.shots.any { it.freezeTailFrames > 0 }
-        if (!allowFreeze && probed.durationUs > 0L && probed.durationUs + 150_000L < requiredDurationUs) {
+        val allowFreeze = CaptureDurationPolicy.allowsFrozenTail(sceneSpec)
+        if (!allowFreeze && probed.durationUs > 0L &&
+            probed.durationUs + CaptureDurationPolicy.DURATION_TOLERANCE_US < requiredDurationUs
+        ) {
             throw PreFlightException(
                 "CAPTURE_TOO_SHORT",
                 "Capture ${cap.sceneId} trop courte (${probed.durationUs / 1000} ms < ${requiredDurationUs / 1000} ms requis)"

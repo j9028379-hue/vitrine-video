@@ -24,6 +24,8 @@ import androidx.lifecycle.LifecycleOwner
 import com.vitrinevideo.app.flow.CaptureSource
 import com.vitrinevideo.app.flow.CapturedSceneTake
 import com.vitrinevideo.engine.capture.AndroidMediaExtractorProbe
+import com.vitrinevideo.engine.capture.SceneCaptureValidationSnapshot
+import com.vitrinevideo.engine.capture.SceneCaptureValidator
 import com.vitrinevideo.engine.timeline.PreFlightValidator
 import java.io.File
 
@@ -205,18 +207,33 @@ class CameraXSceneRecorder(
                     }
 
                     val statsDurUs = event.recordingStats.recordedDurationNanos / 1000L
+                    // MediaExtractor video timestamps are authoritative; CameraX stats are
+                    // only a fallback when a container has no duration metadata.
                     val actualDurUs = if (probed.durationUs > 0L) probed.durationUs else statsDurUs
-                    val minAcceptedUs = (targetDurationSec * 1_000_000L) - 150_000L
-                    if (actualDurUs < minAcceptedUs) {
+                    val sha256 = PreFlightValidator.sha256File(destFile)
+                    val failure = SceneCaptureValidator.validate(
+                        SceneCaptureValidationSnapshot(
+                            sceneId = sceneId,
+                            filePath = destFile.absolutePath,
+                            fileExists = destFile.exists(),
+                            fileReadable = destFile.canRead(),
+                            fileNonEmpty = destFile.length() > 0L,
+                            durationUs = actualDurUs,
+                            width = probed.width,
+                            height = probed.height,
+                            rotation = probed.rotation,
+                            hasVideoStream = probed.hasVideo,
+                            audioPresent = probed.hasAudio,
+                            sha256 = sha256,
+                            fromRealCamera = true
+                        ),
+                        requiredDurationUs = targetMs * 1_000L
+                    )
+                    if (failure != null) {
                         destFile.delete()
-                        callback.onCameraError(
-                            "INCOMPLETE_RECORDING",
-                            "Prise trop courte (${actualDurUs / 1000} ms < ${targetDurationSec} s). Recommence la prise."
-                        )
+                        callback.onCameraError(failure.code, "${failure.message} Recommence la prise.")
                         return@start
                     }
-
-                    val sha256 = PreFlightValidator.sha256File(destFile)
                     callback.onRecordingFinished(
                         CapturedSceneTake(
                             sceneIndex = sceneIndex,

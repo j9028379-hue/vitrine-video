@@ -1,6 +1,10 @@
 package com.vitrinevideo.app
 
+import com.vitrinevideo.app.flow.CaptureProgressionStateMachine
+import com.vitrinevideo.app.flow.CaptureSource
+import com.vitrinevideo.app.flow.CapturedSceneTake
 import com.vitrinevideo.app.flow.MockupResponseMapper
+import com.vitrinevideo.app.flow.RealSessionViolationException
 import com.vitrinevideo.app.flow.TemplateCatalogue
 import com.vitrinevideo.engine.form.TemplateJobAssembler
 import com.vitrinevideo.engine.pkg.TemplatePackageLoader
@@ -8,6 +12,7 @@ import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
+import org.junit.Assert.assertThrows
 import org.junit.Test
 import java.io.File
 
@@ -104,5 +109,58 @@ class RestaurationT2AppFlowTest {
         assertTrue(bridge.contains("fmt === \"r2\" ? \"RESTAURATION-T2\""))
         assertTrue(bridge.contains("activeTemplateFormat === \"t2\" || activeTemplateFormat === \"r2\""))
         assertFalse(bridge.contains("window.VitrineAndroid.onTemplateSelected(\"RESTAURATION-T4\")"))
+    }
+
+    private fun loadT2() = TemplatePackageLoader.importZip(
+        File(assetsRoot(), "packages/RESTAURATION-T2-1.0.0.zip"),
+        kotlin.io.path.createTempDirectory("resto_t2_ready").toFile(),
+        File(assetsRoot(), "music")
+    )
+
+    private fun take(index: Int, durationUs: Long): CapturedSceneTake {
+        val file = kotlin.io.path.createTempFile("scene_s${index + 1}", ".mp4").toFile()
+        file.writeText("camera take")
+        return CapturedSceneTake(
+            sceneIndex = index,
+            sceneId = "S${index + 1}",
+            filePath = file.absolutePath,
+            durationUs = durationUs,
+            width = 720,
+            height = 1280,
+            rotation = 0,
+            audioPresent = true,
+            sha256 = "abcdef0123456789".repeat(4),
+            source = CaptureSource.CAMERAX_REAL,
+            validatedByMerchant = false,
+            recordedAtEpochMs = 1_760_000_000_000L + index
+        )
+    }
+
+    @Test
+    fun fourScenesReadyOnlyAfterEngineContractValidation() {
+        val progression = CaptureProgressionStateMachine()
+        progression.configureRequirements(loadT2())
+        val durations = listOf(6_000_000L, 8_377_000L, 7_000_000L, 9_000_000L)
+        assertFalse(progression.isAllScenesValidated())
+        durations.forEachIndexed { index, durationUs ->
+            progression.onRecordingCompleted(take(index, durationUs))
+            progression.acceptScene(index)
+        }
+        assertTrue(progression.isAllScenesValidated())
+        assertTrue(progression.invalidReadySceneIndexes().isEmpty())
+    }
+
+    @Test
+    fun shortSecondSceneCannotMakeTheMontageButtonReady() {
+        val progression = CaptureProgressionStateMachine()
+        progression.configureRequirements(loadT2())
+        progression.onRecordingCompleted(take(0, 6_000_000L))
+        progression.acceptScene(0)
+        progression.onRecordingCompleted(take(1, 7_000_000L))
+        val failure = assertThrows(RealSessionViolationException::class.java) {
+            progression.acceptScene(1)
+        }
+        assertEquals("CAPTURE_DURATION_TOO_SHORT", failure.code)
+        assertFalse(progression.isAllScenesValidated())
     }
 }

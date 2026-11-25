@@ -494,12 +494,12 @@ object GuidedCaptureValidator {
                     "Aucune piste vidéo exploitable dans ${scene.id}"
                 )
             }
-            val requiredSourceFrames = scene.shots.maxOfOrNull { it.sourceOutFrame }
-                ?: (scene.endFrameExcluded - scene.startFrame)
-            val requiredDurationUs = (requiredSourceFrames.toLong() * 1_000_000L) / plan.fps
-            val allowFreeze = scene.shots.any { it.freezeTailFrames > 0 }
+            val requiredDurationUs = CaptureDurationPolicy.requiredDurationUs(scene, plan.fps)
+            val allowFreeze = CaptureDurationPolicy.allowsFrozenTail(scene)
             val effectiveDurUs = if (probed.durationUs > 0L) probed.durationUs else desc.durationUs
-            if (!allowFreeze && effectiveDurUs + 150_000L < requiredDurationUs) {
+            if (!allowFreeze && (effectiveDurUs <= 0L ||
+                effectiveDurUs + CaptureDurationPolicy.DURATION_TOLERANCE_US < requiredDurationUs)
+            ) {
                 throw GuidedCaptureValidationException(
                     "INSUFFICIENT_DURATION",
                     "Durée insuffisante pour ${scene.id} (${effectiveDurUs / 1000} ms < ${requiredDurationUs / 1000} ms)"

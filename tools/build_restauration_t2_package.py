@@ -184,7 +184,10 @@ def build_partition(template, runtime, motion, form, guide) -> dict:
             "titre": s["title"],
             "sortie_s": [s["start"], s["end"]],
             "capture_s": seconds,
-            "source_s": [s["start"], s["end"]],
+            # `sortie_s` is the timeline window; `source_s` addresses the
+            # merchant's own scene clip, which always starts at zero. Using
+            # timeline offsets here made S2 require 14 s of an 8 s capture.
+            "source_s": [0, seconds],
             "textes": [f"{{{f}}}" for f in next(g["fields"] for g in motion["graphics"] if g["scene"] == s["id"])],
         })
     effects = []
@@ -351,6 +354,10 @@ def build_job_schema(form_src, runtime) -> dict:
 
 def build_ecrans(flow_src) -> dict:
     ecrans = []
+    merchant_copy_by_scene = {
+        s["scene_id"]: s.get("resolved_text", {})
+        for s in flow_src["screens"] if s["state"] == "A_GUIDE"
+    }
     for screen in flow_src["screens"]:
         ordinal = screen["ordinal"]
         state = {"A_GUIDE": "A", "B_RECORDING": "B", "C_REVIEW": "C"}[screen["state"]]
@@ -366,7 +373,6 @@ def build_ecrans(flow_src) -> dict:
             "scene": int(screen["scene_id"][1:]),
             "etat": state,
             "duree_proposee_s": screen["capture_duration_ms"] // 1000,
-            "source_contract_path": f"contracts/config/T2_capture_flow_v1_0_0.json#/screens/{ordinal - 1}",
         }
         if state == "A":
             item.update({"titre": resolved.get("title", ""), "blocs": blocs,
@@ -375,7 +381,11 @@ def build_ecrans(flow_src) -> dict:
                          "silence": resolved.get("silence_note", ""),
                          "exemple": resolved.get("optional_example", "")})
         elif state == "B":
-            item.update({"titre": screen["screen_id"], "consigne": screen["purpose"],
+            # Merchant-facing copy only: the official `screen_id` and developer
+            # `purpose` stay in contracts/config, never in the camera UI adapter.
+            copy = merchant_copy_by_scene.get(screen["scene_id"], resolved)
+            consigne = copy.get("required_action") or copy.get("instruction", "")
+            item.update({"titre": copy.get("title", ""), "consigne": consigne,
                          "indicateurs": screen["visible_components"],
                          "arret": screen["capture"]["auto_stop"] and "automatique" or "manuel"})
         else:
