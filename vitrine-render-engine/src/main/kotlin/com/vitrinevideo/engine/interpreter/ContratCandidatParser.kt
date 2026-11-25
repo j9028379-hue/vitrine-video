@@ -157,6 +157,29 @@ object ContratCandidatParser {
         // when present, or from a legacy file-name -> digest map.
         val extraFontHashes = namedFontPaths.mapValues { (_, file) -> fontHash(file) }.toMutableMap()
         extraFontHashes.putIfAbsent("fallback", fonts.optString("DejaVuSans.ttf", ""))
+        val sourceTextMotion = json.optJSONObject("text_motion_source")
+        val motionGroups = sourceTextMotion?.let { source ->
+            val scrims = source.optJSONObject("legibility")?.optJSONObject("scrims")
+            val graphics = source.optJSONArray("graphics") ?: JSONArray()
+            (0 until graphics.length()).map { index ->
+                val graphic = graphics.getJSONObject(index)
+                val id = graphic.getString("id")
+                val scrim = scrims?.optJSONObject(id)
+                TextMotionGroupSpec(
+                    id = id,
+                    motionName = graphic.getString("motion"),
+                    startFrame = graphic.getInt("start_f"),
+                    revealEndFrame = graphic.getInt("reveal_end_f"),
+                    endFrameExcluded = graphic.getInt("end_f_exclusive"),
+                    holdThroughFrame = if (graphic.has("hold_through_frame")) graphic.getInt("hold_through_frame") else null,
+                    opacityAtEnd = if (graphic.has("graphics_opacity_at_frame_899")) graphic.getDouble("graphics_opacity_at_frame_899") else null,
+                    risePx = graphic.optDouble("rise_px", 0.0),
+                    priceRisePx = graphic.optDouble("price_rise_px", 0.0),
+                    scrimTop = scrim?.optDouble("top", 0.0) ?: 0.0,
+                    scrimBottom = scrim?.optDouble("bottom", 0.0) ?: 0.0
+                )
+            }
+        }.orEmpty()
         val layers = json.optJSONArray("calques") ?: JSONArray()
 
         for (i in 0 until layers.length()) {
@@ -173,7 +196,14 @@ object ContratCandidatParser {
             val secondaryAlias = layer.optString("police_secours", "")
             val fallbackFont = if (secondaryAlias.isNotBlank()) "$fontRoot/${fontFile(secondaryAlias)}"
                 else "$fontRoot/DejaVuSans.ttf"
-            val animation = when (layer.optString("mouvement")) {
+            val sourceMotionName = layer.optString("mouvement", "")
+            val sourceMotionNames = setOf(
+                "left_to_right_mask_plus_soft_rise",
+                "split_reveal_with_price_settle",
+                "center_bloom_and_signature",
+                "sequential_identity_contact_lockup"
+            )
+            val animation = if (sourceMotionName in sourceMotionNames) TextEntryAnim.COUPE else when (sourceMotionName) {
                 "plume" -> TextEntryAnim.PLUME
                 "lever" -> TextEntryAnim.LEVER
                 "vague" -> TextEntryAnim.VAGUE_REVEAL
@@ -198,6 +228,9 @@ object ContratCandidatParser {
                 // in T1–T4 layers, so their rendering is unchanged.
                 declaredWeight = layer.optInt("poids", layer.optInt("graisse", 0)).takeIf { it in 100..900 } ?: 0,
                 trackingPx = layer.optDouble("tracking_px", 0.0),
+                minFontSizePx = layer.optDouble("taille_min_px", 0.0).takeIf { it > 0.0 },
+                sourceMotionName = sourceMotionName,
+                motionGroupId = layer.optString("motion_group_id", ""),
                 overrideStyle = TextStyleSpec(
                     fontSizePx = layer.optDouble("taille_px", 60.0),
                     maxWidthPx = layer.optDouble("largeur_max", 606.0),
@@ -234,7 +267,8 @@ object ContratCandidatParser {
                 strokeWidthPx = typography.optDouble("outline_width_px", 3.0)
             ),
             wave = null, fieldBindings = fieldBindings, maxLinesByField = emptyMap(), windows = textWindows,
-            fadeFrames = json.optInt("fade_frames", 0)
+            fadeFrames = json.optInt("fade_frames", 0),
+            motionGroups = motionGroups
         )
 
         val audioProfile = json.optString("audio_profile", "")

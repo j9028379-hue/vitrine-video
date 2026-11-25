@@ -347,7 +347,6 @@ def build_partition(template: dict, flow: dict, motion: dict, transitions: dict,
             elif scene_id == "S3": y = motion["legibility"]["layouts"]["hook"]["brand_y_px" if field == "nom" else "hook_y_px"]
             else: y = motion["legibility"]["layouts"]["final"][{"nom":"brand_y_px","produit":"product_y_px","prix":"price_y_px","whatsapp":"phone_y_px","quartier":"location_y_px"}[field]]
             motion_name = motion["graphics"][int(scene_id[1:]) - 1]["motion"]
-            animation = {"left_to_right_mask_plus_soft_rise":"lever", "split_reveal_with_price_settle":"fondu", "center_bloom_and_signature":"vague", "sequential_identity_contact_lockup":"fondu"}[motion_name]
             color_key = role_spec["color"]
             calques.append({
                 "id": f"T3_{scene_id}_{field}",
@@ -361,9 +360,16 @@ def build_partition(template: dict, flow: dict, motion: dict, transitions: dict,
                 "images": [graphic["start_f"], graphic["end_f_exclusive"]],
                 "entree": graphic["reveal_end_f"] - graphic["start_f"],
                 "sortie": motion["canvas"]["fps"] // 10,
-                "mouvement": animation,
-                "interligne_ratio": 1.18,
+                "mouvement": motion_name,
+                "motion_group_id": graphic["id"],
+                "motion_group_start_f": graphic["start_f"],
+                "motion_group_reveal_end_f": graphic["reveal_end_f"],
+                "motion_group_end_f_exclusive": graphic["end_f_exclusive"],
+                "motion_group_hold_through_f": graphic.get("hold_through_frame"),
+                "motion_group_opacity_at_end": graphic.get("graphics_opacity_at_frame_899"),
+                "interligne_ratio": 0.94 if scene_id == "S1" else 0.95 if scene_id == "S2" else 0.96 if scene_id == "S3" else 0.92,
                 "poids": role_spec["weight"] if role_spec["weight"] is not None else 400,
+                "taille_min_px": role_spec["min_size_px"],
                 "tracking_px": role_spec.get("tracking_px", 0.0),
                 "sans_prefixe_whatsapp": field == "whatsapp",
                 "police_fichier": font_alias,
@@ -379,9 +385,30 @@ def build_partition(template: dict, flow: dict, motion: dict, transitions: dict,
         "largeur_max": layout["cta"]["max_width_px"], "lignes_max": 1,
         "images": [final["start_f"], final["end_f_exclusive"]],
         "entree": final["reveal_end_f"] - final["start_f"], "sortie": 3,
-        "mouvement": "fondu", "interligne_ratio": 1.18, "poids": layout["cta"]["weight"],
+        "mouvement": final["motion"], "motion_group_id": final["id"],
+        "motion_group_start_f": final["start_f"],
+        "motion_group_reveal_end_f": final["reveal_end_f"],
+        "motion_group_end_f_exclusive": final["end_f_exclusive"],
+        "motion_group_hold_through_f": final.get("hold_through_frame"),
+        "motion_group_opacity_at_end": final.get("graphics_opacity_at_frame_899"),
+        "interligne_ratio": 0.92, "poids": layout["cta"]["weight"],
+        "taille_min_px": layout["cta"]["min_size_px"],
         "police_fichier": "light_sans", "couleur": motion["legibility"]["colors"]["accent"],
     })
+
+    # Pin the four motion-family geometries from the signed reference renderer
+    # into the shipped per-template contract. The Android renderer consumes these
+    # numbers from JSON instead of selecting T3 constants at runtime.
+    reference_rise_px = {
+        "left_to_right_mask_plus_soft_rise": 18,
+        "split_reveal_with_price_settle": 14,
+        "center_bloom_and_signature": 16,
+        "sequential_identity_contact_lockup": 12,
+    }
+    offer_price_rise_px = motion["legibility"]["layouts"]["offer"]["price_rise_px"]
+    for graphic in motion["graphics"]:
+        graphic["rise_px"] = reference_rise_px[graphic["motion"]]
+        graphic["price_rise_px"] = offer_price_rise_px if graphic["motion"] == "split_reveal_with_price_settle" else 0
 
     font_specs = motion["fonts"]
     font_files = {"display_serif": font_specs["display_serif"]["file"].split("/")[-1],
@@ -402,6 +429,9 @@ def build_partition(template: dict, flow: dict, motion: dict, transitions: dict,
             "origine":"Données commerciales fournies uniquement par le commerçant; accroche facultative et jamais inventée."},
         "duree_s":30.0,"largeur":720,"hauteur":1280,"fps":30,"fade_frames":3,
         "scenes":scenes,"effets":effects,
+        # The complete source motion contract drives group timing, scrims, roles,
+        # safe regions and named motion behavior in the universal renderer.
+        "text_motion_source":motion,
         "audio":{"voix_off_ajoutee":False,"musique_ajoutee":True,
             "source":"Voix du commerçant captée avec le microphone à vitesse 1×, si présente; sinon musique seule; aucun sous-titre automatique.",
             "mix":{"fond_db":-3.0,"sous_parole_db":-10.0,"attaque_ms":120,"relachement_ms":450,"lufs":-16.0,"true_peak_dbtp_max":-2.0,"delivery_audio":"AAC stereo 48 kHz"}},

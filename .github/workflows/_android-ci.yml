@@ -22,6 +22,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Regenerate RESTAURATION-T3 package from official source archive
+        run: python3 tools/build_restauration_t3_package.py
+
       - name: Verify COMMERCE-T2 package, manifest, vault and mix
         run: python3 tools/verify_t2_integrity.py
 
@@ -348,16 +351,23 @@ jobs:
         with:
           gradle-version: wrapper
 
-      - name: Prepare T4 on-device fixtures
+      - name: Prepare T3/T4 emulator render fixtures
         run: |
           set -euo pipefail
           rm -rf render-fixtures
-          mkdir -p render-fixtures/t4_fixture/captures
+          mkdir -p render-fixtures/t4_fixture/captures render-fixtures/t3_fixture/captures
           unzip -q vitrine-video-app/src/main/assets/packages/COMMERCE-T4-1.0.0.zip -d render-fixtures/t4_fixture
-          cp test-fixtures/t3_fixture/captures/S1.mp4 test-fixtures/t3_fixture/captures/S2.mp4              test-fixtures/t3_fixture/captures/S3.mp4 test-fixtures/t3_fixture/captures/S4.mp4              render-fixtures/t4_fixture/captures/
-          find render-fixtures/t4_fixture -maxdepth 2 -type f | head -20
+          cp test-fixtures/t3_fixture/captures/S1.mp4 test-fixtures/t3_fixture/captures/S2.mp4 \\
+             test-fixtures/t3_fixture/captures/S3.mp4 test-fixtures/t3_fixture/captures/S4.mp4 \\
+             render-fixtures/t4_fixture/captures/
+          cp vitrine-video-app/src/main/assets/packages/RESTAURATION-T3-1.0.0.zip render-fixtures/t3_fixture/
+          cp -R vitrine-video-app/src/main/assets/music/RESTAURATION-T3 render-fixtures/t3_fixture/music/
+          cp test-fixtures/t3_fixture/captures/S1.mp4 test-fixtures/t3_fixture/captures/S2.mp4 \\
+             test-fixtures/t3_fixture/captures/S3.mp4 test-fixtures/t3_fixture/captures/S4.mp4 \\
+             render-fixtures/t3_fixture/captures/
+          find render-fixtures -maxdepth 4 -type f | sort | head -40
 
-      - name: Emulator instrumented T4 render probe
+      - name: Emulator instrumented T3/T4 render probes
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 34
@@ -372,9 +382,13 @@ jobs:
           script: |
             chmod +x gradlew
             adb shell mkdir -p /sdcard/Android/data/com.vitrinevideo.engine/files/t4_fixture
+            adb shell mkdir -p /sdcard/Android/data/com.vitrinevideo.engine/files/t3_fixture
             adb push render-fixtures/t4_fixture/. /sdcard/Android/data/com.vitrinevideo.engine/files/t4_fixture/
-            adb shell find /sdcard/Android/data/com.vitrinevideo.engine/files/t4_fixture -type f | head -20
-            ./gradlew :vitrine-render-engine:connectedDebugAndroidTest --tests '*VitrineT4InstrumentedTest' --stacktrace
+            adb push render-fixtures/t3_fixture/. /sdcard/Android/data/com.vitrinevideo.engine/files/t3_fixture/
+            adb shell find /sdcard/Android/data/com.vitrinevideo.engine/files/t3_fixture -type f | head -30
+            ./gradlew :vitrine-render-engine:connectedDebugAndroidTest \\
+              --tests '*VitrineT4InstrumentedTest' \\
+              --tests '*VitrineRestaurationT3InstrumentedTest' --stacktrace
 
       - name: Collect on-device output
         if: always()
@@ -382,11 +396,40 @@ jobs:
           mkdir -p render-evidence
           adb shell find /sdcard/Android/data -name '*.mp4' -o -name 'resultat.json' 2>/dev/null || true
           adb pull /sdcard/Android/data/com.vitrinevideo.engine/cache/t4_out/ render-evidence/t4_out/ 2>/dev/null || true
-          for mp4 in render-evidence/t4_out/*.mp4; do
+          adb pull /sdcard/Android/data/com.vitrinevideo.engine/cache/t3_out/ render-evidence/t3_out/ 2>/dev/null || true
+          for mp4 in render-evidence/t4_out/*.mp4 render-evidence/t3_out/*.mp4; do
             [ -f "$mp4" ] || continue
-            ffprobe -v error -show_entries format=duration:stream=codec_name,width,height,r_frame_rate,nb_frames               "$mp4" > "$mp4.ffprobe.txt" 2>&1 || true
-            ffmpeg -y -v error -i "$mp4" -vf "select='eq(n,0)+eq(n,90)+eq(n,300)+eq(n,600)'"               -vsync 0 "$mp4.frame-%02d.png" || true
+            ffprobe -v error -show_entries format=duration:stream=codec_name,width,height,r_frame_rate,nb_frames "$mp4" > "$mp4.ffprobe.txt" 2>&1 || true
           done
+          python3 - <<'PYFRAMES'
+          import glob, json, os, subprocess
+          root='render-evidence/t3_out'
+          probes=glob.glob(root+'/transition_probe.json')
+          videos=glob.glob(root+'/*.mp4')
+          if probes and videos:
+              data=json.load(open(probes[0]))
+              frames=set()
+              labels=[]
+              for t in data['transitions']:
+                  start=t['start_frame']; duration=t['duration_frames']
+                  for frame in {start, start+(duration-1)//2, start+duration-1}:
+                      frames.add(frame); labels.append((frame,'transition',t['source_family'],t['source_variant']))
+              for group in data['motion_groups']:
+                  for sample in group['samples']:
+                      frame=sample['frame']; frames.add(frame)
+                      labels.append((frame,'text_motion',group['id'],group['motion']))
+              ordered=sorted(frames)
+              os.makedirs(root+'/frames',exist_ok=True)
+              select='select=' + '+'.join('eq(n\\,%d)' % n for n in ordered)
+              subprocess.run(['ffmpeg','-y','-v','error','-i',videos[0],'-vf',select,'-vsync','0',root+'/frames/frame-%03d.png'],check=True)
+              with open(root+'/frame-map.csv','w') as out:
+                  out.write('frame,kind,source_family_or_group,variant_or_motion\n')
+                  for row in sorted(set(labels)):
+                      out.write(','.join(map(str,row))+'\n')
+              subprocess.run(['ffmpeg','-y','-v','error','-framerate','1','-i',root+'/frames/frame-%03d.png',
+                  '-vf','scale=180:320:force_original_aspect_ratio=decrease,pad=180:320:(ow-iw)/2:(oh-ih)/2,tile=6x0',
+                  '-frames:v','1',root+'/transition-motion-contact-sheet.png'],check=True)
+          PYFRAMES
           find render-evidence -type f -exec sha256sum {} \; > render-evidence/SHA256SUMS.txt || true
           cat render-evidence/SHA256SUMS.txt || true
 

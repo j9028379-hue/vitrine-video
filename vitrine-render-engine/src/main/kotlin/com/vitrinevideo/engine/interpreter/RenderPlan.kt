@@ -239,6 +239,12 @@ data class TextWindowSpec(
     val declaredWeight: Int = 0,
     /** Tracking declared in physical pixels by the source typography contract. */
     val trackingPx: Double = 0.0,
+    /** Font-size floor from the source role, used by its width-fitting policy. */
+    val minFontSizePx: Double? = null,
+    /** Verbatim movement name from the motion source contract. */
+    val sourceMotionName: String = "",
+    /** ID of the source-defined group animation that owns this text window. */
+    val motionGroupId: String = "",
     val overrideStyle: TextStyleSpec? = null,
     /** T4 source-specific paired copy; kept as templates rather than flattened into demo text. */
     val textKind: String? = null,
@@ -276,6 +282,20 @@ data class BandExportSpec(
     val heightPx: Int
 )
 
+data class TextMotionGroupSpec(
+    val id: String,
+    val motionName: String,
+    val startFrame: Int,
+    val revealEndFrame: Int,
+    val endFrameExcluded: Int,
+    val holdThroughFrame: Int? = null,
+    val opacityAtEnd: Double? = null,
+    val risePx: Double = 0.0,
+    val priceRisePx: Double = 0.0,
+    val scrimTop: Double = 0.0,
+    val scrimBottom: Double = 0.0
+)
+
 data class TextOverlaySpec(
     val fontFamily: String,
     val fontWeight: Int,
@@ -306,7 +326,9 @@ data class TextOverlaySpec(
     /** Verbatim `texte.prix_barre_px` value; null means the engine legacy fallback applies. */
     val strikethroughWidthPx: Double? = null,
     /** Verbatim `texte.condition_si_non_vide` value. */
-    val conditionOnlyIfNonEmpty: Boolean = false
+    val conditionOnlyIfNonEmpty: Boolean = false,
+    /** Source-defined named group motions; empty for legacy partitions. */
+    val motionGroups: List<TextMotionGroupSpec> = emptyList()
 )
 
 data class AudioMixConfig(

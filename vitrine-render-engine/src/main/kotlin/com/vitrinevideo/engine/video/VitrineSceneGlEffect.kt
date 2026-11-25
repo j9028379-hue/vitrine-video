@@ -278,6 +278,12 @@ private class VitrineSceneShaderProgram(
                 scrim.strength.toFloat(), scrimVisibility.toFloat()
             )
         } else floatArrayOf(0.5f, 0.15f, 0f, 0f))
+        val textMotionGroup = plan.textOverlay?.motionGroups?.firstOrNull {
+            frame in it.startFrame until it.endFrameExcluded
+        }
+        main.setFloatsUniform("uTextScrim", textMotionGroup?.let {
+            floatArrayOf(it.scrimTop.toFloat(), it.scrimBottom.toFloat(), 1f, 0f)
+        } ?: floatArrayOf(0f, 0f, 0f, 0f))
 
         val zeroRect = floatArrayOf(0f, 0f, 0f, 0f)
         main.setFloatsUniform("uWhipSlide", floatArrayOf(0f, 0f))
@@ -566,6 +572,7 @@ private class VitrineSceneShaderProgram(
             uniform vec4 uGlowGeometry;
             uniform vec4 uBlurOverlay;
             uniform vec4 uScrim;
+            uniform vec4 uTextScrim;
             uniform int uTransMode;
             uniform int uHasHoldFrame;
             uniform vec2 uWhipSlide;
@@ -737,6 +744,11 @@ private class VitrineSceneShaderProgram(
                 if (uScrim.w > 0.0) {
                     float sy = (topDownUv.y - uScrim.x) / max(uScrim.y, 0.001);
                     composed.rgb *= 1.0 - uScrim.z * uScrim.w * exp(-sy * sy);
+                }
+                if (uTextScrim.z > 0.0) {
+                    float topAlpha = clamp(1.0 - topDownUv.y / 0.58, 0.0, 1.0) * uTextScrim.x;
+                    float bottomAlpha = clamp((topDownUv.y - 0.42) / 0.58, 0.0, 1.0) * uTextScrim.y;
+                    composed.rgb *= 1.0 - max(topAlpha, bottomAlpha);
                 }
                 gl_FragColor = finalizeColorGrading(composed, topDownUv);
             }

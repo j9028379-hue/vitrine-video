@@ -12,8 +12,7 @@ permissions:
 jobs:
   pipeline:
     uses: ./.github/workflows/_android-ci.yml
-    # Founder decision 2026-11-25: physical phone testing replaces the GitHub
-    # emulator probe. The instrumented test and reusable render job are kept in
-    # source but are never invoked from this entry workflow.
+    # Run the deterministic emulator render on repository engineering fixtures;
+    # founder footage and physical-device intelligibility remain a separate check.
     with:
-      run_render: false
+      run_render: true

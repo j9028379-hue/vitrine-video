@@ -233,11 +233,18 @@ class VitrineBitmapTextOverlay(
             return emptyBitmap
         }
 
-        val isStatic = active.all {
-            it.spec.entryAnim == TextEntryAnim.COUPE ||
-                ((it.spec.entryAnim == TextEntryAnim.FONDU || it.spec.entryAnim == TextEntryAnim.SLIDE_POP) &&
-                    frame - it.spec.startFrame >= spec.fadeFrames &&
-                    (it.spec.exitFadeFrames <= 0 || it.spec.endFrameExcluded - frame > it.spec.exitFadeFrames))
+        val isStatic = active.all { resolved ->
+            val sourceGroup = resolved.spec.motionGroupId.takeIf { it.isNotBlank() }
+                ?.let { id -> spec.motionGroups.firstOrNull { it.id == id } }
+            val sourceMotionAnimating = sourceGroup?.let {
+                TextMotionEvaluator.needsFrameUpdate(it, frame, plan.totalFrames)
+            } ?: false
+            !sourceMotionAnimating && (
+                resolved.spec.entryAnim == TextEntryAnim.COUPE ||
+                    ((resolved.spec.entryAnim == TextEntryAnim.FONDU || resolved.spec.entryAnim == TextEntryAnim.SLIDE_POP) &&
+                        frame - resolved.spec.startFrame >= spec.fadeFrames &&
+                        (resolved.spec.exitFadeFrames <= 0 || resolved.spec.endFrameExcluded - frame > resolved.spec.exitFadeFrames))
+                )
         }
         val key = if (isStatic) "V${appliedVersion}_STATIC_${active.joinToString("_") { it.spec.fieldKey }}" else "V${appliedVersion}_FRAME_$frame"
 
@@ -252,11 +259,16 @@ class VitrineBitmapTextOverlay(
     }
 
     private fun drawResolvedWindow(rw: ResolvedTextWindow, frame: Int) {
-        val alpha = WaveCurveEvaluator.evaluateLineAlpha(rw.spec, spec, frame)
+        val window = rw.spec
+        val sourceMotionGroup = window.motionGroupId.takeIf { it.isNotBlank() }
+            ?.let { id -> spec.motionGroups.firstOrNull { it.id == id } }
+        val sourceMotion = sourceMotionGroup?.let {
+            TextMotionEvaluator.evaluate(it, frame, bandBitmap.width, plan.totalFrames)
+        }
+        val alpha = sourceMotion?.opacity ?: WaveCurveEvaluator.evaluateLineAlpha(window, spec, frame)
         if (alpha <= 0.001f) return
 
         val sz = rw.fontSizePx
-        val window = rw.spec
         val selectedTypeface = typefaceFor(window)
         fillPaint.typeface = selectedTypeface
         strokePaint.typeface = selectedTypeface
@@ -293,10 +305,16 @@ class VitrineBitmapTextOverlay(
             spec.defaultStyle.lineSpacingPx.toFloat() * (sz / spec.defaultStyle.fontSizePx.toFloat())
         }
 
+        val sourceMotionSave = bandCanvas.save()
+        if (sourceMotion != null) {
+            bandCanvas.clipRect(0f, 0f, sourceMotion.revealWidthPx, bandBitmap.height.toFloat())
+            bandCanvas.translate(0f, sourceMotion.riseOffsetPx)
+        }
         var charShiftCount = 0
         val centerOffsetLines = max(0, rw.lines.size - 2) / 2.0f
         rw.lines.forEachIndexed { li, line ->
-            val y = (rw.baseY - bandTopPx.toFloat()) + (li - centerOffsetLines) * lineStep + entryShiftY
+            val priceSettle = if (window.fieldKey == "prix") sourceMotion?.priceSettleOffsetPx ?: 0f else 0f
+            val y = (rw.baseY - bandTopPx.toFloat()) + (li - centerOffsetLines) * lineStep + entryShiftY + priceSettle
             val lineW = fillPaint.measureText(line)
             val centerX = rw.spec.centerX?.toFloat() ?: bandBitmap.width * 0.5f
             val startX = window.leftXPx?.toFloat() ?: (centerX - lineW * 0.5f + entryShiftX)
@@ -356,6 +374,7 @@ class VitrineBitmapTextOverlay(
             }
             bandCanvas.restoreToCount(lineSave)
         }
+        bandCanvas.restoreToCount(sourceMotionSave)
     }
 
 

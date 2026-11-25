@@ -81,9 +81,10 @@ object TextFieldResolver {
         val maxLines = window.maxLines ?: spec.maxLinesByField[window.fieldKey] ?: 2
         val maxW = style.maxWidthPx.toFloat()
         var sz = style.fontSizePx.toFloat()
+        val minimumSize = maxOf(14f, window.minFontSizePx?.toFloat() ?: 14f)
 
         var lines = splitBalancedLines(text, maxLines, sz, maxW, measureWidth)
-        while (sz > 14f && lines.any { measureWidth(it, sz) > maxW }) {
+        while (sz > minimumSize && lines.any { measureWidth(it, sz) > maxW }) {
             sz -= 1f
             lines = splitBalancedLines(text, maxLines, sz, maxW, measureWidth)
         }
