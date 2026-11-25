@@ -1,13 +1,13 @@
 # VITRINE VIDÉO — APK delivery package
-workflow_run=45578809380
-commit=ed30c6cfabc0c5ac575f87cd46c2bf83f17d0e36
+workflow_run=45584398063
+commit=a2c56f4ef8169bd7cdc479c278c7770693abb7a0
 branch=arena/dd66abee-vitrine-video
 
 ## APK
-d9fce8ad87c50be1b3efe67357a6d7a90d8264619f7c6d23517718f8c1b0e953  ci-delivery/artifacts/apk-release-evidence/VitrineVideo-debug.apk
-85b3420f108bbe567ea782c9d478679e22fdd4bde1098ee89a45e26e41ef7ad8  ci-delivery/artifacts/apk-release-evidence/VitrineVideo-release-ci-signed.apk
-ci-delivery/artifacts/apk-release-evidence/VitrineVideo-debug.apk 45348288 bytes
-ci-delivery/artifacts/apk-release-evidence/VitrineVideo-release-ci-signed.apk 43762903 bytes
+9162e18ec81be8de246163a7338a28ba3240105b52fe85fef043b35ba1bde069  ci-delivery/artifacts/apk-release-evidence/VitrineVideo-debug.apk
+615907f84acda2bad2fcf35a00a7d314acf9b0cb360cf7488d092bbb1f56f311  ci-delivery/artifacts/apk-release-evidence/VitrineVideo-release-ci-signed.apk
+ci-delivery/artifacts/apk-release-evidence/VitrineVideo-debug.apk 45364671 bytes
+ci-delivery/artifacts/apk-release-evidence/VitrineVideo-release-ci-signed.apk 43779287 bytes
 
 ## Artifacts included
 ci-delivery/artifacts/apk-release-evidence/SHA256SUMS.txt
@@ -25,6 +25,8 @@ ci-delivery/artifacts/junit-reports/vitrine-render-engine/build/reports/tests/te
 ci-delivery/artifacts/junit-reports/vitrine-render-engine/build/reports/tests/testDebugUnitTest/classes/com.vitrinevideo.engine.LocalPreviewAndVaultTest.html
 ci-delivery/artifacts/junit-reports/vitrine-render-engine/build/reports/tests/testDebugUnitTest/classes/com.vitrinevideo.engine.MemoryAndErrorGuardTest.html
 ci-delivery/artifacts/junit-reports/vitrine-render-engine/build/reports/tests/testDebugUnitTest/classes/com.vitrinevideo.engine.ServerSyncContractTest.html
+ci-delivery/artifacts/junit-reports/vitrine-render-engine/build/reports/tests/testDebugUnitTest/classes/com.vitrinevideo.engine.T4AudioMixFidelityTest.html
+ci-delivery/artifacts/junit-reports/vitrine-render-engine/build/reports/tests/testDebugUnitTest/classes/com.vitrinevideo.engine.T4GraphicApplicationTest.html
 ci-delivery/artifacts/junit-reports/vitrine-render-engine/build/reports/tests/testDebugUnitTest/classes/com.vitrinevideo.engine.T4JsonFidelityTest.html
 ci-delivery/artifacts/junit-reports/vitrine-render-engine/build/reports/tests/testDebugUnitTest/classes/com.vitrinevideo.engine.T4PackageIntegrationTest.html
 ci-delivery/artifacts/junit-reports/vitrine-render-engine/build/reports/tests/testDebugUnitTest/classes/com.vitrinevideo.engine.TemplateFormAndJobTest.html
@@ -47,6 +49,8 @@ ci-delivery/artifacts/junit-reports/vitrine-render-engine/build/test-results/tes
 ci-delivery/artifacts/junit-reports/vitrine-render-engine/build/test-results/testDebugUnitTest/TEST-com.vitrinevideo.engine.LocalPreviewAndVaultTest.xml
 ci-delivery/artifacts/junit-reports/vitrine-render-engine/build/test-results/testDebugUnitTest/TEST-com.vitrinevideo.engine.MemoryAndErrorGuardTest.xml
 ci-delivery/artifacts/junit-reports/vitrine-render-engine/build/test-results/testDebugUnitTest/TEST-com.vitrinevideo.engine.ServerSyncContractTest.xml
+ci-delivery/artifacts/junit-reports/vitrine-render-engine/build/test-results/testDebugUnitTest/TEST-com.vitrinevideo.engine.T4AudioMixFidelityTest.xml
+ci-delivery/artifacts/junit-reports/vitrine-render-engine/build/test-results/testDebugUnitTest/TEST-com.vitrinevideo.engine.T4GraphicApplicationTest.xml
 ci-delivery/artifacts/junit-reports/vitrine-render-engine/build/test-results/testDebugUnitTest/TEST-com.vitrinevideo.engine.T4JsonFidelityTest.xml
 ci-delivery/artifacts/junit-reports/vitrine-render-engine/build/test-results/testDebugUnitTest/TEST-com.vitrinevideo.engine.T4PackageIntegrationTest.xml
 ci-delivery/artifacts/junit-reports/vitrine-render-engine/build/test-results/testDebugUnitTest/TEST-com.vitrinevideo.engine.TemplateFormAndJobTest.xml
