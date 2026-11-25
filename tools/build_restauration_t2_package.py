@@ -224,7 +224,7 @@ def build_partition(template, runtime, motion, form, guide) -> dict:
                 "mouvement": MOTION_ADAPTER[block["motion"]],
                 "sans_prefixe_whatsapp": field == "whatsapp",
             })
-    fonts = {role: data["file"] for role, data in motion["fonts"].items()}
+    fonts = {role: Path(data["file"]).name for role, data in motion["fonts"].items()}
     hashes = {role: data["sha256"] for role, data in motion["fonts"].items()}
     fonts["fallback"] = fonts["utility"]
     hashes["fallback"] = hashes["utility"]
