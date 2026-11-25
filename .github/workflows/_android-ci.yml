@@ -357,14 +357,10 @@ jobs:
           rm -rf render-fixtures
           mkdir -p render-fixtures/t4_fixture/captures render-fixtures/t3_fixture/captures render-fixtures/t3_fixture/music
           unzip -q vitrine-video-app/src/main/assets/packages/COMMERCE-T4-1.0.0.zip -d render-fixtures/t4_fixture
-          cp test-fixtures/t3_fixture/captures/S1.mp4 test-fixtures/t3_fixture/captures/S2.mp4 \\
-             test-fixtures/t3_fixture/captures/S3.mp4 test-fixtures/t3_fixture/captures/S4.mp4 \\
-             render-fixtures/t4_fixture/captures/
+          cp test-fixtures/t3_fixture/captures/S1.mp4 test-fixtures/t3_fixture/captures/S2.mp4 test-fixtures/t3_fixture/captures/S3.mp4 test-fixtures/t3_fixture/captures/S4.mp4 render-fixtures/t4_fixture/captures/
           cp vitrine-video-app/src/main/assets/packages/RESTAURATION-T3-1.0.0.zip render-fixtures/t3_fixture/
           cp -R vitrine-video-app/src/main/assets/music/RESTAURATION-T3 render-fixtures/t3_fixture/music/
-          cp test-fixtures/t3_fixture/captures/S1.mp4 test-fixtures/t3_fixture/captures/S2.mp4 \\
-             test-fixtures/t3_fixture/captures/S3.mp4 test-fixtures/t3_fixture/captures/S4.mp4 \\
-             render-fixtures/t3_fixture/captures/
+          cp test-fixtures/t3_fixture/captures/S1.mp4 test-fixtures/t3_fixture/captures/S2.mp4 test-fixtures/t3_fixture/captures/S3.mp4 test-fixtures/t3_fixture/captures/S4.mp4 render-fixtures/t3_fixture/captures/
           find render-fixtures -maxdepth 4 -type f | sort | head -40
 
       - name: Emulator instrumented T3/T4 render probes
@@ -386,9 +382,7 @@ jobs:
             adb push render-fixtures/t4_fixture/. /sdcard/Android/data/com.vitrinevideo.engine/files/t4_fixture/
             adb push render-fixtures/t3_fixture/. /sdcard/Android/data/com.vitrinevideo.engine/files/t3_fixture/
             adb shell find /sdcard/Android/data/com.vitrinevideo.engine/files/t3_fixture -type f | head -30
-            ./gradlew :vitrine-render-engine:connectedDebugAndroidTest \\
-              --tests '*VitrineT4InstrumentedTest' \\
-              --tests '*VitrineRestaurationT3InstrumentedTest' --stacktrace
+            ./gradlew :vitrine-render-engine:connectedDebugAndroidTest --tests '*VitrineT4InstrumentedTest' --tests '*VitrineRestaurationT3InstrumentedTest' --stacktrace
 
       - name: Collect on-device output
         if: always()
