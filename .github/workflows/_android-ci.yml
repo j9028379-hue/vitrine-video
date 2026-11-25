@@ -256,8 +256,8 @@ jobs:
             rm -f "ci-delivery/apk-chunks/$NAME"
             echo "name=$NAME" >> ci-delivery/DELIVERY_MANIFEST.txt
             stat -c 'size=%s bytes' "$APK" >> ci-delivery/DELIVERY_MANIFEST.txt
-            sha256sum "$APK" | sed "s|.*  |sha256=|" >> ci-delivery/DELIVERY_MANIFEST.txt
-            cat ci-delivery/apk-chunks/$NAME.part-* | sha256sum | sed "s|.*  |reassembled_sha256=|" >> ci-delivery/DELIVERY_MANIFEST.txt
+            sha256sum "$APK" | awk '{print "sha256="$1}' >> ci-delivery/DELIVERY_MANIFEST.txt
+            cat ci-delivery/apk-chunks/$NAME.part-* | sha256sum | awk '{print "reassembled_sha256="$1}' >> ci-delivery/DELIVERY_MANIFEST.txt
             for CHUNK in ci-delivery/apk-chunks/$NAME.part-*; do
               printf 'chunk=%s ' "$(basename "$CHUNK")" >> ci-delivery/DELIVERY_MANIFEST.txt
               stat -c 'bytes=%s' "$CHUNK" >> ci-delivery/DELIVERY_MANIFEST.txt
