@@ -246,7 +246,16 @@ object GuidedCaptureGuideParser {
                 }
             }
 
-            val durSec = stateB.optInt("arret_automatique_s", stateB.optInt("duree_s", stateA.optInt("duree_s", 6)))
+            val durSec = stateB.optInt(
+                "arret_automatique_s",
+                stateB.optInt(
+                    "duree_s",
+                    stateB.optInt(
+                        "duree_proposee_s",
+                        stateA.optInt("duree_s", stateA.optInt("duree_proposee_s", 6))
+                    )
+                )
+            )
             SceneCaptureGuideSpec(
                 sceneNumber = scNum,
                 sceneId = "S$scNum",
