@@ -99,11 +99,11 @@ class T2MusicLibraryTest {
             .put("voix_approuvee", profile.voiceApproved)
             .put("mix_approuve", profile.mixApproved)
             .put("pistes_approuvees", org.json.JSONArray(profile.approvedNumbers))
-            .put("pistes", org.json.JSONArray(manifest.entries.map { entry ->
+            .put("pistes", org.json.JSONArray(manifest.entries.map { entry: InternalMusicLibrary.Entry ->
                 JSONObject()
                     .put("numero", entry.number)
-                    .put("titre", entry.resource)
-                    .put("fichier", entry.resource)
+                    .put("titre", entry.resourceRelativePath)
+                    .put("fichier", entry.resourceRelativePath)
                     .put("sha256", entry.sha256)
             }))
             .put("mix", JSONObject()
