@@ -1,6 +1,6 @@
 # VITRINE VIDÉO — APK delivery package
-workflow_run=45680642963
-commit=23f5933ba62c8d4b6001288cef95faa07714deef
+workflow_run=45690768348
+commit=796d3cdb5757ac20ea24327a0c42ba15b3d06b15
 branch=arena/dd66abee-vitrine-video
 
 ## APK
@@ -8,16 +8,16 @@ T2 APKs exceed GitHub's 100 MB per-file limit, so each APK is stored as verified
 Reassemble with: cat <apk>.part-* > <apk> (in lexicographic order).
 
 name=VitrineVideo-debug.apk
-size=56969874 bytes
-sha256=7186bbb52deeb9b3a0438307c23a3c8fd1093b560da407fc06fadb69a966d9f1
-reassembled_sha256=7186bbb52deeb9b3a0438307c23a3c8fd1093b560da407fc06fadb69a966d9f1
+size=56969702 bytes
+sha256=32aee49a70b3dba44d5a55e20e9774827052dc93300a344685b55b5372e463b5
+reassembled_sha256=32aee49a70b3dba44d5a55e20e9774827052dc93300a344685b55b5372e463b5
 chunk=VitrineVideo-debug.apk.part-00 bytes=50331648
-chunk=VitrineVideo-debug.apk.part-01 bytes=6638226
+chunk=VitrineVideo-debug.apk.part-01 bytes=6638054
 
 name=VitrineVideo-release-ci-signed.apk
 size=55368018 bytes
-sha256=bc6695179df57516301136017caf9338b53fb78c9526537671488f0cd1f4c0cc
-reassembled_sha256=bc6695179df57516301136017caf9338b53fb78c9526537671488f0cd1f4c0cc
+sha256=33763601c627bcaeb106a9e33279037b8ba0075a41afc53703e82a2f55d9732c
+reassembled_sha256=33763601c627bcaeb106a9e33279037b8ba0075a41afc53703e82a2f55d9732c
 chunk=VitrineVideo-release-ci-signed.apk.part-00 bytes=50331648
 chunk=VitrineVideo-release-ci-signed.apk.part-01 bytes=5036370
 
