@@ -41,7 +41,6 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: wrapper
-          cache-enabled: true
 
       - name: Wrapper sanity
         run: |
@@ -49,10 +48,30 @@ jobs:
           ./gradlew --version
 
       - name: Engine unit tests
-        run: ./gradlew :vitrine-render-engine:testDebugUnitTest --stacktrace
+        shell: bash
+        run: |
+          set +e
+          ./gradlew :vitrine-render-engine:testDebugUnitTest --stacktrace 2>&1 | tee /tmp/engine-tests.log
+          code=${PIPESTATUS[0]}
+          if [ "$code" -ne 0 ]; then
+            grep -E '^(e:|w:|FAILURE:|.* FAILED|.*error:)' /tmp/engine-tests.log | tail -25 | while IFS= read -r line; do
+              echo "::error::${line//'%'/'%25'}"
+            done
+          fi
+          exit "$code"
 
       - name: App unit tests
-        run: ./gradlew :vitrine-video-app:testDebugUnitTest --stacktrace
+        shell: bash
+        run: |
+          set +e
+          ./gradlew :vitrine-video-app:testDebugUnitTest --stacktrace 2>&1 | tee /tmp/app-tests.log
+          code=${PIPESTATUS[0]}
+          if [ "$code" -ne 0 ]; then
+            grep -E '^(e:|w:|FAILURE:|.* FAILED|.*error:)' /tmp/app-tests.log | tail -25 | while IFS= read -r line; do
+              echo "::error::${line//'%'/'%25'}"
+            done
+          fi
+          exit "$code"
 
       - name: JUnit XML summary
         if: always()
@@ -65,6 +84,13 @@ jobs:
               total+=int(r.get('tests') or 0); fail+=int(r.get('failures') or 0)
               err+=int(r.get('errors') or 0); skip+=int(r.get('skipped') or 0)
           print(f'JUNIT_TOTAL={total} FAILURES={fail} ERRORS={err} SKIPPED={skip}')
+          for f in glob.glob('**/build/test-results/**/*.xml', recursive=True):
+              r=ET.parse(f).getroot()
+              for case in r.iter('testcase'):
+                  for kind in ('failure','error'):
+                      for node in case.findall(kind):
+                          msg=(node.get('message') or node.text or '').replace('\n',' ').replace('%','%25')
+                          print(f"::error::{case.get('classname')}.{case.get('name')}: {msg}")
           PY
 
       - name: Upload JUnit reports
@@ -101,7 +127,6 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: wrapper
-          cache-enabled: true
 
       - name: assembleDebug + assembleRelease
         run: |
@@ -178,7 +203,6 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: wrapper
-          cache-enabled: true
 
       - name: Emulator instrumented render probe
         uses: reactivecircus/android-emulator-runner@v2
