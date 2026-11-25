@@ -213,3 +213,28 @@ Note honnête : cette vérification est faite sur le DOM et le code de
 présentation, pas sur un rendu pixel d Android. Le navigateur headless n a pas
 pu être téléchargé dans cet environnement ; la validation visuelle finale reste
 celle du fondateur sur son téléphone.
+
+## 11. Livraison de la correction ciblée
+
+| Élément | Valeur |
+|---|---|
+| Commit | `796d3cdb5757ac20ea24327a0c42ba15b3d06b15` |
+| CI | run `45690768348` — succès |
+| Tests JVM | `JUNIT_TOTAL=132 FAILURES=0 ERRORS=0` |
+| APK | `VitrineVideo-release-T5-scene-image.apk` |
+| Taille | 55 368 018 octets |
+| SHA-256 | `33763601c627bcaeb106a9e33279037b8ba0075a41afc53703e82a2f55d9732c` |
+| Drive | https://drive.google.com/file/d/1Ak04jlJNPdwQZoAi6BZtV-j0F8CqWC8Z/view |
+
+Contrôles faits **dans l APK** produit par la CI (réassemblage des chunks,
+empreinte identique au manifeste) :
+
+- `t5-guide-copy` : 0 occurrence ;
+- `À ÉVITER` : 0, `CE QUE TU DOIS FAIRE` : 0 (les 2 occurrences restantes de
+  « À FILMER » sont « COMMENCER À FILMER » et un commentaire CSS) ;
+- `ÉCOUTER LE CONSEIL`, `COMMENCER À FILMER`, `guide-scene-image`,
+  `guide-audio-toggle` : présents ;
+- les quatre items d images (`r4-scene1..4-portrait.webp`) et les quatre
+  conseils audio (`r4-scene1..4-guide.mp3`) sont présents ;
+- les 6 paquets sont embarqués, paquet T5 inchangé
+  (`6f3524e0…b55353a`) : montage, typographie et transitions non touchés.
