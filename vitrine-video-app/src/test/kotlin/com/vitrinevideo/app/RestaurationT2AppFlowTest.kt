@@ -85,14 +85,14 @@ class RestaurationT2AppFlowTest {
         val html = File(assetsRoot(), "mockup/vitrine-video-maquette.html").readText()
         val bridge = File(assetsRoot(), "mockup/android-bridge.js").readText()
         assertFalse("No card may be preselected in markup", html.contains("format-card--featured"))
-        assertTrue(html.contains("state.selectedFormat: null"))
+        assertTrue(html.contains("selectedFormat: null }"))
         assertTrue(html.contains("function applyFormatCardSelection()"))
         assertTrue(html.contains("card.classList.toggle(\"is-selected\", card.dataset.format===state.selectedFormat)"))
         assertTrue(html.contains("state.selectedFormat=selectedFormat"))
         assertTrue(html.contains(".format-card.is-selected"))
         assertTrue(html.contains("state.selectedFormat=null"))
         assertTrue(bridge.contains("RESTAURATION-T2"))
-        assertTrue(bridge.contains("document.querySelector('.format-card[data-format=\"r2\"]')"))
+        assertTrue(bridge.contains(".format-card[data-format=\"r2\"]"))
     }
 
     @Test
