@@ -25,7 +25,7 @@ class CommerceT3GoldenParityTest {
 
     @Test
     fun matchesAllCommerceT3GoldenControlsTitresAndPreuveChamps() {
-        val realZip = File("/home/user/google_drive/COMMERCE-T3-1.0.0.zip")
+        val realZip = TestAssetLocator.packageZip("COMMERCE-T3-1.0.0.zip")
         assertTrue(realZip.exists())
         val pkg = TemplatePackageLoader.importZip(realZip, tmp.newFolder("t3_golden_reg"))
 
@@ -88,7 +88,7 @@ class CommerceT3GoldenParityTest {
 
     @Test
     fun enforcesRenderResultAndErrorSchemasAndBlocksUnsupportedGradingFlags() {
-        val realZip = File("/home/user/google_drive/COMMERCE-T3-1.0.0.zip")
+        val realZip = TestAssetLocator.packageZip("COMMERCE-T3-1.0.0.zip")
         val pkg = TemplatePackageLoader.importZip(realZip, tmp.newFolder("t3_schema_reg"))
 
         // 1. Verify RenderResult.toSchemaResultJson() satisfies schemas/render-result.json exactly

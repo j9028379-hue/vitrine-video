@@ -1,0 +1,234 @@
+{
+  "statut": "Textes fournis ; parcours proposé, pas une application caméra.",
+  "ecrans": [
+    {
+      "numero": 1,
+      "scene": 1,
+      "etat": "A",
+      "duree_s": 6,
+      "titre": "PRÉPARE TON PRODUIT",
+      "blocs": {
+        "CE QUE TU VAS FILMER": "Montre ton produit avant de commencer à l'utiliser. On doit bien voir ce que tu vas nous présenter.",
+        "À FILMER": [
+          "Ton produit en entier.",
+          "Sa position avant utilisation.",
+          "Une vue bien claire."
+        ],
+        "À ÉVITER": [
+          "Cacher une partie du produit.",
+          "Filmer de trop loin.",
+          "Commencer à utiliser le produit avant qu'on le voie bien."
+        ],
+        "CE QUE TU DOIS FAIRE": "Prépare ton produit avant de commencer. Place-le devant ton téléphone et montre-le en entier.",
+        "TU PEUX PARLER PENDANT QUE TU FILMES": "Tu peux parler dans la langue que tu veux : fon, yoruba, français, anglais ou toute autre langue que tu maîtrises. Tu peux aussi ne pas parler.",
+        "EXEMPLE DE PHRASE (FACULTATIF)": "« Voici le produit que je vais te montrer. »"
+      },
+      "bouton": "COMMENCER À FILMER"
+    },
+    {
+      "numero": 2,
+      "scene": 1,
+      "etat": "B",
+      "duree_s": 6,
+      "titre": "SCÈNE 1 SUR 4",
+      "consigne": "MONTRE TON PRODUIT EN ENTIER.",
+      "chrono": "00:06",
+      "indicateurs": [
+        "REC",
+        "Aperçu caméra",
+        "Chronomètre",
+        "Progression",
+        "Microphone actif"
+      ],
+      "arret_automatique_s": 6
+    },
+    {
+      "numero": 3,
+      "scene": 1,
+      "etat": "C",
+      "duree_s": 6,
+      "titre": "SCÈNE 1 SUR 4",
+      "intertitre": "REGARDE TA VIDÉO",
+      "consigne": "Vérifie que ton produit est bien visible. Écoute aussi le son.",
+      "lecteur": "TA VIDÉO",
+      "boutons": [
+        "RELIRE AVEC LE SON",
+        "REFAIRE",
+        "SCÈNE SUIVANTE"
+      ],
+      "validation": "En continuant, tu valides cette prise."
+    },
+    {
+      "numero": 4,
+      "scene": 2,
+      "etat": "A",
+      "duree_s": 8,
+      "titre": "MONTRE LA PARTIE À UTILISER",
+      "blocs": {
+        "CE QUE TU VAS FILMER": "Approche ton téléphone pour montrer la partie de ton produit qui permet de l'utiliser.",
+        "À FILMER": [
+          "La partie importante.",
+          "Le bouton, la poignée, la fermeture ou le mécanisme, selon ton produit.",
+          "Un plan rapproché bien net."
+        ],
+        "À ÉVITER": [
+          "Cacher cette partie avec tes doigts.",
+          "Approcher trop près.",
+          "Faire une image floue."
+        ],
+        "CE QUE TU DOIS FAIRE": "Choisis la partie à montrer avant de commencer. Approche doucement ton téléphone et garde cette partie bien visible.",
+        "TU PEUX PARLER PENDANT QUE TU FILMES": "Tu peux parler dans la langue que tu veux : fon, yoruba, français, anglais ou toute autre langue que tu maîtrises. Tu peux aussi ne pas parler.",
+        "EXEMPLE DE PHRASE (FACULTATIF)": "« Regarde bien cette partie du produit. »"
+      },
+      "bouton": "COMMENCER À FILMER"
+    },
+    {
+      "numero": 5,
+      "scene": 2,
+      "etat": "B",
+      "duree_s": 8,
+      "titre": "SCÈNE 2 SUR 4",
+      "consigne": "MONTRE BIEN LA PARTIE À UTILISER.",
+      "chrono": "00:08",
+      "indicateurs": [
+        "REC",
+        "Aperçu caméra",
+        "Chronomètre",
+        "Progression",
+        "Microphone actif"
+      ],
+      "arret_automatique_s": 8
+    },
+    {
+      "numero": 6,
+      "scene": 2,
+      "etat": "C",
+      "duree_s": 8,
+      "titre": "SCÈNE 2 SUR 4",
+      "intertitre": "REGARDE TA VIDÉO",
+      "consigne": "Vérifie que la partie que tu veux montrer est bien visible. Écoute aussi le son.",
+      "lecteur": "TA VIDÉO",
+      "boutons": [
+        "RELIRE AVEC LE SON",
+        "REFAIRE",
+        "SCÈNE SUIVANTE"
+      ],
+      "validation": "En continuant, tu valides cette prise."
+    },
+    {
+      "numero": 7,
+      "scene": 3,
+      "etat": "A",
+      "duree_s": 7,
+      "titre": "MONTRE COMMENT ÇA FONCTIONNE",
+      "blocs": {
+        "CE QUE TU VAS FILMER": "Fais le geste qui permet d'utiliser ton produit. Montre exactement comment tu t'en sers.",
+        "À FILMER": [
+          "Tes mains et ton produit.",
+          "Le geste principal.",
+          "L'action bien visible."
+        ],
+        "À ÉVITER": [
+          "Faire plusieurs gestes à la fois.",
+          "Aller trop vite.",
+          "Cacher le produit pendant l'action."
+        ],
+        "CE QUE TU DOIS FAIRE": "Prépare ton produit avant de commencer. Pendant l'enregistrement, fais une seule fois le geste que tu veux montrer.",
+        "TU PEUX PARLER PENDANT QUE TU FILMES": "Tu peux parler dans la langue que tu veux : fon, yoruba, français, anglais ou toute autre langue que tu maîtrises. Tu peux aussi ne pas parler.",
+        "EXEMPLE DE PHRASE (FACULTATIF)": "« Regarde, voici comment je m'en sers. »"
+      },
+      "bouton": "COMMENCER À FILMER"
+    },
+    {
+      "numero": 8,
+      "scene": 3,
+      "etat": "B",
+      "duree_s": 7,
+      "titre": "SCÈNE 3 SUR 4",
+      "consigne": "FAIS UNE SEULE FOIS LE GESTE CHOISI.",
+      "chrono": "00:07",
+      "indicateurs": [
+        "REC",
+        "Aperçu caméra",
+        "Chronomètre",
+        "Progression",
+        "Microphone actif"
+      ],
+      "arret_automatique_s": 7
+    },
+    {
+      "numero": 9,
+      "scene": 3,
+      "etat": "C",
+      "duree_s": 7,
+      "titre": "SCÈNE 3 SUR 4",
+      "intertitre": "REGARDE TA DÉMONSTRATION",
+      "consigne": "Vérifie qu'on voit bien le geste et comment tu utilises ton produit. Écoute aussi le son.",
+      "lecteur": "TA VIDÉO",
+      "boutons": [
+        "RELIRE AVEC LE SON",
+        "REFAIRE",
+        "SCÈNE SUIVANTE"
+      ],
+      "validation": "En continuant, tu valides cette prise."
+    },
+    {
+      "numero": 10,
+      "scene": 4,
+      "etat": "A",
+      "duree_s": 9,
+      "titre": "VOICI LE RÉSULTAT !",
+      "blocs": {
+        "CE QUE TU VAS FILMER": "Montre ton produit après le geste que tu viens de faire. On doit voir ce qui se passe lorsque tu l'utilises.",
+        "À FILMER": [
+          "Le produit après son utilisation.",
+          "Le résultat réel.",
+          "Une belle vue finale."
+        ],
+        "À ÉVITER": [
+          "Cacher le résultat.",
+          "Montrer un résultat inventé.",
+          "Changer de produit."
+        ],
+        "CE QUE TU DOIS FAIRE": "Replace bien ton produit et montre le résultat. Garde ton téléphone stable jusqu'à la fin.",
+        "TU PEUX PARLER PENDANT QUE TU FILMES": "Tu peux parler dans la langue que tu veux : fon, yoruba, français, anglais ou toute autre langue que tu maîtrises. Tu peux aussi ne pas parler.",
+        "EXEMPLE DE PHRASE (FACULTATIF)": "« Voilà comment ça fonctionne. Contacte-nous sur WhatsApp pour commander. »"
+      },
+      "bouton": "COMMENCER À FILMER"
+    },
+    {
+      "numero": 11,
+      "scene": 4,
+      "etat": "B",
+      "duree_s": 9,
+      "titre": "SCÈNE 4 SUR 4",
+      "consigne": "MONTRE LE RÉSULTAT JUSQU'À LA FIN.",
+      "chrono": "00:09",
+      "indicateurs": [
+        "REC",
+        "Aperçu caméra",
+        "Chronomètre",
+        "Progression",
+        "Microphone actif"
+      ],
+      "arret_automatique_s": 9
+    },
+    {
+      "numero": 12,
+      "scene": 4,
+      "etat": "C",
+      "duree_s": 9,
+      "titre": "SCÈNE 4 SUR 4",
+      "intertitre": "TA DÉMONSTRATION EST TERMINÉE !",
+      "consigne": "Regarde ta dernière vidéo et écoute le son. Vérifie que le résultat est bien visible.",
+      "lecteur": "TA VIDÉO",
+      "boutons": [
+        "RELIRE AVEC LE SON",
+        "REFAIRE",
+        "VOIR MON MONTAGE"
+      ],
+      "validation": "En continuant, tu valides cette prise.",
+      "fin": "LES QUATRE PRISES SONT VALIDÉES."
+    }
+  ]
+}

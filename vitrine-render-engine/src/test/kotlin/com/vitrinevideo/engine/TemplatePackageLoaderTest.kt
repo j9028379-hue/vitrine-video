@@ -23,7 +23,7 @@ class TemplatePackageLoaderTest {
 
     @Test
     fun importsRealCommerceT3ZipAndVerifiesAllSha256AndCrossVersions() {
-        val realZip = File("/home/user/google_drive/COMMERCE-T3-1.0.0.zip")
+        val realZip = TestAssetLocator.packageZip("COMMERCE-T3-1.0.0.zip")
         assertTrue("COMMERCE-T3-1.0.0.zip doit exister pour validation réelle", realZip.exists())
 
         val storage = tmp.newFolder("registry")
@@ -50,7 +50,7 @@ class TemplatePackageLoaderTest {
 
     @Test
     fun rejectsTamperedFileSha256() {
-        val realZip = File("/home/user/google_drive/COMMERCE-T3-1.0.0.zip")
+        val realZip = TestAssetLocator.packageZip("COMMERCE-T3-1.0.0.zip")
         assertTrue(realZip.exists())
         val storage = tmp.newFolder("tamper_reg")
         val pkg = TemplatePackageLoader.importZip(realZip, storage)

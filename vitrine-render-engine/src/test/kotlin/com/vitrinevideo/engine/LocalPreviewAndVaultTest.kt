@@ -18,7 +18,7 @@ class LocalPreviewAndVaultTest {
 
     private val t3PartitionFile = File("/tmp/t3_server_test/montage/partition.json")
     private val t5PartitionFile = File("/tmp/t5_server_test/montage/partition.json")
-    private val v12SpecFile = File("/home/user/google_drive/T1_ENGINEERING_SPEC_V1_2.json")
+    private val v12SpecFile = TestAssetLocator.projectFile("test-fixtures/T1_ENGINEERING_SPEC_V1_2.json")
 
     @Test
     fun previewTimelineMapperMatchesTemplateShotsDeterministically() {

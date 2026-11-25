@@ -19,13 +19,13 @@ class TemplateFormAndJobTest {
     val tmp = TemporaryFolder()
 
     private fun fixtureCaptureFiles(): List<File> {
-        val dir = File("/home/user/vitrine-engine-test-harness/app/src/main/assets/t3_fixture/captures")
+        val dir = TestAssetLocator.projectFile("test-fixtures/t3_fixture/captures")
         return listOf("S1.mp4", "S2.mp4", "S3.mp4", "S4.mp4").map { File(dir, it) }
     }
 
     @Test
     fun assemblesValidRenderJobFromRealPackageAndPreservesMerchantResponses() {
-        val realZip = File("/home/user/google_drive/COMMERCE-T3-1.0.0.zip")
+        val realZip = TestAssetLocator.packageZip("COMMERCE-T3-1.0.0.zip")
         assertTrue(realZip.exists())
         val pkg = TemplatePackageLoader.importZip(realZip, tmp.newFolder("reg"))
 
@@ -78,7 +78,7 @@ class TemplateFormAndJobTest {
 
     @Test
     fun refusesMissingRequiredResponseAndUnknownKeysWithoutInventingText() {
-        val realZip = File("/home/user/google_drive/COMMERCE-T3-1.0.0.zip")
+        val realZip = TestAssetLocator.packageZip("COMMERCE-T3-1.0.0.zip")
         val pkg = TemplatePackageLoader.importZip(realZip, tmp.newFolder("reg2"))
         val capFiles = fixtureCaptureFiles()
         val descriptors = pkg.renderPlan.scenes.mapIndexed { idx, sc ->
@@ -139,7 +139,7 @@ class TemplateFormAndJobTest {
 
     @Test
     fun refusesDuplicateCaptureFileAcrossScenes() {
-        val realZip = File("/home/user/google_drive/COMMERCE-T3-1.0.0.zip")
+        val realZip = TestAssetLocator.packageZip("COMMERCE-T3-1.0.0.zip")
         val pkg = TemplatePackageLoader.importZip(realZip, tmp.newFolder("reg3"))
         val s1File = fixtureCaptureFiles().first()
         val s1Sha = PreFlightValidator.sha256File(s1File)

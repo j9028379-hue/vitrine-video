@@ -65,7 +65,7 @@ class UniversalInterpreterTest {
 
     @Test
     fun parsesEngineeringSpecV12IntoSameUniversalRenderPlan() {
-        val v12 = File("/home/user/google_drive/T1_ENGINEERING_SPEC_V1_2.json")
+        val v12 = TestAssetLocator.projectFile("test-fixtures/T1_ENGINEERING_SPEC_V1_2.json")
         if (!v12.exists()) return
         val plan = UniversalJsonInterpreter.parsePartition(v12)
 

@@ -1,0 +1,77 @@
+{
+  "id": "afrobeat_demo_commerce",
+  "statut": "validé",
+  "rotation": "cycle_1_2_3_4_apres_succes",
+  "pistes_approuvees": [
+    1,
+    2,
+    3,
+    4
+  ],
+  "voix_approuvee": true,
+  "mix_approuve": true,
+  "pistes": [
+    {
+      "numero": 1,
+      "titre": "Afrobeat",
+      "artiste": "Alex Morgan",
+      "page": "https://freemusicarchive.org/music/alex-morgan/pop-afro-party-instrumentals/afrobeat-1/",
+      "licence": "https://creativecommons.org/licenses/by/4.0",
+      "credit": "Afrobeat — Alex Morgan. CC BY 4.0 — https://creativecommons.org/licenses/by/4.0/ — https://freemusicarchive.org/music/alex-morgan/pop-afro-party-instrumentals/afrobeat-1/. Extrait de 30 s, point d’entrée adapté, niveau ajusté, fondu de fin.",
+      "debut_s": 1.59,
+      "source_sha256": "b0996cc536147f63826b3f553b40d0d3b31a4153493314328aba91f6a3192b73",
+      "extrait_sha256": "70b15dabc80819098310c66cfac4a2e043cc5fbc809e4a6715db2e2c73dc3c5f",
+      "preuve": "Afrobeat by Alex Morgan is licensed under a Attribution 4.0 International License . 1. Afrobeat by Alex Morgan 01:15 Track info Description Over a minute o",
+      "fichier": "audio/pistes/01-Afrobeat.mp3"
+    },
+    {
+      "numero": 2,
+      "titre": "Sun Still Sky",
+      "artiste": "Ketsa",
+      "page": "https://freemusicarchive.org/music/Ketsa/upbeat-street/sun-still-sky/",
+      "licence": "https://creativecommons.org/licenses/by/4.0",
+      "credit": "Sun Still Sky — Ketsa. CC BY 4.0 — https://creativecommons.org/licenses/by/4.0/ — https://freemusicarchive.org/music/Ketsa/upbeat-street/sun-still-sky/. Extrait de 30 s, point d’entrée adapté, niveau ajusté, fondu de fin.",
+      "debut_s": 4.04,
+      "source_sha256": "f3323aa79f019c4039772ec85daeb316ca7531fbafd4006d0860d8415e80be77",
+      "extrait_sha256": "db57d154d8881917ce03abd565fc0339090fa0a31aba2a3eeaaf071d6e051d6c",
+      "preuve": "Sun Still Sky by Ketsa is licensed under a Attribution 4.0 International License . Contact artist For more questions regarding usage, feel free to contact ",
+      "fichier": "audio/pistes/02-Sun-Still-Sky.mp3"
+    },
+    {
+      "numero": 3,
+      "titre": "Jungle Frequency With Heavy Tribal Percussion",
+      "artiste": "Alex Morgan",
+      "page": "https://freemusicarchive.org/music/alex-morgan/moods-atmospheres-vol-5/jungle-frequency-with-heavy-tribal-percussion/",
+      "licence": "https://creativecommons.org/licenses/by/4.0",
+      "credit": "Jungle Frequency With Heavy Tribal Percussion — Alex Morgan. CC BY 4.0 — https://creativecommons.org/licenses/by/4.0/ — https://freemusicarchive.org/music/alex-morgan/moods-atmospheres-vol-5/jungle-frequency-with-heavy-tribal-percussion/. Extrait de 30 s, point d’entrée adapté, niveau ajusté, fondu de fin.",
+      "debut_s": 18.47,
+      "source_sha256": "779d95417beea8477dcbfe6f1c6d9d5ffeb6e556a56b1eba904c133f37e3b1b9",
+      "extrait_sha256": "e12cae52b1a43ae120a70e290c89bb39327d4cadecde99411efa730541aa32f6",
+      "preuve": "Jungle Frequency With Heavy Tribal Percussion by Alex Morgan is licensed under a Attribution 4.0 International License . 1. Jungle Frequency With Heavy Tri",
+      "fichier": "audio/pistes/03-Jungle-Frequency-With-Heavy-Tribal-Percussion.mp3"
+    },
+    {
+      "numero": 4,
+      "titre": "Amapiano Beats With Log Drum Groove",
+      "artiste": "Alex Morgan",
+      "page": "https://freemusicarchive.org/music/alex-morgan/emotional-piano-vol-1/amapiano-beats-with-log-drum-groove/",
+      "licence": "https://creativecommons.org/licenses/by/4.0",
+      "credit": "Amapiano Beats With Log Drum Groove — Alex Morgan. CC BY 4.0 — https://creativecommons.org/licenses/by/4.0/ — https://freemusicarchive.org/music/alex-morgan/emotional-piano-vol-1/amapiano-beats-with-log-drum-groove/. Extrait de 30 s, point d’entrée adapté, niveau ajusté, fondu de fin.",
+      "debut_s": 2.39,
+      "source_sha256": "8b65e6c96da8e901b6565156b84b41b645909cf1b4cb77e43b07d9eb7fb14176",
+      "extrait_sha256": "260fbc073d0075c17520775331f8d1106a75c12055ae8a14cfcf05aab306fbf7",
+      "preuve": "Amapiano Beats With Log Drum Groove by Alex Morgan is licensed under a Attribution 4.0 International License . 1. Amapiano Beats With Log Drum Groove by Al",
+      "fichier": "audio/pistes/04-Amapiano-Beats-With-Log-Drum-Groove.mp3"
+    }
+  ],
+  "version": "1.0.0",
+  "voix_demo": "render/demo/voix/reference.wav",
+  "mix": {
+    "lufs": -16,
+    "fond_db": -3,
+    "sous_parole_db": -10,
+    "attaque_ms": 120,
+    "relachement_ms": 450,
+    "voix_marchand": "son des prises, silence accepté"
+  }
+}
