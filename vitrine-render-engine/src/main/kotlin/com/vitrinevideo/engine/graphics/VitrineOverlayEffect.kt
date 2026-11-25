@@ -83,6 +83,17 @@ class VitrineBitmapTextOverlay(
     }
 
     private val blitPaint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG)
+    private val systemTypefaces = mutableMapOf<String, Typeface>()
+
+    private fun typefaceFor(window: com.vitrinevideo.engine.interpreter.TextWindowSpec): Typeface {
+        val family = window.fontFamilyOverride
+        if (!family.isNullOrBlank()) {
+            return systemTypefaces.getOrPut(family.lowercase(Locale.ROOT)) {
+                Typeface.create(family, Typeface.NORMAL)
+            }
+        }
+        return window.fontRelativePath?.let { typefacesByPath[it] } ?: typeface
+    }
 
     private val pendingResponses = AtomicReference<Map<String, String>?>(null)
     private val overlayVersion = AtomicLong(0L)
@@ -93,7 +104,7 @@ class VitrineBitmapTextOverlay(
 
     private fun layoutAllWindows(resp: Map<String, String>): List<ResolvedTextWindow> =
         spec.windows.mapNotNull { w ->
-            val primary = w.fontRelativePath?.let { typefacesByPath[it] } ?: typeface
+            val primary = typefaceFor(w)
             val raw = TextFieldResolver.resolveFieldText(w, spec, resp)
             val fallback = w.fallbackFontRelativePath?.let { typefacesByPath[it] }
             fillPaint.typeface = if (fallback != null && raw.isNotEmpty()) {
@@ -219,7 +230,7 @@ class VitrineBitmapTextOverlay(
 
         val sz = rw.fontSizePx
         val window = rw.spec
-        val selectedTypeface = window.fontRelativePath?.let { typefacesByPath[it] } ?: typeface
+        val selectedTypeface = typefaceFor(window)
         fillPaint.typeface = selectedTypeface
         strokePaint.typeface = selectedTypeface
         fillPaint.textSize = sz
@@ -258,7 +269,7 @@ class VitrineBitmapTextOverlay(
             val y = (rw.baseY - bandTopPx.toFloat()) + (li - centerOffsetLines) * lineStep + entryShiftY
             val lineW = fillPaint.measureText(line)
             val centerX = rw.spec.centerX?.toFloat() ?: bandBitmap.width * 0.5f
-            val startX = centerX - lineW * 0.5f + entryShiftX
+            val startX = window.leftXPx?.toFloat() ?: (centerX - lineW * 0.5f + entryShiftX)
             val lineSave = bandCanvas.save()
             if ((window.entryAnim == TextEntryAnim.PLUME || window.entryAnim == TextEntryAnim.VAGUE_REVEAL) && entryProgress < 1f) {
                 val revealX = startX - entryShiftX + lineW * entryProgress

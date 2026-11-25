@@ -14,6 +14,7 @@ import androidx.media3.transformer.*
 import com.vitrinevideo.engine.api.EngineConfig
 import com.vitrinevideo.engine.audio.VitrineAudioProcessor
 import com.vitrinevideo.engine.graphics.VitrineBitmapTextOverlay
+import com.vitrinevideo.engine.graphics.VitrineDeclarativeFinalOverlay
 import com.vitrinevideo.engine.interpreter.AudioMixConfig
 import com.vitrinevideo.engine.interpreter.RenderPlan
 import com.vitrinevideo.engine.timeline.PreFlightReport
@@ -106,6 +107,7 @@ class Media3RenderPipeline(
         plan.textOverlay?.let { textSpec ->
             videoEffects += VitrineBitmapTextOverlay.createEffect(plan, textSpec, responses, resourcesDir)
         }
+        VitrineDeclarativeFinalOverlay.createEffect(plan)?.let { videoEffects += it }
 
         val audioProcessors = listOf<AudioProcessor>(
             VitrineAudioProcessor(musicPcmFile, mixConfig, config.audioSampleRateHz)

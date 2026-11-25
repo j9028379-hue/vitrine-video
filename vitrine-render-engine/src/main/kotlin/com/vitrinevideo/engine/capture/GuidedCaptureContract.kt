@@ -6,6 +6,7 @@ import android.os.StatFs
 import com.vitrinevideo.engine.api.CaptureClip
 import com.vitrinevideo.engine.api.EngineConfig
 import com.vitrinevideo.engine.api.RenderRequest
+import com.vitrinevideo.engine.interpreter.AudioProfileSpec
 import com.vitrinevideo.engine.interpreter.RenderPlan
 import com.vitrinevideo.engine.interpreter.UniversalJsonInterpreter
 import com.vitrinevideo.engine.timeline.PreFlightValidator
@@ -113,7 +114,9 @@ data class GuidedCaptureSession(
     val visitedScreens: List<Int> = emptyList(),
     val expectedScreenCount: Int? = null,
     val rejectedPreviousSessionIds: Set<String> = emptySet(),
-    val rejectedPreviousCaptureSha256s: Set<String> = emptySet()
+    val rejectedPreviousCaptureSha256s: Set<String> = emptySet(),
+    val preparsedPlan: RenderPlan? = null,
+    val preparsedAudioProfile: AudioProfileSpec? = null
 )
 
 /**
@@ -421,7 +424,7 @@ object GuidedCaptureValidator {
             )
         }
 
-        val plan = UniversalJsonInterpreter.parsePartition(session.partitionJsonFile)
+        val plan = session.preparsedPlan ?: UniversalJsonInterpreter.parsePartition(session.partitionJsonFile)
         if (session.templateId != plan.templateId) {
             throw GuidedCaptureValidationException(
                 "TEMPLATE_MISMATCH",
@@ -516,7 +519,9 @@ object GuidedCaptureValidator {
             manifestJsonFile = session.manifestJsonFile,
             sessionId = session.sessionId,
             rejectedPreviousSessionIds = session.rejectedPreviousSessionIds,
-            rejectedPreviousCaptureSha256s = session.rejectedPreviousCaptureSha256s
+            rejectedPreviousCaptureSha256s = session.rejectedPreviousCaptureSha256s,
+            preparsedPlan = session.preparsedPlan,
+            preparsedAudioProfile = session.preparsedAudioProfile
         )
         return plan to request
     }

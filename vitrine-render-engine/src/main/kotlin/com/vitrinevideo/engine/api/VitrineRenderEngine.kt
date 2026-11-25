@@ -199,13 +199,13 @@ class VitrineRenderEngine(
 
         try {
             listener?.onProgress(RenderProgress(RenderStage.INTERPRETER, 5, "Interprétation de la partition JSON"))
-            val plan = UniversalJsonInterpreter.parsePartition(request.partitionJsonFile)
+            val plan = request.preparsedPlan ?: UniversalJsonInterpreter.parsePartition(request.partitionJsonFile)
             val founderApprovalJson = runCatching {
                 context.assets.open("config/founder-audio-approvals.json").use { stream ->
                     stream.readBytes().toString(Charsets.UTF_8)
                 }
             }.getOrNull()
-            val audioProfile = request.audioProfileJsonFile?.let {
+            val audioProfile = request.preparsedAudioProfile ?: request.audioProfileJsonFile?.let {
                 UniversalJsonInterpreter.parseAudioProfile(it, founderApprovalJson)
             }
 

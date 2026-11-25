@@ -103,7 +103,9 @@ object TemplateJobAssembler {
             visitedScreens = effectiveScreens,
             expectedScreenCount = pkg.jobSchemaConstraints?.expectedScreenNumbers?.size?.takeIf { it > 0 },
             rejectedPreviousSessionIds = rejectedPreviousSessionIds,
-            rejectedPreviousCaptureSha256s = rejectedPreviousCaptureSha256s
+            rejectedPreviousCaptureSha256s = rejectedPreviousCaptureSha256s,
+            preparsedPlan = pkg.renderPlan,
+            preparsedAudioProfile = pkg.audioProfile
         )
 
         val renderRequest = RenderRequest(
@@ -129,7 +131,9 @@ object TemplateJobAssembler {
             expectedScreenCount = pkg.jobSchemaConstraints?.expectedScreenNumbers?.size?.takeIf { it > 0 },
             sessionId = sessionId,
             rejectedPreviousSessionIds = rejectedPreviousSessionIds,
-            rejectedPreviousCaptureSha256s = rejectedPreviousCaptureSha256s
+            rejectedPreviousCaptureSha256s = rejectedPreviousCaptureSha256s,
+            preparsedPlan = pkg.renderPlan,
+            preparsedAudioProfile = pkg.audioProfile
         )
 
         return AssembledTemplateJob(jobJson, guidedSession, renderRequest)

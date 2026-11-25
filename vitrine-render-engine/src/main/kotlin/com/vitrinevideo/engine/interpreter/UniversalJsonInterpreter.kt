@@ -6,17 +6,21 @@ import java.io.File
 
 object UniversalJsonInterpreter {
 
-    fun parsePartition(partitionFile: File): RenderPlan {
+    fun parsePartition(partitionFile: File, supportingFiles: Map<String, String> = emptyMap()): RenderPlan {
         require(partitionFile.exists()) { "Fichier partition introuvable: ${partitionFile.path}" }
-        return parsePartitionJson(partitionFile.readText())
+        return parsePartitionJson(partitionFile.readText(), supportingFiles)
     }
 
-    fun parsePartitionJson(rawJson: String): RenderPlan {
+    fun parsePartitionJson(rawJson: String, supportingFiles: Map<String, String> = emptyMap()): RenderPlan {
         val json = JSONObject(rawJson)
         val plan = when {
             ContratCandidatParser.canParse(json) -> ContratCandidatParser.parse(json)
             PartitionV1Parser.canParse(json) -> PartitionV1Parser.parse(json)
             EngineeringSpecParser.canParse(json) -> EngineeringSpecParser.parse(json)
+            EvidenceMontageContractParser.canParse(json) -> EvidenceMontageContractParser.parse(
+                json,
+                supportingFiles["render/film.py"]
+            )
             else -> throw IllegalArgumentException("Format JSON de partition non reconnu")
         }
         EngineCapabilities.assertSupported(plan.requiredCapabilities, plan.unknownCapabilities)

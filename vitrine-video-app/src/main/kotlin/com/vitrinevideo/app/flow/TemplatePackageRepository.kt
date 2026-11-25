@@ -18,6 +18,7 @@ object TemplatePackageRepository {
     private data class Asset(val path: String, val version: String)
     private val supported = mapOf(
         "COMMERCE-T1" to Asset("packages/COMMERCE-T1-2.0.0.zip", "2.0.0"),
+        "COMMERCE-T2" to Asset("packages/COMMERCE-T2-1.0.0.zip", "1.0.0"),
         "COMMERCE-T3" to Asset("packages/COMMERCE-T3-1.0.0.zip", "1.0.0"),
         "COMMERCE-T4" to Asset("packages/COMMERCE-T4-1.0.0.zip", "1.0.0")
     )
@@ -26,12 +27,43 @@ object TemplatePackageRepository {
     fun ensureLoaded(context: Context, templateId: String): LoadedTemplatePackage {
         val asset = supported[templateId] ?: throw IllegalArgumentException("Gabarit Commerce non pris en charge: $templateId")
         val storageRoot = File(context.filesDir, "template_packages")
+        val musicLibraryRoot = File(context.filesDir, "music_libraries")
+        ensureMusicLibrary(context, templateId, asset.version, musicLibraryRoot)
         val existingDir = File(File(storageRoot, templateId), asset.version)
         if (existingDir.exists() && File(existingDir, "MANIFEST.json").exists()) {
-            val cached = runCatching { TemplatePackageLoader.loadFromDirectory(existingDir) }.getOrNull()
+            val cached = runCatching {
+                TemplatePackageLoader.loadFromDirectory(existingDir, musicLibraryRoot)
+            }.getOrNull()
             if (cached != null) return cached
         }
-        return context.assets.open(asset.path).use { TemplatePackageLoader.importZipStream(it, storageRoot) }
+        return context.assets.open(asset.path).use {
+            TemplatePackageLoader.importZipStream(it, storageRoot, musicLibraryRoot)
+        }
+    }
+
+    /** Copies sealed internal music entries to private storage; no raw MP3 is ever in assets. */
+    private fun ensureMusicLibrary(
+        context: Context,
+        templateId: String,
+        version: String,
+        storageRoot: File
+    ) {
+        val assetDir = "music/$templateId/$version"
+        val names = runCatching { context.assets.list(assetDir) }.getOrNull() ?: return
+        if (names.isEmpty()) return
+        val destDir = File(File(storageRoot, templateId), version).apply { mkdirs() }
+        for (name in names) {
+            val target = File(destDir, name)
+            if (target.isFile && target.length() > 0L) continue
+            context.assets.open("$assetDir/$name").use { input ->
+                val tmp = File(destDir, "$name.tmp")
+                tmp.outputStream().use { out -> input.copyTo(out, 32 * 1024) }
+                if (!tmp.renameTo(target)) {
+                    tmp.copyTo(target, overwrite = true)
+                    tmp.delete()
+                }
+            }
+        }
     }
 
     fun publishFinalVideo(context: Context, renderedMp4: File, sessionId: String, templateId: String): String {

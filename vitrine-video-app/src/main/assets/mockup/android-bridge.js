@@ -300,8 +300,8 @@
             showToast(
               "sector-toast",
               fr
-                ? "Seul Commerce → Démonstration (COMMERCE-T3) est actif dans cette version."
-                : "Only General Retail → Demonstration (COMMERCE-T3) is active in this version."
+                ? "Choisissez le secteur Commerce : quatre gabarits sont disponibles."
+                : "Choose the Commerce sector: four templates are available."
             );
           }
         },
@@ -318,7 +318,7 @@
           const card = e.target.closest(".format-card");
           if (!card) return;
           const fmt = card.dataset.format || card.id.replace(/^format-/, "");
-          if (fmt !== "t1" && fmt !== "t3" && fmt !== "t4") {
+          if (fmt !== "t1" && fmt !== "t2" && fmt !== "t3" && fmt !== "t4") {
             e.preventDefault();
             e.stopImmediatePropagation();
             const fr = getCurrentLang() === "fr";
@@ -332,7 +332,7 @@
           }
           activeTemplateFormat = fmt;
           if (hasBridge()) {
-            window.VitrineAndroid.onTemplateSelected(fmt === "t1" ? "COMMERCE-T1" : fmt === "t4" ? "COMMERCE-T4" : "COMMERCE-T3");
+            window.VitrineAndroid.onTemplateSelected(fmt === "t1" ? "COMMERCE-T1" : fmt === "t2" ? "COMMERCE-T2" : fmt === "t4" ? "COMMERCE-T4" : "COMMERCE-T3");
             try {
               const saved = JSON.parse(window.VitrineAndroid.getSavedResponsesJson() || "{}");
               if (Object.keys(saved).length > 0) {

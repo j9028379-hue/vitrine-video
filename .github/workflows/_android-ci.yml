@@ -15,6 +15,24 @@ env:
   GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx3g -Dkotlin.daemon.jvm.options=-Xmx1g"
 
 jobs:
+  t2-package:
+    name: T2 package, SHA and internal music evidence
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Verify COMMERCE-T2 package, manifest, vault and mix
+        run: python3 tools/verify_t2_integrity.py
+
+      - name: Upload T2 evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: t2-package-evidence
+          path: ci-artifacts/T2_INTEGRITY_REPORT.txt
+          if-no-files-found: warn
+
   tests:
     name: JVM test suites
     runs-on: ubuntu-latest

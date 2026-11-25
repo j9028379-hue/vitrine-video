@@ -2,7 +2,9 @@ package com.vitrinevideo.engine.pkg
 
 import com.vitrinevideo.engine.capture.GuidedCaptureGuideParser
 import com.vitrinevideo.engine.form.TemplateFormParser
+import com.vitrinevideo.engine.interpreter.MusicCatalogueParser
 import com.vitrinevideo.engine.interpreter.UniversalJsonInterpreter
+import com.vitrinevideo.engine.security.InternalMusicLibrary
 import com.vitrinevideo.engine.timeline.PreFlightValidator
 import org.json.JSONArray
 import org.json.JSONObject
@@ -22,16 +24,20 @@ import java.util.zip.ZipInputStream
  */
 object TemplatePackageLoader {
 
-    fun importZip(zipFile: File, storageRoot: File): LoadedTemplatePackage {
+    fun importZip(zipFile: File, storageRoot: File, musicLibraryRoot: File? = null): LoadedTemplatePackage {
         if (!zipFile.exists() || !zipFile.isFile || zipFile.length() == 0L) {
             throw TemplatePackageException("ZIP_MISSING", "Archive ZIP introuvable ou vide: ${zipFile.path}")
         }
         return FileInputStream(zipFile).use { fis ->
-            importZipStream(fis, storageRoot)
+            importZipStream(fis, storageRoot, musicLibraryRoot)
         }
     }
 
-    fun importZipStream(inputStream: InputStream, storageRoot: File): LoadedTemplatePackage {
+    fun importZipStream(
+        inputStream: InputStream,
+        storageRoot: File,
+        musicLibraryRoot: File? = null
+    ): LoadedTemplatePackage {
         storageRoot.mkdirs()
         val stagingDir = File(storageRoot, ".staging_${UUID.randomUUID()}")
         stagingDir.mkdirs()
@@ -39,7 +45,7 @@ object TemplatePackageLoader {
         try {
             unzipSafely(inputStream, stagingDir)
             val packageRoot = resolvePackageRoot(stagingDir)
-            val validated = loadFromDirectory(packageRoot)
+            val validated = loadFromDirectory(packageRoot, musicLibraryRoot)
 
             val finalDir = File(File(storageRoot, validated.templateId), validated.version)
             if (finalDir.exists()) {
@@ -50,7 +56,7 @@ object TemplatePackageLoader {
                 packageRoot.copyRecursively(finalDir, overwrite = true)
             }
             stagingDir.deleteRecursively()
-            return loadFromDirectory(finalDir)
+            return loadFromDirectory(finalDir, musicLibraryRoot)
         } catch (e: TemplatePackageException) {
             stagingDir.deleteRecursively()
             throw e
@@ -60,7 +66,7 @@ object TemplatePackageLoader {
         }
     }
 
-    fun loadFromDirectory(packageDir: File): LoadedTemplatePackage {
+    fun loadFromDirectory(packageDir: File, musicLibraryRoot: File? = null): LoadedTemplatePackage {
         if (!packageDir.exists() || !packageDir.isDirectory) {
             throw TemplatePackageException("PACKAGE_DIR_MISSING", "Répertoire paquet introuvable: ${packageDir.path}")
         }
@@ -101,7 +107,11 @@ object TemplatePackageLoader {
         val templateSchemaRelPath = if (resolveSafe(rootCanonical, catalogueEntry.templateSchemaRelPath).exists()) catalogueEntry.templateSchemaRelPath
             else if (File(contractRoot, "schemas/template.json").exists()) contractRelativePath("schemas/template.json") else catalogueEntry.templateSchemaRelPath
         val renderPlan = try {
-            UniversalJsonInterpreter.parsePartition(partitionFile)
+            val scriptFile = resolveSafe(rootCanonical, "render/film.py").takeIf { it.isFile }
+            UniversalJsonInterpreter.parsePartition(
+                partitionFile,
+                if (scriptFile != null) mapOf("render/film.py" to scriptFile.readText()) else emptyMap()
+            )
         } catch (t: Throwable) {
             throw TemplatePackageException("PARTITION_INVALID", "Partition invalide: ${t.message}")
         }
@@ -110,16 +120,43 @@ object TemplatePackageLoader {
         val audioProfilePath = if (resolveSafe(rootCanonical, catalogueEntry.audioRelPath).exists()) catalogueEntry.audioRelPath
             else if (contractAudioFile.exists()) contractRelativePath("audio/profil.json") else catalogueEntry.audioRelPath
         val audioProfileFile = resolveSafe(rootCanonical, audioProfilePath).takeIf { it.exists() }
-        if (renderPlan.audioProfileId.isNotEmpty() && audioProfileFile == null) {
-            throw TemplatePackageException("AUDIO_PROFILE_MISSING", "Profil audio requis absent: ${catalogueEntry.audioRelPath}")
-        }
-        val audioProfile = audioProfileFile?.let { f ->
-            try {
-                UniversalJsonInterpreter.parseAudioProfile(f)
+        val musicCatalogueFile = resolveSafe(rootCanonical, "audio/catalogue.json").takeIf { it.isFile }
+        val voicesFile = resolveSafe(rootCanonical, "audio/voix.json").takeIf { it.isFile }
+        val audioProfile = when {
+            audioProfileFile != null -> try {
+                UniversalJsonInterpreter.parseAudioProfile(audioProfileFile)
             } catch (t: Throwable) {
                 throw TemplatePackageException("AUDIO_PROFILE_INVALID", "Profil audio invalide: ${t.message}")
             }
+            musicCatalogueFile != null && voicesFile != null -> try {
+                val libraryRoot = musicLibraryRoot
+                    ?: throw TemplatePackageException(
+                        "AUDIO_LIBRARY_MISSING",
+                        "Bibliothèque musicale interne absente pour ${catalogueEntry.templateId}"
+                    )
+                val manifest = InternalMusicLibrary.read(
+                    libraryRoot,
+                    catalogueEntry.templateId,
+                    catalogueEntry.version
+                ) ?: throw TemplatePackageException(
+                    "AUDIO_LIBRARY_MISSING",
+                    "Manifeste de bibliothèque musicale introuvable pour ${catalogueEntry.templateId}/${catalogueEntry.version}"
+                )
+                val resources = InternalMusicLibrary.materialize(manifest, libraryRoot, rootCanonical)
+                val catalogueJson = JSONObject(musicCatalogueFile.readText())
+                val voicesJson = JSONObject(voicesFile.readText())
+                MusicCatalogueParser.parse(catalogueJson, voicesJson, resources)
+            } catch (e: TemplatePackageException) {
+                throw e
+            } catch (t: Throwable) {
+                throw TemplatePackageException("AUDIO_CATALOGUE_INVALID", "Catalogue audio invalide: ${t.message}")
+            }
+            else -> null
         }
+        if (renderPlan.audioProfileId.isNotEmpty() && audioProfile == null) {
+            throw TemplatePackageException("AUDIO_PROFILE_MISSING", "Profil audio requis absent: ${catalogueEntry.audioRelPath}")
+        }
+        val effectiveAudioProfileFile = audioProfileFile ?: musicCatalogueFile
 
         val formFile = resolveSafe(rootCanonical, formRelPath)
         if (!formFile.exists()) {
@@ -251,7 +288,7 @@ object TemplatePackageLoader {
             packageDir = rootCanonical,
             manifestFile = manifestFile,
             partitionFile = partitionFile,
-            audioProfileFile = audioProfileFile,
+            audioProfileFile = effectiveAudioProfileFile,
             formFile = formFile,
             captureGuideFile = captureGuideFile,
             jobSchemaFile = jobSchemaFile,

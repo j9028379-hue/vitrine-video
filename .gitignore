@@ -25,6 +25,8 @@ dist/
 vitrine-server/out/
 
 /deliverables/
+/google_drive/
+/ci-artifacts/
 
 /ci-delivery/
 /ci-logs/

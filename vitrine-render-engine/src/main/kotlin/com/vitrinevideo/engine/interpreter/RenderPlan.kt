@@ -13,6 +13,61 @@ data class GridCellCut(
     val order: List<Int>
 )
 
+/** Declared crop-centre keyframe; progress is scene-local, 0..1. */
+data class ViewportKeyframe(
+    val progress: Double,
+    val cx: Double,
+    val cy: Double = 0.5
+)
+
+/** Declared effect keyframe in absolute timeline frames. */
+data class EffectKeyframe(
+    val frame: Int,
+    val value: Double
+)
+
+enum class EffectKind(val wireName: String, val capability: CapabilityId) {
+    ZOOM("zoom", CapabilityId.VIDEO_EFFECT_ZOOM),
+    VEIL("color_veil", CapabilityId.VIDEO_EFFECT_COLOR_VEIL),
+    GLOW("local_glow", CapabilityId.VIDEO_EFFECT_LOCAL_GLOW),
+    FREEZE_CROSSFADE("freeze_crossfade", CapabilityId.VIDEO_EFFECT_FREEZE_CROSSFADE),
+    BLURRED_OVERLAY("blurred_overlay", CapabilityId.VIDEO_EFFECT_BLURRED_OVERLAY),
+    SCRIM("text_scrim", CapabilityId.VIDEO_EFFECT_TEXT_SCRIM),
+    FINAL_FADE("final_fade", CapabilityId.VIDEO_EFFECT_FINAL_FADE)
+}
+
+enum class EffectStage(val wireName: String) {
+    COMPOSITE("composite"),
+    FINAL("final")
+}
+
+/**
+ * Declarative visual effect converted from a package's own montage contract.
+ * Every numeric value comes from the contract; the engine never supplies a
+ * creative default for a declared effect.
+ */
+data class VisualEffectSpec(
+    val id: String,
+    val operation: String,
+    val kind: EffectKind,
+    val startFrame: Int,
+    val endFrameExcluded: Int,
+    val zoom: Pair<Double, Double>? = null,
+    val colorHex: String? = null,
+    val opacityKeyframes: List<EffectKeyframe> = emptyList(),
+    val alphaKeyframes: List<EffectKeyframe> = emptyList(),
+    val centerStart: Pair<Double, Double>? = null,
+    val centerEnd: Pair<Double, Double>? = null,
+    val radiusXY: Pair<Double, Double>? = null,
+    val zoomCopy: Pair<Double, Double>? = null,
+    val sigmaMaxPx: Double = 0.0,
+    val centerY: Double = 0.5,
+    val spreadY: Double = 0.15,
+    val strength: Double = 0.0,
+    val visibilityRampFrames: Int = 0,
+    val stage: EffectStage = EffectStage.COMPOSITE
+)
+
 data class GridLayoutSpec(
     val dividerPx: Int,
     val backgroundColorHex: String = "#111111",
@@ -52,7 +107,10 @@ data class CutSegmentSpec(
     val freezeTailFrames: Int = 0,
     val viewport: ViewportSpec = ViewportSpec(0.5, 0.5, 1.0),
     val motion: MotionSpec = MotionSpec("none"),
-    val gridLayout: GridLayoutSpec? = null
+    val gridLayout: GridLayoutSpec? = null,
+    /** Declared crop-centre trajectory; empty for legacy T1/T3/T4 contracts. */
+    val viewportKeyframes: List<ViewportKeyframe> = emptyList(),
+    val maxZoom: Double = 1.0
 )
 
 data class SceneSpec(
@@ -147,6 +205,9 @@ data class TextWindowSpec(
     val maxLines: Int? = null,
     val maxHeightPx: Double? = null,
     val fontRelativePath: String? = null,
+    /** Generic system-family override (e.g. `serif`); never a merchant value. */
+    val fontFamilyOverride: String? = null,
+    val leftXPx: Double? = null,
     val fallbackFontRelativePath: String? = null,
     val fontSha256: String? = null,
     val inkColorHex: String? = null,
@@ -232,7 +293,15 @@ data class AudioMixConfig(
     val releaseMs: Int = 450,
     val speechMarginDb: Double = -6.0,
     val peakLimitDb: Double = -2.6,
-    val minimumVoiceMusicGapDb: Double? = null
+    val minimumVoiceMusicGapDb: Double? = null,
+    /** Declared ducking depth (music bed reduction under speech), when the contract states it. */
+    val duckDepthDb: Double? = null,
+    val voiceGainDb: Double = 0.0,
+    val attackCurve: String = "",
+    val releaseCurve: String = "",
+    val truePeakMaxDbtp: Double? = null,
+    val deliveryFormat: String = "",
+    val minimumSpeechToMusicDb: Double? = null
 )
 
 data class ApprovedTrack(
@@ -287,7 +356,9 @@ data class RenderPlan(
     val unknownCapabilities: List<String>,
     val frameStyleCuts: List<FrameStyleCut> = emptyList(),
     /** Verbatim `effets.type` value (e.g. `coupe_franche`); cuts stay hard unless a `liaison` says otherwise. */
-    val cutMode: String = ""
+    val cutMode: String = "",
+    /** Declared non-transition visual effects, converted verbatim from the package contract. */
+    val visualEffects: List<VisualEffectSpec> = emptyList()
 ) {
     val durationSec: Double get() = totalFrames.toDouble() / fps.toDouble()
 }

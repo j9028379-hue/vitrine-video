@@ -87,7 +87,7 @@ class SessionLifecycleManager(
 
     /** Starts an isolated blank session when the merchant changes between supported Commerce templates. */
     fun selectTemplate(newTemplateId: String) {
-        require(newTemplateId == "COMMERCE-T1" || newTemplateId == "COMMERCE-T3" || newTemplateId == "COMMERCE-T4") { "Gabarit Commerce non pris en charge: $newTemplateId" }
+        require(newTemplateId in setOf("COMMERCE-T1", "COMMERCE-T2", "COMMERCE-T3", "COMMERCE-T4")) { "Gabarit Commerce non pris en charge: $newTemplateId" }
         if (templateId != newTemplateId) startNewBlankSession(newTemplateId)
     }
 

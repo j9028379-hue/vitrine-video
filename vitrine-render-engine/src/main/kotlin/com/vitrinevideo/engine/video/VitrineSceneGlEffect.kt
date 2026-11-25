@@ -1,6 +1,7 @@
 package com.vitrinevideo.engine.video
 
 import android.content.Context
+import android.graphics.Color
 import android.opengl.GLES20
 import androidx.annotation.OptIn
 import androidx.media3.common.C
@@ -15,9 +16,13 @@ import androidx.media3.effect.BaseGlShaderProgram
 import androidx.media3.effect.GlEffect
 import androidx.media3.effect.GlShaderProgram
 import com.vitrinevideo.engine.interpreter.CutSegmentSpec
+import com.vitrinevideo.engine.interpreter.EffectCurveEvaluator
+import com.vitrinevideo.engine.interpreter.EffectKind
+import com.vitrinevideo.engine.interpreter.EffectStage
 import com.vitrinevideo.engine.interpreter.MotionSpec
 import com.vitrinevideo.engine.interpreter.RenderPlan
 import com.vitrinevideo.engine.interpreter.TransitionType
+import com.vitrinevideo.engine.interpreter.VisualEffectSpec
 import com.vitrinevideo.engine.timeline.TimelineEngine
 import kotlin.math.max
 import kotlin.math.min
@@ -217,6 +222,63 @@ private class VitrineSceneShaderProgram(
                 grading.borderWidthPx.toFloat() / max(1, outHeight).toFloat()
             )
         )
+        val activeEffects = plan.visualEffects.filter {
+            it.stage == EffectStage.COMPOSITE && frame in it.startFrame until it.endFrameExcluded
+        }
+        main.setFloatUniform("uHoldZoom", activeEffects.firstOrNull { it.kind == EffectKind.FREEZE_CROSSFADE }
+            ?.let { EffectCurveEvaluator.rampAt(it.zoomCopy, frame, it.startFrame, it.endFrameExcluded) }
+            ?.toFloat() ?: 1f)
+
+        val veil = activeEffects.firstOrNull { it.kind == EffectKind.VEIL }
+        val veilOpacity = veil?.let {
+            EffectCurveEvaluator.valueAt(it.opacityKeyframes, frame) *
+                EffectCurveEvaluator.visibilityAt(frame, it.startFrame, it.endFrameExcluded, 1)
+        } ?: 0.0
+        main.setFloatsUniform("uVeilColor", veil?.colorHex?.let {
+            floatArrayOf(rgbComponent(it, 0), rgbComponent(it, 1), rgbComponent(it, 2), veilOpacity.toFloat())
+        } ?: floatArrayOf(0f, 0f, 0f, 0f))
+
+        val glow = activeEffects.firstOrNull { it.kind == EffectKind.GLOW }
+        val glowOpacity = glow?.let { EffectCurveEvaluator.valueAt(it.opacityKeyframes, frame) } ?: 0.0
+        val glowCenter = glow?.let {
+            EffectCurveEvaluator.pairAt(it.centerStart, it.centerEnd, frame, it.startFrame, it.endFrameExcluded)
+        }
+        main.setFloatsUniform("uGlowColor", glow?.colorHex?.let {
+            floatArrayOf(rgbComponent(it, 0), rgbComponent(it, 1), rgbComponent(it, 2), glowOpacity.toFloat())
+        } ?: floatArrayOf(0f, 0f, 0f, 0f))
+        val glowRadius = glow?.radiusXY
+        main.setFloatsUniform("uGlowGeometry", if (glowCenter != null && glowRadius != null) {
+            floatArrayOf(
+                glowCenter.first.toFloat(), glowCenter.second.toFloat(),
+                glowRadius.first.toFloat(), glowRadius.second.toFloat()
+            )
+        } else floatArrayOf(0.5f, 0.5f, 1f, 1f))
+
+        val blur = activeEffects.firstOrNull { it.kind == EffectKind.BLURRED_OVERLAY }
+        val blurOpacity = blur?.let { EffectCurveEvaluator.valueAt(it.opacityKeyframes, frame) } ?: 0.0
+        val blurZoom = blur?.let {
+            EffectCurveEvaluator.rampAt(it.zoomCopy, frame, it.startFrame, it.endFrameExcluded)
+        } ?: 1.0
+        main.setFloatsUniform("uBlurOverlay", if (blur != null) {
+            floatArrayOf(
+                blurZoom.toFloat(),
+                (blur.sigmaMaxPx / max(1, outWidth)).toFloat(),
+                (blur.sigmaMaxPx / max(1, outHeight)).toFloat(),
+                blurOpacity.toFloat()
+            )
+        } else floatArrayOf(1f, 0f, 0f, 0f))
+
+        val scrim = activeEffects.firstOrNull { it.kind == EffectKind.SCRIM }
+        val scrimVisibility = scrim?.let {
+            EffectCurveEvaluator.visibilityAt(frame, it.startFrame, it.endFrameExcluded, it.visibilityRampFrames)
+        } ?: 0.0
+        main.setFloatsUniform("uScrim", if (scrim != null) {
+            floatArrayOf(
+                scrim.centerY.toFloat(), scrim.spreadY.toFloat(),
+                scrim.strength.toFloat(), scrimVisibility.toFloat()
+            )
+        } else floatArrayOf(0.5f, 0.15f, 0f, 0f))
+
         val zeroRect = floatArrayOf(0f, 0f, 0f, 0f)
         if (mask == null) {
             main.setIntUniform("uTransMode", 0)
@@ -348,12 +410,34 @@ private class VitrineSceneShaderProgram(
         hasHoldFrame = true
     }
 
+    private fun rgbComponent(hex: String, index: Int): Float =
+        runCatching { Color.parseColor(hex) }.getOrNull()?.let { color ->
+            when (index) {
+                0 -> Color.red(color) / 255f
+                1 -> Color.green(color) / 255f
+                else -> Color.blue(color) / 255f
+            }
+        } ?: 0f
+
     private fun evaluateShotTransform(shot: CutSegmentSpec, frame: Int, transition: com.vitrinevideo.engine.interpreter.TransitionSpec?): ShotTransform {
         val m: MotionSpec = shot.motion
         val len = max(1, shot.outEndFrameExcluded - shot.outStartFrame - 1)
         val rawT = ((frame - shot.outStartFrame).toFloat() / len.toFloat()).coerceIn(0f, 1f)
         val t = TransitionGeometry.smoothstep(rawT)
-        var scale = if (m.type == "none") shot.viewport.zoom.toFloat()
+        val trajectoryCx = EffectCurveEvaluator.viewportCxAt(shot.viewportKeyframes, t)
+        val declaredZoom = plan.visualEffects.firstOrNull {
+            it.kind == EffectKind.ZOOM && it.stage == EffectStage.COMPOSITE &&
+                frame in it.startFrame until it.endFrameExcluded
+        }?.let { EffectCurveEvaluator.rampAt(it.zoom, frame, it.startFrame, it.endFrameExcluded) }
+        val framedZoom = when {
+            shot.viewportKeyframes.isNotEmpty() -> {
+                val declared = declaredZoom ?: 1.0
+                minOf(declared, shot.maxZoom.takeIf { it > 0.0 } ?: declared)
+            }
+            else -> null
+        }
+        var scale = if (framedZoom != null) framedZoom.toFloat() * shot.viewport.zoom.toFloat()
+            else if (m.type == "none") shot.viewport.zoom.toFloat()
             else (m.startScale + (m.endScale - m.startScale) * t).toFloat() * shot.viewport.zoom.toFloat()
         var panX = if (m.type == "none") 0f else ((m.startPanX + (m.endPanX - m.startPanX) * t) / outWidth.toDouble()).toFloat()
         var panY = if (m.type == "none") 0f else ((m.startPanY + (m.endPanY - m.startPanY) * t) / outHeight.toDouble()).toFloat()
@@ -371,7 +455,8 @@ private class VitrineSceneShaderProgram(
                 else -> Unit
             }
         }
-        return ShotTransform(scale, panX, panY, angle)
+        val effectivePanX = if (shot.viewportKeyframes.isNotEmpty()) trajectoryCx.toFloat() - 0.5f else panX
+        return ShotTransform(scale, effectivePanX, panY, angle)
     }
 
     override fun release() {
@@ -458,6 +543,12 @@ private class VitrineSceneShaderProgram(
 
         private const val FRAGMENT_SHADER = SCENE_SAMPLER_FUNCTIONS + """
             uniform sampler2D uHoldSampler;
+            uniform float uHoldZoom;
+            uniform vec4 uVeilColor;
+            uniform vec4 uGlowColor;
+            uniform vec4 uGlowGeometry;
+            uniform vec4 uBlurOverlay;
+            uniform vec4 uScrim;
             uniform int uTransMode;
             uniform int uHasHoldFrame;
             uniform float uTransParam;
@@ -495,7 +586,8 @@ private class VitrineSceneShaderProgram(
                 vec4 incoming = sampleScenePixel(topDownUv);
                 vec4 composed = incoming;
                 if (uTransMode != 0) {
-                    vec4 hold = texture2D(uHoldSampler, vTexSamplingCoord);
+                    vec2 holdUv = clamp((vTexSamplingCoord - 0.5) / max(uHoldZoom, 0.01) + 0.5, 0.0, 1.0);
+                    vec4 hold = texture2D(uHoldSampler, holdUv);
                     if (uTransMode == 2) {
                         composed = mix(hold, incoming, clamp(uTransParam, 0.0, 1.0));
                     } else if (uTransMode == 3) {
@@ -563,6 +655,37 @@ private class VitrineSceneShaderProgram(
                         if (count >= 4 && pointInRect(topDownUv, uTransRect3)) inside = true;
                         composed = inside ? incoming : hold;
                     }
+                }
+                if (uVeilColor.a > 0.0) {
+                    composed.rgb = mix(composed.rgb, uVeilColor.rgb, clamp(uVeilColor.a, 0.0, 1.0));
+                }
+                if (uGlowColor.a > 0.0) {
+                    float gx = (topDownUv.x - uGlowGeometry.x) / max(uGlowGeometry.z, 0.001);
+                    float gy = (topDownUv.y - uGlowGeometry.y) / max(uGlowGeometry.w, 0.001);
+                    float glow = clamp(uGlowColor.a * exp(-2.0 * (gx * gx + gy * gy)), 0.0, 1.0);
+                    vec3 screened = 1.0 - (1.0 - composed.rgb) * (1.0 - uGlowColor.rgb);
+                    composed.rgb = mix(composed.rgb, screened, glow);
+                }
+                if (uBlurOverlay.w > 0.0) {
+                    vec4 duplicate = sampleCropped(
+                        topDownUv, uMainCrop.x, uMainCrop.y,
+                        uMainCrop.z * uBlurOverlay.x, uMainCrop.w, uMainPanY, uAspectScale
+                    );
+                    vec2 radius = uBlurOverlay.yz;
+                    vec4 blurred = duplicate * 0.36;
+                    blurred += sampleCropped(topDownUv + vec2(radius.x, 0.0), uMainCrop.x, uMainCrop.y,
+                        uMainCrop.z * uBlurOverlay.x, uMainCrop.w, uMainPanY, uAspectScale) * 0.16;
+                    blurred += sampleCropped(topDownUv - vec2(radius.x, 0.0), uMainCrop.x, uMainCrop.y,
+                        uMainCrop.z * uBlurOverlay.x, uMainCrop.w, uMainPanY, uAspectScale) * 0.16;
+                    blurred += sampleCropped(topDownUv + vec2(0.0, radius.y), uMainCrop.x, uMainCrop.y,
+                        uMainCrop.z * uBlurOverlay.x, uMainCrop.w, uMainPanY, uAspectScale) * 0.16;
+                    blurred += sampleCropped(topDownUv - vec2(0.0, radius.y), uMainCrop.x, uMainCrop.y,
+                        uMainCrop.z * uBlurOverlay.x, uMainCrop.w, uMainPanY, uAspectScale) * 0.16;
+                    composed.rgb = mix(composed.rgb, blurred.rgb, clamp(uBlurOverlay.w, 0.0, 1.0));
+                }
+                if (uScrim.w > 0.0) {
+                    float sy = (topDownUv.y - uScrim.x) / max(uScrim.y, 0.001);
+                    composed.rgb *= 1.0 - uScrim.z * uScrim.w * exp(-sy * sy);
                 }
                 gl_FragColor = finalizeColorGrading(composed, topDownUv);
             }

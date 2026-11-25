@@ -19,10 +19,15 @@ class AudioDuckingEngine(
      * smoothed ducking envelope, never by a per-hop instantaneous gain jump
      * (which made the music pump and sound like scratching under speech).
      */
-    val effectiveDuckGainDb: Double = config.minimumVoiceMusicGapDb?.let { gap ->
-        minOf(config.underSpeechGainDb, config.bgGainDb - gap)
-    } ?: config.underSpeechGainDb
+    val effectiveDuckGainDb: Double = listOfNotNull(
+        config.underSpeechGainDb,
+        config.duckDepthDb?.let { config.bgGainDb + it },
+        config.minimumVoiceMusicGapDb?.let { config.bgGainDb - it }
+    ).minOrNull() ?: config.underSpeechGainDb
     private val duckLinear = dbToLinear(effectiveDuckGainDb).toFloat()
+    private val voiceLinear = dbToLinear(config.voiceGainDb).toFloat()
+    private val useLinearDbEnvelope = config.attackCurve.equals("linear_db", ignoreCase = true) &&
+        config.releaseCurve.equals("linear_db", ignoreCase = true)
     private val peakLimitLinear = dbToLinear(config.peakLimitDb).toFloat()
     private val limiterKneeLinear = peakLimitLinear * 0.6f
 
@@ -77,20 +82,31 @@ class AudioDuckingEngine(
                 lastVoiceHoldHops--
             }
             val targetDuck = if (speechDetected || lastVoiceHoldHops > 0) 1.0 else 0.0
-            val coeff = if (targetDuck > duckEnvelope) attackCoeff else releaseCoeff
-            duckEnvelope = targetDuck + coeff * (duckEnvelope - targetDuck)
+            duckEnvelope = if (useLinearDbEnvelope) {
+                val stepMs = 10.0
+                val durationMs = if (targetDuck > duckEnvelope) config.attackMs else config.releaseMs
+                val step = (stepMs / max(1.0, durationMs.toDouble())).coerceIn(0.0, 1.0)
+                duckEnvelope + (targetDuck - duckEnvelope) * step
+            } else {
+                val coeff = if (targetDuck > duckEnvelope) attackCoeff else releaseCoeff
+                targetDuck + coeff * (duckEnvelope - targetDuck)
+            }
 
             totalDuckingHops++
             if (duckEnvelope > 0.25) activeDuckingHops++
 
-            val musicGain = (bgLinear + (duckLinear - bgLinear) * duckEnvelope.toFloat()) * musicBaseScale
+            val musicGain = (if (useLinearDbEnvelope) {
+                dbToLinear(config.bgGainDb + (effectiveDuckGainDb - config.bgGainDb) * duckEnvelope).toFloat()
+            } else {
+                bgLinear + (duckLinear - bgLinear) * duckEnvelope.toFloat()
+            }) * musicBaseScale
             if (musicGain > maxAppliedMusicGain) maxAppliedMusicGain = musicGain
             if (musicGain < minAppliedMusicGain) minAppliedMusicGain = musicGain
             for (f in 0 until block) {
                 val base = (idx + f) * channels
                 for (c in 0 until channels) {
                     val pos = base + c
-                    val cap = if (config.includeCaptureVoice) capturePcm[pos] / 32768.0f else 0f
+                    val cap = if (config.includeCaptureVoice) (capturePcm[pos] / 32768.0f) * voiceLinear else 0f
                     val mus = (musicPcm[pos] / 32768.0f) * musicGain
                     val mixed = softLimit(cap + mus)
                     if (abs(mixed) > maxPeakLinear) maxPeakLinear = abs(mixed)

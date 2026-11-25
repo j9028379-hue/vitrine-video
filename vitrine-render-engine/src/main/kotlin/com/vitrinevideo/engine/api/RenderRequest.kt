@@ -1,5 +1,7 @@
 package com.vitrinevideo.engine.api
 
+import com.vitrinevideo.engine.interpreter.AudioProfileSpec
+import com.vitrinevideo.engine.interpreter.RenderPlan
 import java.io.File
 
 data class CaptureClip(
@@ -26,5 +28,8 @@ data class RenderRequest(
     val jobJsonRaw: String? = null,
     val sessionId: String = "",
     val rejectedPreviousSessionIds: Set<String> = emptySet(),
-    val rejectedPreviousCaptureSha256s: Set<String> = emptySet()
+    val rejectedPreviousCaptureSha256s: Set<String> = emptySet(),
+    /** Pre-parsed IR from a verified package; avoids re-parsing derived adapters. */
+    val preparsedPlan: RenderPlan? = null,
+    val preparsedAudioProfile: AudioProfileSpec? = null
 )
