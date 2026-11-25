@@ -3,6 +3,7 @@ package com.vitrinevideo.engine
 import com.vitrinevideo.engine.audio.AudioDuckingEngine
 import com.vitrinevideo.engine.interpreter.AudioMixConfig
 import com.vitrinevideo.engine.interpreter.EffectCurveEvaluator
+import com.vitrinevideo.engine.interpreter.EffectKeyframe
 import com.vitrinevideo.engine.interpreter.UniversalJsonInterpreter
 import com.vitrinevideo.engine.pkg.TemplatePackageLoader
 import org.junit.Assert.assertEquals

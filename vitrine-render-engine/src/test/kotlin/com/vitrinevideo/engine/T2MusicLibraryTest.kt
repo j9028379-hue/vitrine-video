@@ -80,8 +80,9 @@ class T2MusicLibraryTest {
         val assetRoot = TestAssetLocator.projectFile("vitrine-video-app/src/main/assets/music")
         val plain = assetRoot.walkTopDown().filter { it.isFile && it.extension.equals("mp3", true) }.toList()
         assertTrue("Raw MP3 must never be committed: $plain", plain.isEmpty())
-        assertTrue((assetRoot / "COMMERCE-T2/1.0.0/library.json").isFile)
-        assertEquals(4, (assetRoot / "COMMERCE-T2/1.0.0").listFiles()!!.count { it.name.endsWith(".vault") })
+        val libraryDir = File(assetRoot, "COMMERCE-T2/1.0.0")
+        assertTrue(File(libraryDir, "library.json").isFile)
+        assertEquals(4, libraryDir.listFiles()!!.count { it.name.endsWith(".vault") })
     }
 
     private fun derivedProfileJson(): String {
