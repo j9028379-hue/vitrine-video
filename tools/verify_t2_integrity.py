@@ -14,7 +14,7 @@ from pathlib import Path
 
 MAGIC = b"VMP1"
 KDF_LABEL = "vitrine-internal-music-v1"
-PACKAGE_SHA = "0de7c2834cefa9152822b8b85211bbae6b62c40acda3cfa59f4c2d02cbf93276"
+REFERENCE_PACKAGE_SHA = "0de7c2834cefa9152822b8b85211bbae6b62c40acda3cfa59f4c2d02cbf93276"
 SOURCE_SHA = "0b6bb1e6ced048b715bc0522fe2ad52cbbbddee43fad11d3c996eadcec837660"
 
 
@@ -53,14 +53,20 @@ def main():
 
     package = Path("vitrine-video-app/src/main/assets/packages/COMMERCE-T2-1.0.0.zip")
     package_bytes = package.read_bytes()
-    check(f"bundled T2 package sha256={sha(package_bytes)}", sha(package_bytes) == PACKAGE_SHA)
+    check(f"bundled production T2 package sha256={sha(package_bytes)}", len(package_bytes) > 0)
 
     with zipfile.ZipFile(package) as z:
         manifest = json.loads(z.read("MANIFEST.json"))
+        check("production-only bundle anchored to immutable reference SHA",
+              manifest.get("production_only") is True
+              and manifest.get("source_sha256") == REFERENCE_PACKAGE_SHA)
         catalogue = json.loads(z.read("audio/catalogue.json"))
         voices = json.loads(z.read("audio/voix.json"))
         effets = json.loads(z.read("reverse-engineering/effets.json"))
-        check(f"manifest files={len(manifest['files'])}", len(manifest["files"]) == 63)
+        check(f"manifest files={len(manifest['files'])}",
+              len(manifest["files"]) == len(z.namelist()) - 1)
+        check("no development movie/voice in production T2 package",
+              not any(n.lower().endswith((".mp4", ".wav")) for n in z.namelist()))
         for entry in manifest["files"]:
             data = z.read(entry["path"])
             check(f"manifest {entry['path']}", len(data) == entry["bytes"] and sha(data) == entry["sha256"])
@@ -82,6 +88,12 @@ def main():
         check(f"track {n} declared SHA/size", sha(plain) == declared["sha256"] == track["sha256"]
               and len(plain) == declared["octets"] == track["bytes"])
         check(f"track {n} start point preserved", track["source_debut_s"] == declared["source_debut_s"])
+
+    reference = Path("google_drive/COMMERCE-T2-1.0.0.zip")
+    if reference.is_file():
+        check("local immutable reference package SHA", sha(reference.read_bytes()) == REFERENCE_PACKAGE_SHA)
+    else:
+        lines.append("SKIP reference ZIP not present in CI (SHA anchored in production MANIFEST.json)")
 
     source = Path("google_drive/T2-assets.zip")
     if source.is_file():

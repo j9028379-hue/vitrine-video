@@ -79,7 +79,10 @@ object MockupResponseMapper {
                 // includes the key in `required`; preserve omission as an empty optional value.
                 if (!out.containsKey("fin")) out["fin"] = ""
             }
-            "COMMERCE-T1" -> {
+            "COMMERCE-T1", "COMMERCE-T2" -> {
+                // T1/T2 render-job contracts both require `accroche`. The shared mockup
+                // historically emitted `demonstration` for #q-accroche, so normalise it
+                // here as well as at the bridge source.
                 val legacyBridgeValue = out.remove("demonstration")
                 if (!out.containsKey("accroche") && legacyBridgeValue != null) out["accroche"] = legacyBridgeValue
             }

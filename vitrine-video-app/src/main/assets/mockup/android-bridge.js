@@ -138,13 +138,13 @@
         card.setAttribute("data-soon-label", label);
       }
     });
-    ["t2"].forEach((f) => {
-      const card = document.querySelector(`.format-card[data-format="${f}"]`);
-      if (card) {
-        card.setAttribute("data-coming-soon", "true");
-        card.setAttribute("data-soon-label", label);
-      }
-    });
+    // T2 ("Nouvel arrivage") is a production template: never mark it coming-soon.
+    const t2Card = document.querySelector('.format-card[data-format="t2"]');
+    if (t2Card) {
+      t2Card.removeAttribute("data-coming-soon");
+      t2Card.removeAttribute("data-soon-label");
+      t2Card.classList.remove("is-soon");
+    }
   }
 
   function showToast(id, msg) {
@@ -168,6 +168,14 @@
       promo: val("q-promo"),
       fin: val("q-fin"),
       localisation: val("q-quartier"),
+      whatsapp: val("q-whatsapp")
+    };
+    if (activeTemplateFormat === "t2") return {
+      nom: val("q-nom"),
+      produit: val("q-produit"),
+      prix: val("q-prix"),
+      accroche: val("q-accroche"),
+      quartier: val("q-quartier"),
       whatsapp: val("q-whatsapp")
     };
     return {

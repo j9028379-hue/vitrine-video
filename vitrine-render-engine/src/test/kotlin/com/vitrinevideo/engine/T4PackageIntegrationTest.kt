@@ -60,7 +60,9 @@ class T4PackageIntegrationTest {
             assertEquals("{habituel}", overlay.windows[4].whiteTextTemplate)
             assertEquals("{promo}", overlay.windows[4].accentTextTemplate)
             assertTrue(pkg.renderPlan.scenes.flatMap { it.shots }.any { it.gridLayout?.rows == 2 && it.gridLayout?.columns == 1 })
-            assertTrue(pkg.packageDir.resolve("render/demo/voix/Voix-seule-T4.wav").exists())
+            assertFalse("Demo voices must stay in CI fixtures, not production assets",
+                pkg.packageDir.resolve("render/demo/voix/Voix-seule-T4.wav").exists())
+            assertTrue(audio.tracks.any { it.relativePath.startsWith("audio/pistes/") && it.relativePath.endsWith(".mp3") })
             assertFalse(audio.tracks.any { it.relativePath.contains("voix", ignoreCase = true) })
         } finally {
             temp.deleteRecursively()
