@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
-"""Build the selective RESTAURATION-T3 production adapter from its official ZIP.
+"""Build the selective RESTAURATION-T3 adapter from official or sealed inputs.
 
-The archive is read in place after SHA-256 and ZIP-integrity checks. Only the
-explicit source whitelist, four approved 30-second tracks (sealed in the internal
-music vault), and the three declared fonts are admitted. No source archive,
-voice/demo media, rush, screenshots, simulations, tools, reports or fixtures enter
-Android assets.
+When the official source ZIP is available, it is read in place after SHA-256 and
+ZIP-integrity checks. CI intentionally does not receive that 26 MB archive
+because it contains raw music and audit/demo media; there, the exact whitelisted
+JSON/font inputs are rebuilt from the checksum-verified sanitized runtime package
+and the existing sealed music vault is reused. No raw voice/demo media, rush,
+screenshots, simulations, tools, reports or fixtures enter Android assets.
 """
 from __future__ import annotations
 
@@ -13,6 +14,7 @@ import base64
 import hashlib
 import hmac
 import json
+import os
 import zipfile
 from pathlib import Path
 
@@ -506,57 +508,139 @@ def build_screens(flow: dict, guide: dict) -> dict:
             "retake_deletes_previous_capture":True},"ecrans":screens}
 
 
+def load_embedded_sources():
+    """Rebuild from the already-sanitized runtime package when the source ZIP is absent.
+
+    The source ZIP is intentionally excluded from Git because it contains raw
+    source music and audit/demo media. Its whitelisted JSON/font inputs are
+    already preserved byte-for-byte under `contracts/`; sealed music is reused.
+    """
+    with zipfile.ZipFile(PACKAGE_ZIP) as z:
+        if z.testzip() is not None:
+            raise SystemExit("existing sanitized runtime package is corrupt")
+        old_manifest = json.loads(z.read("MANIFEST.json"))
+        if old_manifest.get("source_sha256") != ARCHIVE_SHA:
+            raise SystemExit("embedded runtime package is not bound to the official T3 source")
+        for entry in old_manifest.get("files", []):
+            try:
+                payload = z.read(entry["path"])
+            except KeyError as exc:
+                raise SystemExit(f"embedded runtime package file missing: {entry['path']}") from exc
+            if len(payload) != entry["bytes"] or sha(payload) != entry["sha256"]:
+                raise SystemExit(f"embedded runtime package file failed its SHA-256: {entry['path']}")
+        source = {}
+        for rel in KEEP:
+            if rel in TRACK_FILES.values():
+                continue
+            if rel.startswith(FONT_ROOT) and rel.endswith(".ttf"):
+                entry = f"templates/restauration/restauration-t3/assets/fonts/{Path(rel).name}"
+            else:
+                entry = "contracts/" + rel
+            try:
+                source[rel] = z.read(entry)
+            except KeyError as exc:
+                raise SystemExit(f"sanitized source contract missing from runtime ZIP: {entry}") from exc
+        mix_runtime = json.loads(z.read("audio/voix.json"))
+        old_voice_schema = z.read("contracts/schemas/T3_voice_mix.schema.json")
+        old_job_schema = z.read("contracts/schemas/render_job.schema.json")
+    inventory_path = DOCS / "SOURCE_INVENTORY.txt"
+    inventory_text = inventory_path.read_text(encoding="utf-8")
+    import re
+    match = re.search(r"ARCHIVE_ENTRIES=(\d+).*?PRODUCTION_KEEP=(\d+) AUDIT_ONLY=(\d+) DROP=(\d+)", inventory_text, re.S)
+    if not match:
+        raise SystemExit("verified source inventory is needed for offline package regeneration")
+    counts = tuple(map(int, match.groups()))
+    library_path = MUSIC_DIR / "library.json"
+    if not library_path.is_file():
+        raise SystemExit("sealed T3 music library absent; offline regeneration cannot reseal source MP3")
+    library = json.loads(library_path.read_text(encoding="utf-8"))
+    if library.get("template_id") != TEMPLATE_ID or library.get("version") != VERSION:
+        raise SystemExit("existing sealed T3 music library identity mismatch")
+    return source, mix_runtime, old_manifest["source_contract_hashes"], counts, library, old_voice_schema, old_job_schema
+
+
 def main() -> None:
-    if not ARCHIVE.is_file() or sha(ARCHIVE.read_bytes()) != ARCHIVE_SHA:
-        raise SystemExit("official RESTAURATION-T3 archive SHA-256 mismatch")
-    with zipfile.ZipFile(ARCHIVE) as z:
-        if z.testzip() is not None: raise SystemExit("archive integrity failure")
-        names=z.namelist()
-        kept,audit,dropped=classify(names)
-        source={rel:z.read(TOP+rel) for rel in kept}
-        audit_data={rel:z.read(TOP+rel) for rel in audit}
+    source_archive_available = ARCHIVE.is_file() and os.environ.get("T3_FORCE_OFFLINE_REBUILD") != "1"
+    if source_archive_available:
+        if sha(ARCHIVE.read_bytes()) != ARCHIVE_SHA:
+            raise SystemExit("official RESTAURATION-T3 archive SHA-256 mismatch")
+        with zipfile.ZipFile(ARCHIVE) as z:
+            if z.testzip() is not None: raise SystemExit("archive integrity failure")
+            names=z.namelist()
+            kept,audit,dropped=classify(names)
+            source={rel:z.read(TOP+rel) for rel in kept}
+            audit_data={rel:z.read(TOP+rel) for rel in audit}
+            template=json.loads(source[TEMPLATE]);flow=json.loads(source[FLOW]);motion=json.loads(source[MOTION])
+            trans=json.loads(source[TRANSITIONS]);form=json.loads(source[FORM]);guide=json.loads(source[GUIDE])
+            pack=json.loads(source[MUSIC]);voice_mix=json.loads(audit_data[VOICE_MIX])
+            if template["template_id"]!=TEMPLATE_ID or flow["template_id"]!=TEMPLATE_ID: raise SystemExit("T3 template identity mismatch")
+            if template["format"]!={**template["format"],"width":720,"height":1280,"fps":30,"frames":900,"duration_s":30.0,"scene_durations_s":[6,8,7,9]}: raise SystemExit("T3 format contract mismatch")
+            if flow["scene_durations_ms"]!=[6000,8000,7000,9000] or len(flow["screens"])!=12: raise SystemExit("capture flow contract mismatch")
+            if motion["schema_version"]!="0.4.0" or len(trans["timeline_events"])!=17: raise SystemExit("v0.4 transition contract mismatch")
+            if trans["owner_constraints"]["visible_transition_guides_allowed"] or trans["owner_corrections"][0]["resolution"].find("separator_lines=false")==-1: raise SystemExit("visible transition separators must remain forbidden")
+            if [f["id"] for f in form["fields"]]!=["nom","produit","prix","whatsapp","quartier","accroche"]: raise SystemExit("merchant field order mismatch")
+            if len(pack["tracks"])!=4: raise SystemExit("expected exactly four approved music derivatives")
+            font_hashes={}
+            for role,spec in motion["fonts"].items():
+                path=spec["file"]
+                data=source[path]
+                if sha(data)!=spec["sha256"]: raise SystemExit(f"font hash mismatch: {path}")
+                font_hashes[path]=sha(data)
+            tracks={}
+            for track in pack["tracks"]:
+                rel=track["file"]
+                raw=z.read(TOP+rel)
+                if sha(raw)!=track["sha256"] or len(raw)!=track["bytes"]: raise SystemExit(f"music hash/size mismatch: {rel}")
+                if track["duration_s"]!=30.0 or not track["production_eligible"] or not track["audition_approved_by_owner"]:
+                    raise SystemExit(f"music approval/length mismatch: {rel}")
+                tracks[{"A":1,"B":2,"C":3,"D":4}[track["choice"]]]=raw
+        source_contract_hashes={p:sha(source[p]) for p in [TEMPLATE,FLOW,MOTION,TRANSITIONS,FORM,GUIDE,MUSIC]}
+        mix_runtime=None
+        counts=(len(names),len(kept),len(audit),len(dropped))
+        old_voice_schema=old_job_schema=None
+        existing_library=None
+    else:
+        source,mix_runtime,source_contract_hashes,counts,existing_library,old_voice_schema,old_job_schema=load_embedded_sources()
         template=json.loads(source[TEMPLATE]);flow=json.loads(source[FLOW]);motion=json.loads(source[MOTION])
         trans=json.loads(source[TRANSITIONS]);form=json.loads(source[FORM]);guide=json.loads(source[GUIDE])
-        pack=json.loads(source[MUSIC]);voice_mix=json.loads(audit_data[VOICE_MIX])
-        if template["template_id"]!=TEMPLATE_ID or flow["template_id"]!=TEMPLATE_ID: raise SystemExit("T3 template identity mismatch")
-        if template["format"]!={**template["format"],"width":720,"height":1280,"fps":30,"frames":900,"duration_s":30.0,"scene_durations_s":[6,8,7,9]}: raise SystemExit("T3 format contract mismatch")
-        if flow["scene_durations_ms"]!=[6000,8000,7000,9000] or len(flow["screens"])!=12: raise SystemExit("capture flow contract mismatch")
-        if motion["schema_version"]!="0.4.0" or len(trans["timeline_events"])!=17: raise SystemExit("v0.4 transition contract mismatch")
-        if trans["owner_constraints"]["visible_transition_guides_allowed"] or trans["owner_corrections"][0]["resolution"].find("separator_lines=false")==-1: raise SystemExit("visible transition separators must remain forbidden")
-        if [f["id"] for f in form["fields"]]!=["nom","produit","prix","whatsapp","quartier","accroche"]: raise SystemExit("merchant field order mismatch")
+        pack=json.loads(source[MUSIC]);voice_mix=None;tracks={}
         if len(pack["tracks"])!=4: raise SystemExit("expected exactly four approved music derivatives")
         font_hashes={}
-        for role,spec in motion["fonts"].items():
+        for spec in motion["fonts"].values():
             path=spec["file"]
-            data=source[path]
-            if sha(data)!=spec["sha256"]: raise SystemExit(f"font hash mismatch: {path}")
-            font_hashes[path]=sha(data)
-        tracks={}
+            if sha(source[path])!=spec["sha256"]: raise SystemExit(f"font hash mismatch: {path}")
+            font_hashes[path]=sha(source[path])
+        sealed_by_number={int(t["numero"]):t for t in existing_library["tracks"]}
         for track in pack["tracks"]:
-            rel=track["file"]
-            raw=z.read(TOP+rel)
-            if sha(raw)!=track["sha256"] or len(raw)!=track["bytes"]: raise SystemExit(f"music hash/size mismatch: {rel}")
-            if track["duration_s"]!=30.0 or not track["production_eligible"] or not track["audition_approved_by_owner"]:
-                raise SystemExit(f"music approval/length mismatch: {rel}")
-            tracks[{"A":1,"B":2,"C":3,"D":4}[track["choice"]]]=raw
+            number={"A":1,"B":2,"C":3,"D":4}[track["choice"]]
+            sealed=sealed_by_number.get(number)
+            if sealed is None or sealed["sha256"]!=track["sha256"] or sealed["bytes"]!=track["bytes"]:
+                raise SystemExit(f"sealed music metadata does not match source candidate {number}")
+        if template["template_id"]!=TEMPLATE_ID or flow["template_id"]!=TEMPLATE_ID: raise SystemExit("T3 template identity mismatch")
+        if flow["scene_durations_ms"]!=[6000,8000,7000,9000] or len(flow["screens"])!=12: raise SystemExit("capture flow contract mismatch")
+        if motion["schema_version"]!="0.4.0" or len(trans["timeline_events"])!=17: raise SystemExit("v0.4 transition contract mismatch")
+        if len(form["fields"])!=6: raise SystemExit("merchant field count mismatch")
 
-    # Record deterministic KEEP/AUDIT/DROP classification and all kept source hashes.
+    # Record a full source inventory only when the original source archive is available.
     DOCS.mkdir(parents=True,exist_ok=True)
-    inventory=[f"SOURCE={ARCHIVE.name}",f"SOURCE_SHA256={ARCHIVE_SHA}",f"ARCHIVE_ENTRIES={len(names)}",
-        f"PRODUCTION_KEEP={len(kept)} AUDIT_ONLY={len(audit)} DROP={len(dropped)}","","[PRODUCTION_KEEP]"]
-    inventory += [f"KEEP {p} SHA256={sha(source[p])} :: {why}" for p,why in sorted(kept.items())]
-    inventory += ["","[AUDIT_ONLY_NOT_PACKAGED]"]
-    inventory += [f"AUDIT {p} SHA256={sha(audit_data[p])} :: {why}" for p,why in sorted(audit.items())]
-    inventory += ["","[VERIFIED_THEN_SEALED_MUSIC]"]
-    inventory += [f"SEALED {t['file']} SHA256={t['sha256']} BYTES={t['bytes']} choice={t['choice']}" for t in sorted(pack["tracks"], key=lambda x:x["choice"])]
-    inventory += ["","[DROP]"]
-    inventory += [f"DROP {p} :: {why}" for p,why in sorted(dropped.items())]
-    (DOCS/"SOURCE_INVENTORY.txt").write_text("\n".join(inventory)+"\n",encoding="utf-8")
+    archive_entries,keep_count,audit_count,drop_count=counts
+    if source_archive_available:
+        inventory=[f"SOURCE={ARCHIVE.name}",f"SOURCE_SHA256={ARCHIVE_SHA}",f"ARCHIVE_ENTRIES={len(names)}",
+            f"PRODUCTION_KEEP={len(kept)} AUDIT_ONLY={len(audit)} DROP={len(dropped)}","","[PRODUCTION_KEEP]"]
+        inventory += [f"KEEP {p} SHA256={sha(source[p])} :: {why}" for p,why in sorted(kept.items())]
+        inventory += ["","[AUDIT_ONLY_NOT_PACKAGED]"]
+        inventory += [f"AUDIT {p} SHA256={sha(audit_data[p])} :: {why}" for p,why in sorted(audit.items())]
+        inventory += ["","[VERIFIED_THEN_SEALED_MUSIC]"]
+        inventory += [f"SEALED {t['file']} SHA256={t['sha256']} BYTES={t['bytes']} choice={t['choice']}" for t in sorted(pack["tracks"], key=lambda x:x["choice"])]
+        inventory += ["","[DROP]"]
+        inventory += [f"DROP {p} :: {why}" for p,why in sorted(dropped.items())]
+        (DOCS/"SOURCE_INVENTORY.txt").write_text("\n".join(inventory)+"\n",encoding="utf-8")
 
     # Build the sanitized runtime template contract while retaining the original
     # source hash and all non-voice production declarations for audit.
     template_runtime=build_runtime_template(template)
-    mix_runtime=build_voice_mix_contract(voice_mix)
+    if source_archive_available:
+        mix_runtime=build_voice_mix_contract(voice_mix)
     partition=build_partition(template,flow,motion,trans,form,font_hashes,guide)
     audio_catalogue=build_audio_catalogue(pack)
     prefix="templates/restauration/restauration-t3/"
@@ -599,7 +683,7 @@ def main() -> None:
         "package_id":f"{TEMPLATE_ID}-{VERSION}","runtime_bundle":True,"production_only":True,
         "source_archive":ARCHIVE.name,"source_sha256":ARCHIVE_SHA,
         "composer":"tools/build_restauration_t3_package.py",
-        "source_contract_hashes":{p:sha(source[p]) for p in [TEMPLATE,FLOW,MOTION,TRANSITIONS,FORM,GUIDE,MUSIC]},
+        "source_contract_hashes":source_contract_hashes,
         "files":[{"path":p,"role":"runtime mobile","bytes":len(data),"sha256":sha(data)} for p,data in sorted(pkg_files.items())]}
     PACKAGE_DIR.mkdir(parents=True,exist_ok=True)
     tmp=PACKAGE_ZIP.with_suffix(".zip.tmp")
@@ -609,25 +693,34 @@ def main() -> None:
             out.writestr(info,data)
     tmp.replace(PACKAGE_ZIP)
 
-    library={"schema_version":"1.0.0","template_id":TEMPLATE_ID,"version":VERSION,
-        "audio_profile":AUDIO_PROFILE,"cipher":"HMAC_SHA256_CTR_V1","source_contract":"contracts/"+MUSIC,"tracks":[]}
     MUSIC_DIR.mkdir(parents=True,exist_ok=True)
-    for number in range(1,5):
-        track=next(t for t in pack["tracks"] if {"A":1,"B":2,"C":3,"D":4}[t["choice"]]==number)
-        iv=hashlib.sha256(f"{TEMPLATE_ID}|{VERSION}|{number}|iv".encode()).digest()[:12]
-        vault=f"{number:02d}.mp3.vault"
-        (MUSIC_DIR/vault).write_bytes(seal(tracks[number],number,iv))
-        library["tracks"].append({"numero":number,"candidate_id":track["id"],"resource":f"audio/pistes/{number:02d}.mp3",
-            "vault":vault,"iv_b64":base64.b64encode(iv).decode("ascii"),"sha256":track["sha256"],"bytes":track["bytes"],
-            "source_debut_s":0.0,"duration_s":track["duration_s"],"sample_rate_hz":track["sample_rate_hz"],
-            "channels":track["channels"],"bitrate_kbps":track["bitrate_kbps"],"contains_voice":False})
-    (MUSIC_DIR/"library.json").write_bytes(jdump(library))
+    if source_archive_available:
+        library={"schema_version":"1.0.0","template_id":TEMPLATE_ID,"version":VERSION,
+            "audio_profile":AUDIO_PROFILE,"cipher":"HMAC_SHA256_CTR_V1","source_contract":"contracts/"+MUSIC,"tracks":[]}
+        for number in range(1,5):
+            track=next(t for t in pack["tracks"] if {"A":1,"B":2,"C":3,"D":4}[t["choice"]]==number)
+            iv=hashlib.sha256(f"{TEMPLATE_ID}|{VERSION}|{number}|iv".encode()).digest()[:12]
+            vault=f"{number:02d}.mp3.vault"
+            (MUSIC_DIR/vault).write_bytes(seal(tracks[number],number,iv))
+            library["tracks"].append({"numero":number,"candidate_id":track["id"],"resource":f"audio/pistes/{number:02d}.mp3",
+                "vault":vault,"iv_b64":base64.b64encode(iv).decode("ascii"),"sha256":track["sha256"],"bytes":track["bytes"],
+                "source_debut_s":0.0,"duration_s":track["duration_s"],"sample_rate_hz":track["sample_rate_hz"],
+                "channels":track["channels"],"bitrate_kbps":track["bitrate_kbps"],"contains_voice":False})
+        (MUSIC_DIR/"library.json").write_bytes(jdump(library))
+    else:
+        library=existing_library
+        for entry in library["tracks"]:
+            vault_file=MUSIC_DIR/entry["vault"]
+            if not vault_file.is_file() or vault_file.stat().st_size == 0:
+                raise SystemExit(f"sealed music vault missing during offline rebuild: {vault_file}")
 
     resources={p:sha(d) for p,d in sorted(pkg_files.items())}
     resources.update({f"music/{TEMPLATE_ID}/{VERSION}/{p.name}":sha(p.read_bytes()) for p in sorted(MUSIC_DIR.iterdir())})
     (DOCS/"RESOURCE_MANIFEST.txt").write_text("\n".join(["APK RESOURCE ALLOWLIST — RESTAURATION-T3",f"SOURCE_SHA256={ARCHIVE_SHA}",
         *[f"{p} SHA256={digest}" for p,digest in resources.items()],"RAW_MP3_ASSETS=0","VOICE_DEMO_FILES=0","VIDEO_DEMOS_RUSHES_FIXTURES=0"])+"\n",encoding="utf-8")
-    checks=[f"SOURCE_SHA256={ARCHIVE_SHA}",f"SOURCE_ENTRIES={len(names)} KEEP={len(kept)} AUDIT_ONLY={len(audit)} DROP={len(dropped)}",
+    checks=[f"SOURCE_SHA256={ARCHIVE_SHA}",
+        f"SOURCE_MODE={'official_archive' if source_archive_available else 'sanitized_runtime_contracts_and_reused_sealed_music'}",
+        f"SOURCE_ENTRIES={archive_entries} KEEP={keep_count} AUDIT_ONLY={audit_count} DROP={drop_count}",
         f"PACKAGE={PACKAGE_ZIP} BYTES={PACKAGE_ZIP.stat().st_size} SHA256={sha(PACKAGE_ZIP.read_bytes())}",
         f"PACKAGE_FILES={len(pkg_files)} SEALED_MUSIC_TRACKS={len(library['tracks'])}",
         "RAW_MP3_IN_APK_ASSETS=0","FIXED_VOICE_OR_CANDIDATE_AUDIO=0","VIDEOS_SCREENSHOTS_FIXTURES=0",

@@ -355,7 +355,7 @@ jobs:
         run: |
           set -euo pipefail
           rm -rf render-fixtures
-          mkdir -p render-fixtures/t4_fixture/captures render-fixtures/t3_fixture/captures
+          mkdir -p render-fixtures/t4_fixture/captures render-fixtures/t3_fixture/captures render-fixtures/t3_fixture/music
           unzip -q vitrine-video-app/src/main/assets/packages/COMMERCE-T4-1.0.0.zip -d render-fixtures/t4_fixture
           cp test-fixtures/t3_fixture/captures/S1.mp4 test-fixtures/t3_fixture/captures/S2.mp4 \\
              test-fixtures/t3_fixture/captures/S3.mp4 test-fixtures/t3_fixture/captures/S4.mp4 \\
