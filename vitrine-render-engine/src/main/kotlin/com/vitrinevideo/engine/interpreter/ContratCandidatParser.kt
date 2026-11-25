@@ -90,10 +90,19 @@ object ContratCandidatParser {
                 "F" -> TransitionType.TRANCHE_PIP
                 "G" -> TransitionType.BANDE_OBLIQUE_RECUL
                 "H" -> TransitionType.LAMELLES_FERMETURE
-                else -> throw IllegalArgumentException("Motif T1 inconnu: $motif")
+                // Declared by the Restauration T5 montage adapter. Both gestures
+                // use the engine's full-frame directional wipe primitive.
+                "T5L", "T5LF", "T5R" -> TransitionType.WIPE_DIRECTIONNEL
+                else -> throw IllegalArgumentException("Motif de transition inconnu: $motif")
             }
             required += type.capability
-            transitions += TransitionSpec(start, end - start, type, motif.uppercase())
+            transitions += TransitionSpec(
+                startFrame = start,
+                durationFrames = end - start,
+                type = type,
+                motifId = motif.uppercase(),
+                direction = effect.optString("direction", if (motif.uppercase() == "T5R") "right" else "left")
+            )
         }
 
         val fontRoot = json.optString("asset_root", assetRoot).trimEnd('/')
@@ -147,6 +156,9 @@ object ContratCandidatParser {
                 "plume" -> TextEntryAnim.PLUME
                 "lever" -> TextEntryAnim.LEVER
                 "vague" -> TextEntryAnim.VAGUE_REVEAL
+                // Whole-block alpha fade: the declared unit is the text block,
+                // never an individual letter (Restauration T5 V4 policy).
+                "fondu" -> TextEntryAnim.FONDU
                 else -> TextEntryAnim.COUPE
             }
             textWindows += TextWindowSpec(
@@ -164,7 +176,7 @@ object ContratCandidatParser {
                 overrideStyle = TextStyleSpec(
                     fontSizePx = layer.optDouble("taille_px", 60.0),
                     maxWidthPx = layer.optDouble("largeur_max", 606.0),
-                    lineSpacingPx = layer.optDouble("taille_px", 60.0) * 1.08,
+                    lineSpacingPx = layer.optDouble("taille_px", 60.0) * layer.optDouble("interligne_ratio", 1.08),
                     twoLineBaseY = layer.optJSONArray("centre")?.optDouble(1) ?: height * 0.5,
                     singleLineBaseY = layer.optJSONArray("centre")?.optDouble(1) ?: height * 0.5,
                     emRefPx = layer.optDouble("taille_px", 60.0)
@@ -185,11 +197,15 @@ object ContratCandidatParser {
             endSectionStyle = null, endSectionStartFrame = null,
             exportBand = BandExportSpec(0, height),
             relief = TextReliefSpec(
-                shadowColorRgba = "rgba(45,28,21,0.72)", shadowDxPx = 2.0, shadowDyPx = 4.0,
-                shadowBlurPx = 4.0, strokeColorRgba = "rgba(45,28,21,1.0)", strokeWidthPx = 3.0
+                shadowColorRgba = typography.optString("shadow_rgba", "rgba(45,28,21,0.72)"),
+                shadowDxPx = typography.optDouble("shadow_dx_px", 2.0),
+                shadowDyPx = typography.optDouble("shadow_dy_px", 4.0),
+                shadowBlurPx = typography.optDouble("shadow_blur_px", 4.0),
+                strokeColorRgba = typography.optString("outline_rgba", "rgba(45,28,21,1.0)"),
+                strokeWidthPx = typography.optDouble("outline_width_px", 3.0)
             ),
             wave = null, fieldBindings = fieldBindings, maxLinesByField = emptyMap(), windows = textWindows,
-            fadeFrames = 0
+            fadeFrames = json.optInt("fade_frames", 0)
         )
 
         val audioProfile = json.optString("audio_profile", "")

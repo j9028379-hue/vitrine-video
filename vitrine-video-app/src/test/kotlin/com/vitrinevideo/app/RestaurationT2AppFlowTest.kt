@@ -26,15 +26,18 @@ class RestaurationT2AppFlowTest {
     }
 
     @Test
-    fun onlyRestaurationT2IsEnabledAndNoDomainIdCollides() {
+    fun restaurationIdsAreT1T2T3T5AndNoDomainIdCollides() {
         assertEquals("RESTAURATION-T2", TemplateCatalogue.RESTAURATION_T2)
         assertTrue(TemplateCatalogue.isSupported("COMMERCE-T1"))
         assertTrue(TemplateCatalogue.isSupported("COMMERCE-T2"))
         assertTrue(TemplateCatalogue.isSupported("COMMERCE-T3"))
         assertTrue(TemplateCatalogue.isSupported("COMMERCE-T4"))
         assertTrue(TemplateCatalogue.isSupported("RESTAURATION-T2"))
-        assertEquals(5, TemplateCatalogue.SUPPORTED_IDS.size)
-        assertFalse(TemplateCatalogue.SUPPORTED_IDS.any { it.startsWith("RESTAURATION-T") && it != "RESTAURATION-T2" })
+        assertEquals(6, TemplateCatalogue.SUPPORTED_IDS.size)
+        assertEquals(
+            setOf("RESTAURATION-T2", "RESTAURATION-T5"),
+            TemplateCatalogue.SUPPORTED_IDS.filter { it.startsWith("RESTAURATION-T") }.toSet()
+        )
         assertFalse(TemplateCatalogue.SUPPORTED_IDS.contains("RESTAURATION-T4"))
         val html = File(assetsRoot(), "mockup/vitrine-video-maquette.html").readText()
         assertFalse(html.contains("témoignage client", ignoreCase = true))
@@ -101,10 +104,10 @@ class RestaurationT2AppFlowTest {
     }
 
     @Test
-    fun bridgeBlocksOtherRestaurationTemplatesButEnablesAvantApres() {
+    fun bridgeBlocksUnavailableRestaurationTemplatesButEnablesT2AndT5() {
         val bridge = File(assetsRoot(), "mockup/android-bridge.js").readText()
         assertTrue(bridge.contains("sector !== \"commerce\" && sector !== \"resto\""))
-        assertTrue(bridge.contains("[\"t1\", \"t2\", \"t3\", \"t4\", \"r2\"].includes(fmt)"))
+        assertTrue(bridge.contains("[\"t1\", \"t2\", \"t3\", \"t4\", \"r2\", \"r4\"].includes(fmt)"))
         assertFalse(bridge.contains("\"r1\"].includes(fmt)"))
         assertTrue(bridge.contains("fmt === \"r2\" ? \"RESTAURATION-T2\""))
         assertTrue(bridge.contains("activeTemplateFormat === \"t2\" || activeTemplateFormat === \"r2\""))

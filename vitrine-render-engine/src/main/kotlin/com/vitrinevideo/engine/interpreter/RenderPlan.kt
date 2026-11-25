@@ -144,7 +144,9 @@ data class TransitionSpec(
     val startFrame: Int,
     val durationFrames: Int,
     val type: TransitionType,
-    val motifId: String = ""
+    val motifId: String = "",
+    /** Declared wipe travel. "left" reveals incoming from the right edge; "right" from the left. */
+    val direction: String = "right"
 )
 
 data class TextStyleSpec(

@@ -138,9 +138,9 @@
         card.setAttribute("data-soon-label", label);
       }
     });
-    // Production templates: Commerce T1-T4 and the single activated Restauration
-    // template (Avant / Après). Restauration T1/T3/T5 remain unavailable here.
-    document.querySelectorAll('.format-card[data-format="t1"], .format-card[data-format="t2"], .format-card[data-format="t3"], .format-card[data-format="t4"], .format-card[data-format="r2"]').forEach((card) => {
+    // Production templates: Commerce T1-T4 and the two activated Restauration
+    // templates (Avant / Après and Formule, combo et offre).
+    document.querySelectorAll('.format-card[data-format="t1"], .format-card[data-format="t2"], .format-card[data-format="t3"], .format-card[data-format="t4"], .format-card[data-format="r2"], .format-card[data-format="r4"]').forEach((card) => {
       card.removeAttribute("data-coming-soon");
       card.removeAttribute("data-soon-label");
       card.classList.remove("is-soon");
@@ -156,6 +156,33 @@
     toast._timer = setTimeout(() => toast.classList.remove("is-visible"), 2600);
   }
 
+  /**
+   * T5 only: a transient 3-2-1 before the camera opens. It is not one of the
+   * 12 stable screens, is never recorded into the take, and adds no duration.
+   */
+  function startWithCountdown(sceneIdx) {
+    const overlay = document.createElement("div");
+    overlay.className = "vitrine-countdown";
+    overlay.setAttribute("role", "status");
+    overlay.setAttribute("aria-live", "polite");
+    overlay.textContent = "3";
+    document.body.appendChild(overlay);
+    let remaining = 3;
+    const tick = () => {
+      if (remaining > 0) {
+        overlay.textContent = String(remaining--);
+        setTimeout(tick, 700);
+      } else {
+        overlay.textContent = "ON FILME !";
+        setTimeout(() => {
+          overlay.remove();
+          if (hasBridge()) window.VitrineAndroid.openSceneCamera(sceneIdx);
+        }, 450);
+      }
+    };
+    tick();
+  }
+
   function collectFormResponses() {
     const val = (id) => {
       const el = document.getElementById(id);
@@ -169,6 +196,14 @@
       fin: val("q-fin"),
       localisation: val("q-quartier"),
       whatsapp: val("q-whatsapp")
+    };
+    if (activeTemplateFormat === "r4") return {
+      nom: val("q-nom"),
+      offre: val("q-produit"),
+      contenu: val("q-accroche"),
+      prix: val("q-prix"),
+      whatsapp: val("q-whatsapp"),
+      quartier: val("q-quartier")
     };
     if (activeTemplateFormat === "t2" || activeTemplateFormat === "r2") return {
       nom: val("q-nom"),
@@ -207,11 +242,11 @@
       }
     };
     setVal("q-nom", resp.nom || resp.commerce || "");
-    setVal("q-produit", resp.produit || "");
+    setVal("q-produit", resp.produit || resp.offre || "");
     setVal("q-prix", resp.prix || resp.habituel || "");
     setVal("q-promo", resp.promo || "");
     setVal("q-fin", resp.fin || "");
-    setVal("q-accroche", resp.accroche || resp.demonstration || "");
+    setVal("q-accroche", resp.accroche || resp.contenu || resp.demonstration || "");
     setVal("q-quartier", resp.quartier || resp.localisation || "");
     setVal("q-whatsapp", resp.whatsapp || "");
   }
@@ -326,7 +361,7 @@
           const card = e.target.closest(".format-card");
           if (!card) return;
           const fmt = card.dataset.format || card.id.replace(/^format-/, "");
-          if (!["t1", "t2", "t3", "t4", "r2"].includes(fmt)) {
+          if (!["t1", "t2", "t3", "t4", "r2", "r4"].includes(fmt)) {
             e.preventDefault();
             e.stopImmediatePropagation();
             const fr = getCurrentLang() === "fr";
@@ -341,6 +376,7 @@
           activeTemplateFormat = fmt;
           if (hasBridge()) {
             const packageId = fmt === "r2" ? "RESTAURATION-T2"
+              : fmt === "r4" ? "RESTAURATION-T5"
               : fmt === "t1" ? "COMMERCE-T1"
               : fmt === "t2" ? "COMMERCE-T2"
               : fmt === "t4" ? "COMMERCE-T4" : "COMMERCE-T3";
@@ -389,7 +425,10 @@
             stopAllGuideAudio();
             const flow = window.__vitrineFlow && window.__vitrineFlow.getState();
             const sceneIdx = flow ? flow.scene : 0;
-            if (hasBridge()) {
+            if (!hasBridge()) return;
+            if (activeTemplateFormat === "r4") {
+              startWithCountdown(sceneIdx);
+            } else {
               window.VitrineAndroid.openSceneCamera(sceneIdx);
             }
             return;

@@ -16,7 +16,7 @@ env:
 
 jobs:
   t2-package:
-    name: T2 package, SHA and internal music evidence
+    name: T2/T5 packages, SHA and internal music evidence
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -28,14 +28,18 @@ jobs:
       - name: Verify RESTAURATION-T2 archive inventory, package and sealed music
         run: python3 tools/verify_restauration_t2_integrity.py
 
-      - name: Upload T2 evidence
+      - name: Verify RESTAURATION-T5 archive inventory, package and sealed music
+        run: python3 tools/verify_restauration_t5_integrity.py
+
+      - name: Upload T2/T5 evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: t2-package-evidence
+          name: t2-t5-package-evidence
           path: |
             ci-artifacts/T2_INTEGRITY_REPORT.txt
             ci-artifacts/RESTAURATION_T2_INTEGRITY_REPORT.txt
+            ci-artifacts/T5_INTEGRITY_REPORT.txt
           if-no-files-found: warn
 
   tests:

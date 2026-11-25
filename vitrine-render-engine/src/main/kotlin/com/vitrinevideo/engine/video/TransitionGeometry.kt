@@ -13,7 +13,8 @@ data class TransitionMaskState(
     val rects: List<NormalizedRect> = emptyList(),
     val diagonalTopX: Float = 0f,
     val diagonalBottomX: Float = 0f,
-    val alphaIncoming: Float = 1f
+    val alphaIncoming: Float = 1f,
+    val direction: String = "right"
 )
 
 /**
@@ -59,7 +60,14 @@ object TransitionGeometry {
                 )
             }
             TransitionType.WIPE_DIRECTIONNEL -> {
-                TransitionMaskState(spec.type, q, rects = listOf(NormalizedRect(0f, 0f, q, 1f)))
+                // Full-frame wipe only: no cards, mosaics or decorative layers.
+                // An existing contract without a declared direction keeps the
+                // historical left-edge reveal.
+                val rect = if (spec.direction.equals("left", ignoreCase = true))
+                    NormalizedRect(1f - q, 0f, q, 1f)
+                else
+                    NormalizedRect(0f, 0f, q, 1f)
+                TransitionMaskState(spec.type, q, rects = listOf(rect), direction = spec.direction)
             }
             TransitionType.CROSSFADE -> {
                 TransitionMaskState(spec.type, q, alphaIncoming = q)
