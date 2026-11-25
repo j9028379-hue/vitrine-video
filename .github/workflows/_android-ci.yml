@@ -290,27 +290,27 @@ jobs:
   single-apk:
     name: Publish single validated Release APK
     needs: [tests, build]
-    if: ${{ hashFiles('.ci-publish-single-apk') != '' }}
+    if: ${{ needs.tests.result == 'success' && needs.build.result == 'success' }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
 
-      - name: Reassemble and verify CI Release APK
-        run: |
-          set -euo pipefail
-          mkdir -p delivery-single
-          cat ci-delivery/apk-chunks/VitrineVideo-release-ci-signed.apk.part-* \
-            > delivery-single/VitrineVideo-release-ci-signed.apk
-          test "$(stat -c %s delivery-single/VitrineVideo-release-ci-signed.apk)" = "125564647"
-          echo "40e9d70fe80ea74be1bbb99c30cb15479ff5e4f0382ee5bb4d78f99b7fcf9381  delivery-single/VitrineVideo-release-ci-signed.apk" | sha256sum -c -
-
-      - name: Attach single APK to public release
+      - name: Reassemble, verify and attach single Release APK
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_REPO: ${{ github.repository }}
         run: |
           set -euo pipefail
+          if [ ! -f .ci-publish-single-apk ]; then
+            echo "Single-APK publishing marker absent; nothing to do."
+            exit 0
+          fi
+          mkdir -p delivery-single
+          cat ci-delivery/apk-chunks/VitrineVideo-release-ci-signed.apk.part-* \
+            > delivery-single/VitrineVideo-release-ci-signed.apk
+          test "$(stat -c %s delivery-single/VitrineVideo-release-ci-signed.apk)" = "125564647"
+          echo "40e9d70fe80ea74be1bbb99c30cb15479ff5e4f0382ee5bb4d78f99b7fcf9381  delivery-single/VitrineVideo-release-ci-signed.apk" | sha256sum -c -
           gh release upload t2-single-apk \
             delivery-single/VitrineVideo-release-ci-signed.apk \
             --clobber --repo "$GH_REPO"
