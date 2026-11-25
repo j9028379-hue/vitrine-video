@@ -141,11 +141,11 @@ object RenderScriptTextLayoutParser {
                 TextCall(
                     x = m.groupValues[1].toInt(),
                     y = m.groupValues[2].toInt(),
-                    fieldKey = m.groupValues[3].takeIf { it.isNotBlank() },
-                    fixedLabel = m.groupValues[4].takeIf { it.isNotBlank() },
-                    size = m.groupValues[5].toInt(),
-                    face = m.groupValues[6],
-                    colorName = m.groupValues[7]
+                    fieldKey = m.groupValues[4].takeIf { it.isNotBlank() },
+                    fixedLabel = m.groupValues[5].takeIf { it.isNotBlank() },
+                    size = m.groupValues[6].toInt(),
+                    face = m.groupValues[7],
+                    colorName = m.groupValues[8]
                 )
             }.toList()
             if (calls.isNotEmpty() && sceneIndex != null) result += TextGroup(sceneIndex!!, phase, calls)

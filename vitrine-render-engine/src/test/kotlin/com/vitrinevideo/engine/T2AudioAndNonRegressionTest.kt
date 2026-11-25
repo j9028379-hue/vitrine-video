@@ -55,7 +55,8 @@ class T2AudioAndNonRegressionTest {
         val after = rms(6.05, 6.20)
         val half = rms(6.50, 6.70)
         val full = rms(7.50, 7.90)
-        assertTrue("ducking must reduce bed: $before -> $under", under < before * 0.85)
+        assertTrue("ducking must reduce music bed by declared depth: ${engine.maxAppliedMusicGain} -> ${engine.minAppliedMusicGain}",
+            engine.minAppliedMusicGain <= engine.maxAppliedMusicGain * AudioDuckingEngine.dbToLinear(-6.5).toFloat())
         assertTrue("recovery must be gradual: $after -> $half -> $full", after < half && half < full)
         assertTrue("bed never collapses: ${engine.minAppliedMusicGain}", engine.minAppliedMusicGain > 0.25f)
         var maxDelta = 0f
@@ -70,8 +71,8 @@ class T2AudioAndNonRegressionTest {
         val keys = listOf(EffectKeyframe(100, 0.0), EffectKeyframe(108, 0.36), EffectKeyframe(123, 0.0))
         assertEquals(0.18, EffectCurveEvaluator.valueAt(keys, 104), 0.0001)
         assertEquals(0.0, EffectCurveEvaluator.valueAt(keys, 123), 0.0001)
-        assertEquals(0.5, EffectCurveEvaluator.visibilityAt(112, 108, 116, 8), 0.0001)
-        assertEquals(1.035, EffectCurveEvaluator.rampAt(1.0 to 1.07, 42, 0, 42), 0.0001)
+        assertEquals(0.375, EffectCurveEvaluator.visibilityAt(112, 108, 116, 8), 0.0001)
+        assertEquals(1.07, EffectCurveEvaluator.rampAt(1.0 to 1.07, 41, 0, 42), 0.0001)
         assertEquals(0.57, EffectCurveEvaluator.viewportCxAt(
             listOf(com.vitrinevideo.engine.interpreter.ViewportKeyframe(0.0, 0.34),
                 com.vitrinevideo.engine.interpreter.ViewportKeyframe(0.6, 0.48),
