@@ -1,0 +1,70 @@
+{
+  "schema_version": "1.0.0",
+  "template_id": "RESTAURATION-T2",
+  "version": "1.0.0",
+  "audio_profile": "afrobeat_restaurants_maquis",
+  "cipher": "HMAC_SHA256_CTR_V1",
+  "source_contract": "contracts/config/T2_music_pool_v1_0_0.json",
+  "tracks": [
+    {
+      "numero": 1,
+      "candidate_id": "A",
+      "resource": "audio/pistes/01.mp3",
+      "vault": "01.mp3.vault",
+      "iv_b64": "5k3w4DD6kFf5AABJ",
+      "sha256": "d6f9c2e1c03bcda34e758958546c768114b3d2da84a1ac14e1bde3c26d1d940b",
+      "bytes": 721196,
+      "source_debut_s": 0.0,
+      "duration_s": 30.0,
+      "sample_rate_hz": 48000,
+      "channels": 2,
+      "bitrate_kbps": 192,
+      "contains_voice": false
+    },
+    {
+      "numero": 2,
+      "candidate_id": "B",
+      "resource": "audio/pistes/02.mp3",
+      "vault": "02.mp3.vault",
+      "iv_b64": "FSbTMUN4L3ycWPL7",
+      "sha256": "820ba48c5ebe01de9e67da26e521112eedf558f67b506b7a85737cd112625e50",
+      "bytes": 721196,
+      "source_debut_s": 0.0,
+      "duration_s": 30.0,
+      "sample_rate_hz": 48000,
+      "channels": 2,
+      "bitrate_kbps": 192,
+      "contains_voice": false
+    },
+    {
+      "numero": 3,
+      "candidate_id": "C",
+      "resource": "audio/pistes/03.mp3",
+      "vault": "03.mp3.vault",
+      "iv_b64": "wD3T2yr52NKC7SRf",
+      "sha256": "1f78562b2bd6b169824afcddefc1764717f26221187574491c823e5f721c92b8",
+      "bytes": 721196,
+      "source_debut_s": 0.0,
+      "duration_s": 30.0,
+      "sample_rate_hz": 48000,
+      "channels": 2,
+      "bitrate_kbps": 192,
+      "contains_voice": false
+    },
+    {
+      "numero": 4,
+      "candidate_id": "D",
+      "resource": "audio/pistes/04.mp3",
+      "vault": "04.mp3.vault",
+      "iv_b64": "NZtuVQNrCCNScB+E",
+      "sha256": "96d43530088ce467547c4bda2993f3c58292feedcf62fcfc6d8666ce9bfee6e7",
+      "bytes": 721196,
+      "source_debut_s": 1.83,
+      "duration_s": 30.0,
+      "sample_rate_hz": 48000,
+      "channels": 2,
+      "bitrate_kbps": 192,
+      "contains_voice": false
+    }
+  ]
+}

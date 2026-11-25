@@ -69,7 +69,7 @@ object ContratCandidatParser {
                     }
                 )
             }
-            scenes += SceneSpec(id, start, end, role = s.optString("prise", ""), shots = shots)
+            scenes += SceneSpec(id, start, end, role = s.optString("titre", s.optString("prise", "")), shots = shots)
             cursor = end
         }
 
@@ -96,13 +96,29 @@ object ContratCandidatParser {
             transitions += TransitionSpec(start, end - start, type, motif.uppercase())
         }
 
+        val fontRoot = json.optString("asset_root", assetRoot).trimEnd('/')
         val fonts = json.optJSONObject("polices") ?: JSONObject()
         val typography = json.getJSONObject("typographie")
-        val palette = typography.optJSONObject("couleurs")
         val ink = rgbHex(typography.optJSONArray("encre_rgb"), "#FFF5E0")
         val reliefHex = rgbHex(typography.optJSONArray("relief_rgb"), "#2D1C15")
         val scriptFont = typography.optString("script", "")
         val serifFont = typography.optString("serif", "")
+        // A package may declare named font roles (e.g. script/serif/utility/utility_bold)
+        // or legacy file-name keys. Both remain data-driven: no template is hardcoded here.
+        fun fontFile(alias: String): String = fonts.optString(alias, "").takeIf { it.isNotBlank() }
+            ?: when (alias) { "script" -> scriptFont; else -> serifFont }
+        val namedFontPaths = linkedMapOf<String, String>()
+        val fontKeys = fonts.keys()
+        while (fontKeys.hasNext()) {
+            val alias = fontKeys.next()
+            val declared = fonts.optString(alias, "")
+            // Legacy `polices` maps a file path to its SHA; named roles map a role to a file.
+            namedFontPaths[alias] = if (declared.matches(Regex("^[0-9a-fA-F]{64}$"))) alias else fontFile(alias)
+        }
+        val extraFontPaths = LinkedHashMap(namedFontPaths)
+        extraFontPaths.putIfAbsent("fallback", "$fontRoot/DejaVuSans.ttf")
+        val extraFontHashes = namedFontPaths.mapValues { fonts.optString(it.value, fonts.optString(it.key, "")) }.toMutableMap()
+        extraFontHashes.putIfAbsent("fallback", fonts.optString("DejaVuSans.ttf", ""))
         val layers = json.optJSONArray("calques") ?: JSONArray()
 
         for (i in 0 until layers.length()) {
@@ -114,8 +130,11 @@ object ContratCandidatParser {
             val images = layer.optJSONArray("images") ?: JSONArray()
             require(images.length() == 2) { "Calque ${layer.optString("id")}: images doit contenir début et fin" }
             val fontAlias = layer.optString("police", "serif")
-            val fontPath = assetRoot.trimEnd('/') + "/" + when (fontAlias) { "script" -> scriptFont; else -> serifFont }
-            val fallbackFont = assetRoot.trimEnd('/') + "/DejaVuSans.ttf"
+            val declaredFont = fontFile(fontAlias)
+            val fontPath = "$fontRoot/$declaredFont"
+            val secondaryAlias = layer.optString("police_secours", "")
+            val fallbackFont = if (secondaryAlias.isNotBlank()) "$fontRoot/${fontFile(secondaryAlias)}"
+                else "$fontRoot/DejaVuSans.ttf"
             val animation = when (layer.optString("mouvement")) {
                 "plume" -> TextEntryAnim.PLUME
                 "lever" -> TextEntryAnim.LEVER
@@ -131,9 +150,10 @@ object ContratCandidatParser {
                 maxLines = layer.optInt("lignes_max", 2), maxHeightPx = layer.optDouble("maxHeightPx", 132.0),
                 fontRelativePath = fontPath,
                 fallbackFontRelativePath = if (layer.optString("id") == "offre") fallbackFont else null,
-                fontSha256 = fonts.optString(when (fontAlias) { "script" -> scriptFont; else -> serifFont }, ""),
+                fontSha256 = fonts.optString(fontAlias, "").takeIf { it.matches(Regex("^[0-9a-fA-F]{64}$")) }
+                    ?: fonts.optString(declaredFont, ""),
                 inkColorHex = ink, reliefColorHex = reliefHex,
-                skipAutoWhatsappPrefix = layer.optString("id") == "numero",
+                skipAutoWhatsappPrefix = layer.optBoolean("sans_prefixe_whatsapp", layer.optString("id") == "numero"),
                 overrideStyle = TextStyleSpec(
                     fontSizePx = layer.optDouble("taille_px", 60.0),
                     maxWidthPx = layer.optDouble("largeur_max", 606.0),
@@ -147,11 +167,12 @@ object ContratCandidatParser {
         if (textWindows.isNotEmpty()) {
             required += textWindows.map { it.entryAnim.capability }
         }
+        val overlaySerif = fontFile("serif")
         val textSpec = if (textWindows.isEmpty()) null else TextOverlaySpec(
             fontFamily = "sans-serif", fontWeight = 400,
-            fontRelativePath = assetRoot.trimEnd('/') + "/" + serifFont, fontSha256 = fonts.optString(serifFont, ""),
-            extraFontPaths = mapOf("script" to assetRoot.trimEnd('/') + "/" + scriptFont, "serif" to assetRoot.trimEnd('/') + "/" + serifFont, "fallback" to assetRoot.trimEnd('/') + "/DejaVuSans.ttf"),
-            extraFontSha256s = mapOf("script" to fonts.optString(scriptFont, ""), "serif" to fonts.optString(serifFont, ""), "fallback" to fonts.optString("DejaVuSans.ttf", "")),
+            fontRelativePath = "$fontRoot/$overlaySerif", fontSha256 = fonts.optString(overlaySerif, ""),
+            extraFontPaths = extraFontPaths,
+            extraFontSha256s = extraFontHashes,
             colorHex = ink,
             defaultStyle = TextStyleSpec(68.0, 606.0, 74.0, height * 0.5, height * 0.5, 68.0),
             endSectionStyle = null, endSectionStartFrame = null,

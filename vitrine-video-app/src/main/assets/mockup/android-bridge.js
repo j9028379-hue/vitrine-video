@@ -131,20 +131,20 @@
   function updateComingSoonBadges() {
     const fr = getCurrentLang() === "fr";
     const label = fr ? "Bientôt" : "Soon";
-    ["beaute", "resto"].forEach((s) => {
+    ["beaute"].forEach((s) => {
       const card = document.querySelector(`.card[data-sector="${s}"]`);
       if (card) {
         card.setAttribute("data-coming-soon", "true");
         card.setAttribute("data-soon-label", label);
       }
     });
-    // T2 ("Nouvel arrivage") is a production template: never mark it coming-soon.
-    const t2Card = document.querySelector('.format-card[data-format="t2"]');
-    if (t2Card) {
-      t2Card.removeAttribute("data-coming-soon");
-      t2Card.removeAttribute("data-soon-label");
-      t2Card.classList.remove("is-soon");
-    }
+    // Production templates: Commerce T1-T4 and the single activated Restauration
+    // template (Avant / Après). Restauration T1/T3/T5 remain unavailable here.
+    document.querySelectorAll('.format-card[data-format="t1"], .format-card[data-format="t2"], .format-card[data-format="t3"], .format-card[data-format="t4"], .format-card[data-format="r2"]').forEach((card) => {
+      card.removeAttribute("data-coming-soon");
+      card.removeAttribute("data-soon-label");
+      card.classList.remove("is-soon");
+    });
   }
 
   function showToast(id, msg) {
@@ -170,7 +170,7 @@
       localisation: val("q-quartier"),
       whatsapp: val("q-whatsapp")
     };
-    if (activeTemplateFormat === "t2") return {
+    if (activeTemplateFormat === "t2" || activeTemplateFormat === "r2") return {
       nom: val("q-nom"),
       produit: val("q-produit"),
       prix: val("q-prix"),
@@ -301,15 +301,15 @@
         "click",
         (e) => {
           const sector = card.dataset.sector;
-          if (sector !== "commerce") {
+          if (sector !== "commerce" && sector !== "resto") {
             e.preventDefault();
             e.stopImmediatePropagation();
             const fr = getCurrentLang() === "fr";
             showToast(
               "sector-toast",
               fr
-                ? "Choisissez le secteur Commerce : quatre gabarits sont disponibles."
-                : "Choose the Commerce sector: four templates are available."
+                ? "Choisissez Commerce ou Restauration."
+                : "Choose Commerce or Food & restaurant."
             );
           }
         },
@@ -326,21 +326,25 @@
           const card = e.target.closest(".format-card");
           if (!card) return;
           const fmt = card.dataset.format || card.id.replace(/^format-/, "");
-          if (fmt !== "t1" && fmt !== "t2" && fmt !== "t3" && fmt !== "t4") {
+          if (!["t1", "t2", "t3", "t4", "r2"].includes(fmt)) {
             e.preventDefault();
             e.stopImmediatePropagation();
             const fr = getCurrentLang() === "fr";
             showToast(
               "format-toast",
               fr
-                ? "Ce gabarit sera ajouté prochainement. Choisis « Présentation de mon commerce » ou « Démonstration »."
-                : "This template will be added soon. Choose 'Business presentation' or 'Demonstration'."
+                ? "Ce gabarit sera ajouté prochainement. Choisis un gabarit disponible dans ce secteur."
+                : "This template will be added soon. Choose an available template in this sector."
             );
             return;
           }
           activeTemplateFormat = fmt;
           if (hasBridge()) {
-            window.VitrineAndroid.onTemplateSelected(fmt === "t1" ? "COMMERCE-T1" : fmt === "t2" ? "COMMERCE-T2" : fmt === "t4" ? "COMMERCE-T4" : "COMMERCE-T3");
+            const packageId = fmt === "r2" ? "RESTAURATION-T2"
+              : fmt === "t1" ? "COMMERCE-T1"
+              : fmt === "t2" ? "COMMERCE-T2"
+              : fmt === "t4" ? "COMMERCE-T4" : "COMMERCE-T3";
+            window.VitrineAndroid.onTemplateSelected(packageId);
             try {
               const saved = JSON.parse(window.VitrineAndroid.getSavedResponsesJson() || "{}");
               if (Object.keys(saved).length > 0) {

@@ -716,7 +716,8 @@ body{
   min-height:96px; gap:11px; padding:8px; border-radius:22px;
   border:1.4px solid #F5ECE8; box-shadow:0 8px 18px rgba(100,36,8,.12);
 }
-.format-card--featured{ border:1.6px solid #FF6A00; box-shadow:0 9px 20px rgba(255,95,0,.15); }
+/* Cards are neutral at rest; the active outline appears only after a real click. */
+.format-card.is-selected{ border:1.8px solid #FF6A00; box-shadow:0 10px 24px rgba(255,95,0,.24); }
 .format-card__media--art{ width:92px; height:82px; border-radius:16px; background:linear-gradient(145deg,#FFF2E4,#FFE8D3); display:grid; place-items:center; overflow:hidden; }
 .format-card__media--art svg{ width:77px; height:77px; overflow:visible; }
 .format-code{ position:absolute; z-index:2; left:5px; top:5px; padding:2px 8px 3px; border-radius:999px; background:linear-gradient(100deg,#FF7800,#F04A00); color:#fff; font-size:11px; line-height:1.1; font-weight:800; }
@@ -1382,7 +1383,7 @@ body{
         <p class="formats-sub" data-i18n="formats.sub">Choisis un format et crée ta vidéo facilement pour ton commerce.</p>
 
         <div class="formats">
-          <button class="format-card format-card--featured" id="format-t1" data-format="t1" data-sector="commerce" type="button">
+          <button class="format-card" id="format-t1" data-format="t1" data-sector="commerce" type="button">
             <span class="format-card__media format-card__media--art">
               <svg viewBox="0 0 100 100" aria-hidden="true">
                 <path d="M70 15l4-10m11 18 10-8m-4 19 9 1" stroke="#FF6A00" stroke-width="5" stroke-linecap="round"/>
@@ -1420,7 +1421,7 @@ body{
             <span class="format-card__body"><span class="format-card__title" data-i18n="formats.t4.title">Promotion</span><span class="format-card__desc" data-i18n="formats.t4.desc">Fais une offre spéciale pour attirer les clients.</span></span>
             <span class="chev"><svg viewBox="0 0 24 24"><path d="M9 5l7 7-7 7" fill="none" stroke="#FF6A00" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
           </button>
-          <button class="format-card format-card--featured" id="format-r1" data-format="r1" data-sector="resto" type="button">
+          <button class="format-card" id="format-r1" data-format="r1" data-sector="resto" type="button">
             <span class="format-card__media format-card__media--art">
               <svg viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="52" r="34" fill="none" stroke="#FF6A00" stroke-width="5"/><circle cx="50" cy="52" r="24" fill="none" stroke="#FF7A00" stroke-width="3"/><circle cx="44" cy="48" r="6" fill="#0A1550"/><circle cx="58" cy="46" r="5" fill="#0A1550"/><circle cx="52" cy="58" r="4" fill="#0A1550"/><path d="M50 14v8M46 16l-3 8M54 16l3 8" stroke="#FF6A00" stroke-width="4" stroke-linecap="round"/></svg>
             </span>
@@ -1817,7 +1818,7 @@ body{
   };
 
   /* ---------- 2. État de l'application -------------------- */
-  const state = { lang: "fr", sector: null, format: "t1" };
+  const state = { lang: "fr", sector: null, format: "t1", selectedFormat: null };
 
   const $  = (s, r = document) => r.querySelector(s);
   const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
@@ -1911,6 +1912,14 @@ body{
       const show=(cardSector===sector);
       card.style.display=show?"":"none";
     });
+    applyFormatCardSelection();
+  }
+
+  /* L'état actif n'est jamais précoché : il suit uniquement un clic utilisateur. */
+  function applyFormatCardSelection(){
+    document.querySelectorAll(".format-card").forEach((card)=>{
+      card.classList.toggle("is-selected", card.dataset.format===state.selectedFormat);
+    });
   }
 
   /* Parcours maquette T1 : guide écrit, aperçu caméra et relecture noirs */
@@ -1991,6 +2000,8 @@ body{
     const selectedFormat=card.dataset.format||card.id.replace(/^format-/,'');
     if(selectedFormat==="t1"||selectedFormat==="t2"||selectedFormat==="t3"||selectedFormat==="t4"||selectedFormat==="r1"||selectedFormat==="r2"||selectedFormat==="r3"||selectedFormat==="r4"){
       state.format=selectedFormat;
+      state.selectedFormat=selectedFormat;
+      applyFormatCardSelection();
       applyQuestionTemplate();
       goTo("s-questions",false);
       return;
@@ -2262,6 +2273,8 @@ body{
   /* ---------- 8. Démarrage -------------------------------- */
   function boot() {
     applyLang();
+    state.selectedFormat=null;
+    applyFormatCardSelection();
     $$(".screen").forEach((s) => s.classList.remove("is-active", "is-back"));
     current = 0;
     $("#s-splash").classList.add("is-active");
@@ -2308,6 +2321,8 @@ body{
     goTo: (id, back) => goTo(id, !!back),
     resetToBlank: (id) => {
       clearInterval(flow.timer);
+      state.selectedFormat=null;
+      applyFormatCardSelection();
       flow.template = state.format || "t3";
       flow.scene = 0;
       flow.stage = "guide";
@@ -2317,6 +2332,7 @@ body{
     selectT3: () => {
       state.sector = "commerce";
       state.format = "t3";
+      state.selectedFormat = null;
       applyFormatCards();
       applyQuestionTemplate();
     }

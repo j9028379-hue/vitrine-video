@@ -1,0 +1,11 @@
+RESTAURATION T2 VERSION / REFERENCE MATRIX
+official archive=360c01d0bd91c76614abcc1df31ddf4373eae8e360f7b3b41a891628552e820e
+app template_id=RESTAURATION-T2 version=1.0.0 (universal engine adapter, no T4/temoignage)
+source template template_id=T2 render_template_id=restaurants_maquis_T2_avant_apres_v0_1_0 version=0.1.0
+historical runtime v0.3/v0.6/v0.7 and current_demo_profile=silent_no_audio_stream kept verbatim as archived references only
+authoritative runtime config/T2_runtime_contract_v1_0_0.json: production_ready_owner_approved_four_track_rotation
+historical visual contract config/T2_text_motion_v0_3_0.json remains the visual source of truth (visual_logic_changed=false)
+historical auditions .m4a and demo voices .wav are audit-only and are not shipped
+transition ids T01-T06 and effect names preserved in the partition adapter; engine wire names declared beside each id
+music A/B/C/D approved 2026-11-18: 300340 -> 293956 -> 300333 -> 328624; strict successor after validated success only
+Commerce T1/T2/T3/T4 packages untouched; no cross-domain template id collision

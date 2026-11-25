@@ -90,6 +90,12 @@ object MockupResponseMapper {
                 val legacyUiValue = out.remove("accroche")
                 if (!out.containsKey("demonstration") && legacyUiValue != null) out["demonstration"] = legacyUiValue
             }
+            TemplateCatalogue.RESTAURATION_T2 -> {
+                // The shared UI field is #q-accroche. Only a genuinely legacy alias is
+                // remapped; an absent optional accroche stays absent and is never invented.
+                val legacyUiValue = out.remove("demonstration")
+                if (!out.containsKey("accroche") && legacyUiValue != null) out["accroche"] = legacyUiValue
+            }
         }
         return out
     }

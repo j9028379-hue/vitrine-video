@@ -20,12 +20,13 @@ object TemplatePackageRepository {
         "COMMERCE-T1" to Asset("packages/COMMERCE-T1-2.0.0.zip", "2.0.0"),
         "COMMERCE-T2" to Asset("packages/COMMERCE-T2-1.0.0.zip", "1.0.0"),
         "COMMERCE-T3" to Asset("packages/COMMERCE-T3-1.0.0.zip", "1.0.0"),
-        "COMMERCE-T4" to Asset("packages/COMMERCE-T4-1.0.0.zip", "1.0.0")
+        "COMMERCE-T4" to Asset("packages/COMMERCE-T4-1.0.0.zip", "1.0.0"),
+        TemplateCatalogue.RESTAURATION_T2 to Asset("packages/RESTAURATION-T2-1.0.0.zip", "1.0.0")
     )
 
     @Synchronized
     fun ensureLoaded(context: Context, templateId: String): LoadedTemplatePackage {
-        val asset = supported[templateId] ?: throw IllegalArgumentException("Gabarit Commerce non pris en charge: $templateId")
+        val asset = supported[templateId] ?: throw IllegalArgumentException("Gabarit non pris en charge: $templateId")
         val storageRoot = File(context.filesDir, "template_packages")
         val musicLibraryRoot = File(context.filesDir, "music_libraries")
         ensureMusicLibrary(context, templateId, asset.version, musicLibraryRoot)

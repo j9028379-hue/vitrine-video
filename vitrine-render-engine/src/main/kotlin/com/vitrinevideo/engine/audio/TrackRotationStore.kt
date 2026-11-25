@@ -21,6 +21,23 @@ object CyclicRotationAlgorithm {
     }
 }
 
+/**
+ * Generic strict A→B→C→D→A policy for owner-approved pools. It deliberately
+ * lives outside any template: the caller supplies the approved numbers from the
+ * package catalogue. State advances only after a validated success is committed.
+ */
+object StrictMusicRotation {
+    fun next(lastDeliveredTrack: Int?, approvedNumbers: List<Int>): Int =
+        CyclicRotationAlgorithm.nextTrackNumber(lastDeliveredTrack, approvedNumbers)
+
+    fun assertSuccess(lastDeliveredTrack: Int?, approvedNumbers: List<Int>, candidate: Int) {
+        val expected = next(lastDeliveredTrack, approvedNumbers)
+        require(candidate == expected) {
+            "Rotation stricte violée: attendu=$expected, reçu=$candidate"
+        }
+    }
+}
+
 interface RotationPersistence {
     fun findTrackForJob(profileId: String, runId: String): Int?
     fun getLastTrack(profileId: String): Int?
@@ -140,7 +157,18 @@ class TrackRotationCoordinator(
         return track to file
     }
 
-    fun commitAfterVerifiedRender(profileId: String, runId: String, trackNumber: Int) {
+    fun commitAfterVerifiedRender(
+        profileId: String,
+        runId: String,
+        trackNumber: Int,
+        approvedNumbers: List<Int> = emptyList()
+    ) {
+        if (approvedNumbers.isNotEmpty()) {
+            // Replaying the same successful job must not advance the cycle, and a
+            // failed render never reaches this method (no commit, no state change).
+            if (store.findTrackForJob(profileId, runId) != null) return
+            StrictMusicRotation.assertSuccess(store.getLastTrack(profileId), approvedNumbers, trackNumber)
+        }
         store.recordSuccess(profileId, runId, trackNumber)
     }
 

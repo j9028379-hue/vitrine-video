@@ -277,7 +277,10 @@ class VitrineRenderEngine(
             }
 
             if (audioProfile != null && selectedTrackNumber != null) {
-                rotationCoordinator.commitAfterVerifiedRender(audioProfile.id, preFlight.runId, selectedTrackNumber)
+                rotationCoordinator.commitAfterVerifiedRender(
+                    audioProfile.id, preFlight.runId, selectedTrackNumber,
+                    audioProfile.approvedNumbers.sorted()
+                )
             }
 
             val result = RenderResult(
