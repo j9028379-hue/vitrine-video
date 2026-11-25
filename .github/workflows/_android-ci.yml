@@ -148,6 +148,7 @@ jobs:
       - name: APK integrity, signature and SHA-256
         run: |
           set -euo pipefail
+          exec > >(tee ci-logs/apk-verification.log) 2>&1
           mkdir -p ci-artifacts
           : > ci-artifacts/SHA256SUMS.txt
           DEBUG_APK=$(find . -path '*/build/outputs/apk/debug/*.apk' -type f | head -n 1)
@@ -170,6 +171,7 @@ jobs:
           else
             cp "$RELEASE_APK" ci-artifacts/VitrineVideo-release.apk
           fi
+          rm -f ci-artifacts/ci-only.jks
           for f in ci-artifacts/*.apk; do
             stat -c '%n %s bytes' "$f"
             sha256sum "$f" >> ci-artifacts/SHA256SUMS.txt
@@ -190,7 +192,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: build-logs
-          path: ci-logs/gradle-build.log
+          path: ci-logs/**
           if-no-files-found: warn
 
   delivery-package:
