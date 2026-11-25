@@ -1,6 +1,6 @@
 # VITRINE VIDÉO — APK delivery package
-workflow_run=45607015897
-commit=7a8ff0b693fe06945be1b939cf77e53c9e84008c
+workflow_run=45614986771
+commit=700d842a03682ff8d5c9291cc809a531a6f454ef
 branch=arena/dd66abee-vitrine-video
 
 ## APK
@@ -8,20 +8,16 @@ T2 APKs exceed GitHub's 100 MB per-file limit, so each APK is stored as verified
 Reassemble with: cat <apk>.part-* > <apk> (in lexicographic order).
 
 name=VitrineVideo-debug.apk
-size=127167252 bytes
-sha256=00f2ba9a7273d2a27cbe0c2c2d45389c6d8d501682188eb79cf264908d1aceb9
-reassembled_sha256=00f2ba9a7273d2a27cbe0c2c2d45389c6d8d501682188eb79cf264908d1aceb9
-chunk=VitrineVideo-debug.apk.part-00 bytes=50331648
-chunk=VitrineVideo-debug.apk.part-01 bytes=50331648
-chunk=VitrineVideo-debug.apk.part-02 bytes=26503956
+size=48757496 bytes
+sha256=4bb25e2e2c12a48e8d0b2ad78795a4c28613a82abd3b0cfdf397dcf3ad9dbd46
+reassembled_sha256=4bb25e2e2c12a48e8d0b2ad78795a4c28613a82abd3b0cfdf397dcf3ad9dbd46
+chunk=VitrineVideo-debug.apk.part-00 bytes=48757496
 
 name=VitrineVideo-release-ci-signed.apk
-size=125564647 bytes
-sha256=83f10ebed99c401da38f281ff7f5b120982ec97394a927ae4c591ea8ec6b7ee7
-reassembled_sha256=83f10ebed99c401da38f281ff7f5b120982ec97394a927ae4c591ea8ec6b7ee7
-chunk=VitrineVideo-release-ci-signed.apk.part-00 bytes=50331648
-chunk=VitrineVideo-release-ci-signed.apk.part-01 bytes=50331648
-chunk=VitrineVideo-release-ci-signed.apk.part-02 bytes=24901351
+size=47154337 bytes
+sha256=537e43cbb1925b1280155456f625f725a9c5968fde60240fab18593ce3fc3a42
+reassembled_sha256=537e43cbb1925b1280155456f625f725a9c5968fde60240fab18593ce3fc3a42
+chunk=VitrineVideo-release-ci-signed.apk.part-00 bytes=47154337
 
 ## Source CI artifacts
 ci-delivery/artifacts/apk-release-evidence/SHA256SUMS.txt
@@ -38,6 +34,7 @@ ci-delivery/artifacts/junit-reports/vitrine-render-engine/build/reports/tests/te
 ci-delivery/artifacts/junit-reports/vitrine-render-engine/build/reports/tests/testDebugUnitTest/classes/com.vitrinevideo.engine.JsonVisualFidelityTest.html
 ci-delivery/artifacts/junit-reports/vitrine-render-engine/build/reports/tests/testDebugUnitTest/classes/com.vitrinevideo.engine.LocalPreviewAndVaultTest.html
 ci-delivery/artifacts/junit-reports/vitrine-render-engine/build/reports/tests/testDebugUnitTest/classes/com.vitrinevideo.engine.MemoryAndErrorGuardTest.html
+ci-delivery/artifacts/junit-reports/vitrine-render-engine/build/reports/tests/testDebugUnitTest/classes/com.vitrinevideo.engine.ProductionPackageAuditTest.html
 ci-delivery/artifacts/junit-reports/vitrine-render-engine/build/reports/tests/testDebugUnitTest/classes/com.vitrinevideo.engine.ServerSyncContractTest.html
 ci-delivery/artifacts/junit-reports/vitrine-render-engine/build/reports/tests/testDebugUnitTest/classes/com.vitrinevideo.engine.T2AudioAndNonRegressionTest.html
 ci-delivery/artifacts/junit-reports/vitrine-render-engine/build/reports/tests/testDebugUnitTest/classes/com.vitrinevideo.engine.T2MusicLibraryTest.html
@@ -65,6 +62,7 @@ ci-delivery/artifacts/junit-reports/vitrine-render-engine/build/test-results/tes
 ci-delivery/artifacts/junit-reports/vitrine-render-engine/build/test-results/testDebugUnitTest/TEST-com.vitrinevideo.engine.JsonVisualFidelityTest.xml
 ci-delivery/artifacts/junit-reports/vitrine-render-engine/build/test-results/testDebugUnitTest/TEST-com.vitrinevideo.engine.LocalPreviewAndVaultTest.xml
 ci-delivery/artifacts/junit-reports/vitrine-render-engine/build/test-results/testDebugUnitTest/TEST-com.vitrinevideo.engine.MemoryAndErrorGuardTest.xml
+ci-delivery/artifacts/junit-reports/vitrine-render-engine/build/test-results/testDebugUnitTest/TEST-com.vitrinevideo.engine.ProductionPackageAuditTest.xml
 ci-delivery/artifacts/junit-reports/vitrine-render-engine/build/test-results/testDebugUnitTest/TEST-com.vitrinevideo.engine.ServerSyncContractTest.xml
 ci-delivery/artifacts/junit-reports/vitrine-render-engine/build/test-results/testDebugUnitTest/TEST-com.vitrinevideo.engine.T2AudioAndNonRegressionTest.xml
 ci-delivery/artifacts/junit-reports/vitrine-render-engine/build/test-results/testDebugUnitTest/TEST-com.vitrinevideo.engine.T2MusicLibraryTest.xml
