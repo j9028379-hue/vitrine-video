@@ -424,7 +424,7 @@ private class VitrineSceneShaderProgram(
         val len = max(1, shot.outEndFrameExcluded - shot.outStartFrame - 1)
         val rawT = ((frame - shot.outStartFrame).toFloat() / len.toFloat()).coerceIn(0f, 1f)
         val t = TransitionGeometry.smoothstep(rawT)
-        val trajectoryCx = EffectCurveEvaluator.viewportCxAt(shot.viewportKeyframes, t)
+        val trajectoryCx = EffectCurveEvaluator.viewportCxAt(shot.viewportKeyframes, t.toDouble())
         val declaredZoom = plan.visualEffects.firstOrNull {
             it.kind == EffectKind.ZOOM && it.stage == EffectStage.COMPOSITE &&
                 frame in it.startFrame until it.endFrameExcluded
