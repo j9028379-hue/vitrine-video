@@ -83,7 +83,7 @@ jobs:
               r=ET.parse(f).getroot()
               total+=int(r.get('tests') or 0); fail+=int(r.get('failures') or 0)
               err+=int(r.get('errors') or 0); skip+=int(r.get('skipped') or 0)
-          print(f'JUNIT_TOTAL={total} FAILURES={fail} ERRORS={err} SKIPPED={skip}')
+          print(f'::notice::JUNIT_TOTAL={total} FAILURES={fail} ERRORS={err} SKIPPED={skip}')
           for f in glob.glob('**/build/test-results/**/*.xml', recursive=True):
               r=ET.parse(f).getroot()
               for case in r.iter('testcase'):
@@ -164,6 +164,7 @@ jobs:
           done
           "$APKSIGNER" verify --verbose ci-artifacts/VitrineVideo-release*.apk
           cat ci-artifacts/SHA256SUMS.txt
+          while IFS= read -r line; do echo "::notice::APK_SHA256 $line"; done < ci-artifacts/SHA256SUMS.txt
 
       - name: Upload APKs and integrity report
         uses: actions/upload-artifact@v4
