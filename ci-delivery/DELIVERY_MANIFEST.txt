@@ -1,0 +1,70 @@
+# VITRINE VIDÉO — APK delivery package
+workflow_run=45577749175
+commit=cc4b820044112e378000125bd2c8d4d203f528a7
+branch=arena/dd66abee-vitrine-video
+
+## APK
+96401c42876aaad636faab58ad971941c4ce7055dcff82ae2bc3dfeaaad8890f  ci-delivery/artifacts/apk-release-evidence/VitrineVideo-debug.apk
+aa6ceeb0e09fc31d8055fc01fd9900f9e47e84b90c4854033ee14b3d53a91886  ci-delivery/artifacts/apk-release-evidence/VitrineVideo-release-ci-signed.apk
+ci-delivery/artifacts/apk-release-evidence/VitrineVideo-debug.apk 45348291 bytes
+ci-delivery/artifacts/apk-release-evidence/VitrineVideo-release-ci-signed.apk 43762903 bytes
+
+## Artifacts included
+ci-delivery/artifacts/apk-release-evidence/SHA256SUMS.txt
+ci-delivery/artifacts/apk-release-evidence/VitrineVideo-debug.apk
+ci-delivery/artifacts/apk-release-evidence/VitrineVideo-release-ci-signed.apk
+ci-delivery/artifacts/apk-release-evidence/VitrineVideo-release-ci-signed.apk.idsig
+ci-delivery/artifacts/apk-release-evidence/ci-only.jks
+ci-delivery/artifacts/build-logs/gradle-build.log
+ci-delivery/artifacts/junit-reports/vitrine-render-engine/build/reports/tests/testDebugUnitTest/classes/com.vitrinevideo.engine.AudioDuckingAndRotationTest.html
+ci-delivery/artifacts/junit-reports/vitrine-render-engine/build/reports/tests/testDebugUnitTest/classes/com.vitrinevideo.engine.CapabilitiesRejectionTest.html
+ci-delivery/artifacts/junit-reports/vitrine-render-engine/build/reports/tests/testDebugUnitTest/classes/com.vitrinevideo.engine.CommerceT1PackageTest.html
+ci-delivery/artifacts/junit-reports/vitrine-render-engine/build/reports/tests/testDebugUnitTest/classes/com.vitrinevideo.engine.CommerceT3GoldenParityTest.html
+ci-delivery/artifacts/junit-reports/vitrine-render-engine/build/reports/tests/testDebugUnitTest/classes/com.vitrinevideo.engine.GuidedCaptureContractTest.html
+ci-delivery/artifacts/junit-reports/vitrine-render-engine/build/reports/tests/testDebugUnitTest/classes/com.vitrinevideo.engine.JsonVisualFidelityTest.html
+ci-delivery/artifacts/junit-reports/vitrine-render-engine/build/reports/tests/testDebugUnitTest/classes/com.vitrinevideo.engine.LocalPreviewAndVaultTest.html
+ci-delivery/artifacts/junit-reports/vitrine-render-engine/build/reports/tests/testDebugUnitTest/classes/com.vitrinevideo.engine.MemoryAndErrorGuardTest.html
+ci-delivery/artifacts/junit-reports/vitrine-render-engine/build/reports/tests/testDebugUnitTest/classes/com.vitrinevideo.engine.ServerSyncContractTest.html
+ci-delivery/artifacts/junit-reports/vitrine-render-engine/build/reports/tests/testDebugUnitTest/classes/com.vitrinevideo.engine.T4JsonFidelityTest.html
+ci-delivery/artifacts/junit-reports/vitrine-render-engine/build/reports/tests/testDebugUnitTest/classes/com.vitrinevideo.engine.T4PackageIntegrationTest.html
+ci-delivery/artifacts/junit-reports/vitrine-render-engine/build/reports/tests/testDebugUnitTest/classes/com.vitrinevideo.engine.TemplateFormAndJobTest.html
+ci-delivery/artifacts/junit-reports/vitrine-render-engine/build/reports/tests/testDebugUnitTest/classes/com.vitrinevideo.engine.TemplatePackageLoaderTest.html
+ci-delivery/artifacts/junit-reports/vitrine-render-engine/build/reports/tests/testDebugUnitTest/classes/com.vitrinevideo.engine.TextResolverAndWaveTest.html
+ci-delivery/artifacts/junit-reports/vitrine-render-engine/build/reports/tests/testDebugUnitTest/classes/com.vitrinevideo.engine.TimelineAndGeometryTest.html
+ci-delivery/artifacts/junit-reports/vitrine-render-engine/build/reports/tests/testDebugUnitTest/classes/com.vitrinevideo.engine.TrackRotationIsolationTest.html
+ci-delivery/artifacts/junit-reports/vitrine-render-engine/build/reports/tests/testDebugUnitTest/classes/com.vitrinevideo.engine.UniversalInterpreterTest.html
+ci-delivery/artifacts/junit-reports/vitrine-render-engine/build/reports/tests/testDebugUnitTest/css/base-style.css
+ci-delivery/artifacts/junit-reports/vitrine-render-engine/build/reports/tests/testDebugUnitTest/css/style.css
+ci-delivery/artifacts/junit-reports/vitrine-render-engine/build/reports/tests/testDebugUnitTest/index.html
+ci-delivery/artifacts/junit-reports/vitrine-render-engine/build/reports/tests/testDebugUnitTest/js/report.js
+ci-delivery/artifacts/junit-reports/vitrine-render-engine/build/reports/tests/testDebugUnitTest/packages/com.vitrinevideo.engine.html
+ci-delivery/artifacts/junit-reports/vitrine-render-engine/build/test-results/testDebugUnitTest/TEST-com.vitrinevideo.engine.AudioDuckingAndRotationTest.xml
+ci-delivery/artifacts/junit-reports/vitrine-render-engine/build/test-results/testDebugUnitTest/TEST-com.vitrinevideo.engine.CapabilitiesRejectionTest.xml
+ci-delivery/artifacts/junit-reports/vitrine-render-engine/build/test-results/testDebugUnitTest/TEST-com.vitrinevideo.engine.CommerceT1PackageTest.xml
+ci-delivery/artifacts/junit-reports/vitrine-render-engine/build/test-results/testDebugUnitTest/TEST-com.vitrinevideo.engine.CommerceT3GoldenParityTest.xml
+ci-delivery/artifacts/junit-reports/vitrine-render-engine/build/test-results/testDebugUnitTest/TEST-com.vitrinevideo.engine.GuidedCaptureContractTest.xml
+ci-delivery/artifacts/junit-reports/vitrine-render-engine/build/test-results/testDebugUnitTest/TEST-com.vitrinevideo.engine.JsonVisualFidelityTest.xml
+ci-delivery/artifacts/junit-reports/vitrine-render-engine/build/test-results/testDebugUnitTest/TEST-com.vitrinevideo.engine.LocalPreviewAndVaultTest.xml
+ci-delivery/artifacts/junit-reports/vitrine-render-engine/build/test-results/testDebugUnitTest/TEST-com.vitrinevideo.engine.MemoryAndErrorGuardTest.xml
+ci-delivery/artifacts/junit-reports/vitrine-render-engine/build/test-results/testDebugUnitTest/TEST-com.vitrinevideo.engine.ServerSyncContractTest.xml
+ci-delivery/artifacts/junit-reports/vitrine-render-engine/build/test-results/testDebugUnitTest/TEST-com.vitrinevideo.engine.T4JsonFidelityTest.xml
+ci-delivery/artifacts/junit-reports/vitrine-render-engine/build/test-results/testDebugUnitTest/TEST-com.vitrinevideo.engine.T4PackageIntegrationTest.xml
+ci-delivery/artifacts/junit-reports/vitrine-render-engine/build/test-results/testDebugUnitTest/TEST-com.vitrinevideo.engine.TemplateFormAndJobTest.xml
+ci-delivery/artifacts/junit-reports/vitrine-render-engine/build/test-results/testDebugUnitTest/TEST-com.vitrinevideo.engine.TemplatePackageLoaderTest.xml
+ci-delivery/artifacts/junit-reports/vitrine-render-engine/build/test-results/testDebugUnitTest/TEST-com.vitrinevideo.engine.TextResolverAndWaveTest.xml
+ci-delivery/artifacts/junit-reports/vitrine-render-engine/build/test-results/testDebugUnitTest/TEST-com.vitrinevideo.engine.TimelineAndGeometryTest.xml
+ci-delivery/artifacts/junit-reports/vitrine-render-engine/build/test-results/testDebugUnitTest/TEST-com.vitrinevideo.engine.TrackRotationIsolationTest.xml
+ci-delivery/artifacts/junit-reports/vitrine-render-engine/build/test-results/testDebugUnitTest/TEST-com.vitrinevideo.engine.UniversalInterpreterTest.xml
+ci-delivery/artifacts/junit-reports/vitrine-video-app/build/reports/tests/testDebugUnitTest/classes/com.vitrinevideo.app.AppIntegrationContractTest.html
+ci-delivery/artifacts/junit-reports/vitrine-video-app/build/reports/tests/testDebugUnitTest/classes/com.vitrinevideo.app.GuideAudioAndAssetTest.html
+ci-delivery/artifacts/junit-reports/vitrine-video-app/build/reports/tests/testDebugUnitTest/classes/com.vitrinevideo.app.T4ResponseContractTest.html
+ci-delivery/artifacts/junit-reports/vitrine-video-app/build/reports/tests/testDebugUnitTest/css/base-style.css
+ci-delivery/artifacts/junit-reports/vitrine-video-app/build/reports/tests/testDebugUnitTest/css/style.css
+ci-delivery/artifacts/junit-reports/vitrine-video-app/build/reports/tests/testDebugUnitTest/index.html
+ci-delivery/artifacts/junit-reports/vitrine-video-app/build/reports/tests/testDebugUnitTest/js/report.js
+ci-delivery/artifacts/junit-reports/vitrine-video-app/build/reports/tests/testDebugUnitTest/packages/com.vitrinevideo.app.html
+ci-delivery/artifacts/junit-reports/vitrine-video-app/build/test-results/testDebugUnitTest/TEST-com.vitrinevideo.app.AppIntegrationContractTest.xml
+ci-delivery/artifacts/junit-reports/vitrine-video-app/build/test-results/testDebugUnitTest/TEST-com.vitrinevideo.app.GuideAudioAndAssetTest.xml
+ci-delivery/artifacts/junit-reports/vitrine-video-app/build/test-results/testDebugUnitTest/TEST-com.vitrinevideo.app.T4ResponseContractTest.xml
+ci-delivery/artifacts/test-logs/app-tests.log
+ci-delivery/artifacts/test-logs/engine-tests.log

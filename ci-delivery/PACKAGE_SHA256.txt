@@ -1,0 +1,1 @@
+9b92c2740c4aa245e6e293f2fa73c2618ca0f7ff623972deaa10b1170eef3416  ci-delivery/vitrine-apk-evidence.tar.gz
