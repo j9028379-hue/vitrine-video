@@ -224,13 +224,12 @@ def build_partition(template, runtime, motion, form, guide) -> dict:
                 "mouvement": MOTION_ADAPTER[block["motion"]],
                 "sans_prefixe_whatsapp": field == "whatsapp",
             })
-    fonts = {role: Path(data["file"]).name for role, data in motion["fonts"].items()}
-    hashes = {role: data["sha256"] for role, data in motion["fonts"].items()}
+    fonts = {("serif" if role == "display" else role): Path(data["file"]).name
+             for role, data in motion["fonts"].items()}
     fonts["fallback"] = fonts["utility"]
-    hashes["fallback"] = hashes["utility"]
     typography = {
         "script": fonts["signature"],
-        "serif": fonts["display"],
+        "serif": fonts["serif"],
         "encre_rgb": [255, 250, 235],
         "relief_rgb": [45, 28, 21],
         "casse": "Casse du commerçant conservée.",

@@ -267,7 +267,10 @@ object GuidedCaptureGuideParser {
                 thingsToAvoid = toAvoid,
                 guideImageRelPath = stateA.optString("image_guide", "").takeIf { it.isNotEmpty() },
                 guideAudioRelPath = stateA.optString("audio_guide", "").takeIf { it.isNotEmpty() },
-                microphoneActive = true
+                microphoneActive = true,
+                guideScreenNumber = stateA.optInt("numero").takeIf { it > 0 },
+                recordScreenNumber = stateB.optInt("numero").takeIf { it > 0 },
+                reviewScreenNumber = states["C"]?.optInt("numero")?.takeIf { it > 0 }
             )
         }
     }
