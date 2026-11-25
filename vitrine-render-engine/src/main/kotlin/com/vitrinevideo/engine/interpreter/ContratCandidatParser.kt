@@ -115,7 +115,9 @@ object ContratCandidatParser {
             // Legacy `polices` maps a file path to its SHA; named roles map a role to a file.
             namedFontPaths[alias] = if (declared.matches(Regex("^[0-9a-fA-F]{64}$"))) alias else fontFile(alias)
         }
-        val extraFontPaths = LinkedHashMap(namedFontPaths)
+        val extraFontPaths = namedFontPaths.mapValues { (_, file) ->
+            if (file.startsWith("/")) file else "$fontRoot/${file.trimStart('/')}"
+        }.toMutableMap()
         extraFontPaths.putIfAbsent("fallback", "$fontRoot/DejaVuSans.ttf")
         val extraFontHashes = namedFontPaths.mapValues { fonts.optString(it.value, fonts.optString(it.key, "")) }.toMutableMap()
         extraFontHashes.putIfAbsent("fallback", fonts.optString("DejaVuSans.ttf", ""))

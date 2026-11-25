@@ -523,10 +523,10 @@ def main() -> None:
     prefix = "templates/restauration/restauration-t2/"
     adapters = {
         prefix + "montage/contrat-candidat.json": build_partition(template, runtime, motion, form, guide),
-        "form/questions.json": build_form(form),
-        "form/schema.json": build_form_schema(form),
-        "schemas/render-job.json": build_job_schema(form, runtime),
-        "capture-guide/ecrans.json": build_ecrans(guide),
+        prefix + "form/questions.json": build_form(form),
+        prefix + "form/schema.json": build_form_schema(form),
+        prefix + "schemas/render-job.json": build_job_schema(form, runtime),
+        prefix + "capture-guide/ecrans.json": build_ecrans(guide),
         "audio/catalogue.json": build_audio_catalogue(pool),
         "audio/voix.json": build_voix(runtime, pool),
         "catalogue/catalogue.json": build_catalogue(),
