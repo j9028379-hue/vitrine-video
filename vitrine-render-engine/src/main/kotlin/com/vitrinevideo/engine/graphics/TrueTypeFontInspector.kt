@@ -104,9 +104,9 @@ object TrueTypeFontInspector {
         } ?: return Triple(false, null, null)
         val off = firstAxis + axisIndex * axisSize
         if (off + 20 > size) return null
-        // fvar AxisRecord values are OpenType 16.16 Fixed, not IEEE floats.
-        val min = bb.getInt(off + 8) / 65536f
-        val max = bb.getInt(off + 16) / 65536f
+        // AxisRecord: tag(4) minValue(4) defaultValue(4) maxValue(4), all 16.16 Fixed.
+        val min = bb.getInt(off + 4) / 65536f
+        val max = bb.getInt(off + 12) / 65536f
         return Triple(true, min, max)
     }
 
