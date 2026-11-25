@@ -1,7 +1,6 @@
 package com.vitrinevideo.engine.capture
 
 import com.vitrinevideo.engine.interpreter.SceneSpec
-import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.min
 
@@ -16,9 +15,13 @@ object CaptureDurationPolicy {
     /** Codec finalisation may leave a few frames short of the target; one frame at 24 fps. */
     const val DURATION_TOLERANCE_US = 150_000L
 
-    fun requiredSourceFrames(scene: SceneSpec): Int =
-        scene.shots.maxOfOrNull { max(0, it.sourceOutFrame - it.sourceInFrame) }
-            ?: (scene.endFrameExcluded - scene.startFrame)
+    fun requiredSourceFrames(scene: SceneSpec): Int = if (scene.shots.isEmpty()) {
+        scene.endFrameExcluded - scene.startFrame
+    } else {
+        // Shots may split one capture into phases; only the union of their
+        // source windows gives the length of the merchant's video file.
+        max(0, scene.shots.maxOf { it.sourceOutFrame } - scene.shots.minOf { it.sourceInFrame })
+    }
 
     fun requiredDurationUs(scene: SceneSpec, fps: Int): Long =
         (requiredSourceFrames(scene).toLong() * 1_000_000L) / fps.coerceAtLeast(1)
@@ -97,9 +100,16 @@ object SceneCaptureValidator {
         val shortSide = min(snapshot.width, snapshot.height)
         val longSide = max(snapshot.width, snapshot.height)
         val ratio = if (longSide > 0) shortSide.toDouble() / longSide else 0.0
+        // Rotation 90/270 turns a landscape sensor frame into the required
+        // portrait delivery; an unrotated landscape file stays landscape.
+        val effectivePortrait = if (snapshot.rotation % 180 == 90) {
+            snapshot.width > snapshot.height
+        } else {
+            snapshot.height > snapshot.width
+        }
         if (shortSide < MIN_SHORT_SIDE_PX || longSide < MIN_LONG_SIDE_PX ||
             ratio < MIN_PORTRAIT_RATIO || ratio > MAX_PORTRAIT_RATIO ||
-            snapshot.rotation % 90 != 0
+            snapshot.rotation % 90 != 0 || !effectivePortrait
         ) {
             return SceneCaptureValidationError(
                 "INVALID_CAPTURE_GEOMETRY",
