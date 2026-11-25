@@ -38,7 +38,7 @@ class RestaurationT5AppFlowTest {
         assertEquals("Formule, combo et offre", TemplateCatalogue.displayName(TemplateCatalogue.RESTAURATION_T5, true))
         assertEquals("Formule, combo et offre", TemplateCatalogue.displayName(TemplateCatalogue.RESTAURATION_T5, false))
         assertEquals(
-            setOf("COMMERCE-T1", "COMMERCE-T2", "COMMERCE-T3", "COMMERCE-T4", "RESTAURATION-T2", "RESTAURATION-T5"),
+            setOf("COMMERCE-T1", "COMMERCE-T2", "COMMERCE-T3", "COMMERCE-T4", "RESTAURATION-T2", "RESTAURATION-T3", "RESTAURATION-T5"),
             TemplateCatalogue.SUPPORTED_IDS
         )
         assertFalse(TemplateCatalogue.SUPPORTED_IDS.contains("RESTAURATION-T4"))
@@ -50,7 +50,7 @@ class RestaurationT5AppFlowTest {
         val bridge = File(assetsRoot(), "mockup/android-bridge.js").readText()
         assertTrue(html.contains("data-format=\"r4\""))
         assertTrue(html.contains("data-i18n=\"formats.r4.title\">Formule, combo et offre"))
-        assertTrue(bridge.contains("\"r2\", \"r4\"].includes(fmt)"))
+        assertTrue(bridge.contains("\"r2\", \"r3\", \"r4\"].includes(fmt)"))
         assertTrue(bridge.contains("fmt === \"r4\" ? \"RESTAURATION-T5\""))
         assertTrue(bridge.contains("if (activeTemplateFormat === \"r4\") return {"))
         assertTrue(bridge.contains("offre: val(\"q-produit\")"))

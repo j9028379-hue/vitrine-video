@@ -139,8 +139,8 @@
       }
     });
     // Production templates: Commerce T1-T4 and the two activated Restauration
-    // templates (Avant / Après and Formule, combo et offre).
-    document.querySelectorAll('.format-card[data-format="t1"], .format-card[data-format="t2"], .format-card[data-format="t3"], .format-card[data-format="t4"], .format-card[data-format="r2"], .format-card[data-format="r4"]').forEach((card) => {
+    // templates (Avant / Après, Coulisses de préparation, and Formule, combo et offre).
+    document.querySelectorAll('.format-card[data-format="t1"], .format-card[data-format="t2"], .format-card[data-format="t3"], .format-card[data-format="t4"], .format-card[data-format="r2"], .format-card[data-format="r3"], .format-card[data-format="r4"]').forEach((card) => {
       card.removeAttribute("data-coming-soon");
       card.removeAttribute("data-soon-label");
       card.classList.remove("is-soon");
@@ -188,6 +188,14 @@
       prix: val("q-prix"),
       whatsapp: val("q-whatsapp"),
       quartier: val("q-quartier")
+    };
+    if (activeTemplateFormat === "r3") return {
+      nom: val("q-nom"),
+      produit: val("q-produit"),
+      prix: val("q-prix"),
+      whatsapp: val("q-whatsapp"),
+      quartier: val("q-quartier"),
+      accroche: val("q-accroche")
     };
     if (activeTemplateFormat === "t2" || activeTemplateFormat === "r2") return {
       nom: val("q-nom"),
@@ -345,7 +353,7 @@
           const card = e.target.closest(".format-card");
           if (!card) return;
           const fmt = card.dataset.format || card.id.replace(/^format-/, "");
-          if (!["t1", "t2", "t3", "t4", "r2", "r4"].includes(fmt)) {
+          if (!["t1", "t2", "t3", "t4", "r2", "r3", "r4"].includes(fmt)) {
             e.preventDefault();
             e.stopImmediatePropagation();
             const fr = getCurrentLang() === "fr";
@@ -360,6 +368,7 @@
           activeTemplateFormat = fmt;
           if (hasBridge()) {
             const packageId = fmt === "r2" ? "RESTAURATION-T2"
+              : fmt === "r3" ? "RESTAURATION-T3"
               : fmt === "r4" ? "RESTAURATION-T5"
               : fmt === "t1" ? "COMMERCE-T1"
               : fmt === "t2" ? "COMMERCE-T2"

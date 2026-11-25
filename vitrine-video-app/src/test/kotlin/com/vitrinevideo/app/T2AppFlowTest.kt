@@ -77,7 +77,7 @@ class T2AppFlowTest {
         val root = listOf(File("src/main/assets"), File("vitrine-video-app/src/main/assets"))
             .firstOrNull { it.isDirectory } ?: error("assets root not found")
         val bridge = File(root, "mockup/android-bridge.js").readText()
-        assertTrue(bridge.contains("[\"t1\", \"t2\", \"t3\", \"t4\", \"r2\", \"r4\"].includes(fmt)"))
+        assertTrue(bridge.contains("[\"t1\", \"t2\", \"t3\", \"t4\", \"r2\", \"r3\", \"r4\"].includes(fmt)"))
         assertTrue(bridge.contains("fmt === \"t2\" ? \"COMMERCE-T2\""))
         assertTrue(bridge.contains("activeTemplateFormat === \"t2\" || activeTemplateFormat === \"r2\""))
         assertTrue(bridge.contains("accroche: val(\"q-accroche\")"))

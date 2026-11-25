@@ -1995,7 +1995,11 @@ body{
       {id:"q-quartier",fr:"Où peut-on te trouver ?",en:"Where can customers find you?",pfr:"Cotonou, Akpakpa",pen:"Cotonou, Akpakpa"},
       {id:"q-whatsapp",fr:"Quel est ton numéro WhatsApp ?",en:"What is your WhatsApp number?",pfr:"+229 XX XX XX XX",pen:"+229 XX XX XX XX"}
     ];
-    fields.forEach(f=>{const input=$("#"+f.id),label=input.closest(".field").querySelector("label");label.textContent=fr?f.fr:f.en;input.placeholder=fr?f.pfr:f.pen;input.required=f.required!==false;input.removeAttribute("maxlength");input.removeAttribute("pattern");});
+    fields.forEach(f=>{const input=$("#"+f.id),label=input.closest(".field").querySelector("label");label.textContent=fr?f.fr:f.en;input.placeholder=fr?f.pfr:f.pen;input.required=f.required!==false;input.removeAttribute("minlength");input.removeAttribute("maxlength");input.removeAttribute("pattern");});
+    if(state.format==="r3"){
+      const rules={"q-nom":[1,40],"q-produit":[1,32],"q-prix":[1,7,"^[0-9 .]+$"],"q-whatsapp":[4,20],"q-quartier":[1,40],"q-accroche":[0,48]};
+      Object.entries(rules).forEach(([id,[min,max,pattern]])=>{const input=$("#"+id);input.minLength=min;input.maxLength=max;if(pattern)input.pattern=pattern;});
+    }
     $("#s-questions .h-sub").textContent=fr?"Réponds à ces questions pour personnaliser ta publicité.":"Answer these questions to personalize your ad.";
   }
   $(".formats").addEventListener("click",(event)=>{
@@ -2019,7 +2023,7 @@ body{
   $("#questions-back").addEventListener("click",()=>goTo("s-formats",true));
   $("#questions-next").addEventListener("click",()=>{
     let ok=true;
-    $$("#s-questions input").forEach(i=>{const field=i.closest(".field");if(field.hidden)return;const bad=i.required&&!i.value.trim();field.classList.toggle("is-error",bad);if(bad)ok=false;i.addEventListener("input",()=>field.classList.remove("is-error"),{once:true});});
+    $$("#s-questions input").forEach(i=>{const field=i.closest(".field");if(field.hidden)return;const bad=(i.required&&!i.value.trim())||(state.format==="r3"&&!i.checkValidity());field.classList.toggle("is-error",bad);if(bad)ok=false;i.addEventListener("input",()=>field.classList.remove("is-error"),{once:true});});
     if(!ok){const i=$("#s-questions .field.is-error input");if(i)i.focus();return;}
     flow.template=state.format;flow.scene=0;flow.stage="guide";goTo("s-guide-intro",false);
   });
@@ -2120,7 +2124,7 @@ body{
       const guideAudioSrc=SCENE_AUDIOS[flow.template][flow.scene];
       const useNativeAudio=Boolean(nativeAudio&&nativeAudio.isSupported&&nativeAudio.isSupported());
       root.innerHTML=`<div class="guide-readable"><main class="guide-readable-main">
-        <header class="guide-readable-header"><button class="guide-readable-back" id="flow-back" type="button" aria-label="${fr?"Retour":"Back"}">${backIcon}</button><b>${safe(flow.template==="r4"?s.sceneCounter:(fr?"Scène":"Scene")+" "+(flow.scene+1)+" / 4")}</b><span class="guide-readable-state">${fr?"GUIDE":"GUIDE"}</span></header>
+        <header class="guide-readable-header"><button class="guide-readable-back" id="flow-back" type="button" aria-label="${fr?"Retour":"Back"}">${backIcon}</button><b>${safe(flow.template==="r4"?s.sceneCounter:((fr?"Scène":"Scene")+" "+(flow.scene+1)+" / 4"+(flow.template==="r3"?" · "+s.dur+" s":"")))}</b><span class="guide-readable-state">${fr?"GUIDE":"GUIDE"}</span></header>
         <div class="guide-scene-image" id="guide-scene-image"><img src="${SCENE_VISUALS[flow.template][flow.scene]}" alt="${fr?"Illustration complète de la scène":"Full illustration for scene"} ${flow.scene+1}: ${safe(s.title)}"></div>
         <section class="guide-audio-panel" aria-label="${fr?"Voix off du guide":"French voice-over guide"}">
           <audio id="guide-audio" preload="${useNativeAudio?"none":"metadata"}"${useNativeAudio?"":` src="${guideAudioSrc}"`}></audio>

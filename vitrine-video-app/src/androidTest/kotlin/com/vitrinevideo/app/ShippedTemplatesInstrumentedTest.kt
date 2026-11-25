@@ -43,6 +43,7 @@ class ShippedTemplatesInstrumentedTest {
             "COMMERCE-T3-1.0.0.zip" to "COMMERCE-T3",
             "COMMERCE-T4-1.0.0.zip" to "COMMERCE-T4",
             "RESTAURATION-T2-1.0.0.zip" to "RESTAURATION-T2",
+            "RESTAURATION-T3-1.0.0.zip" to "RESTAURATION-T3",
             "RESTAURATION-T5-1.0.0.zip" to "RESTAURATION-T5"
         )
         for ((asset, templateId) in expectations) {

@@ -1,0 +1,70 @@
+{
+  "schema_version": "1.0.0",
+  "template_id": "RESTAURATION-T3",
+  "version": "1.0.0",
+  "audio_profile": "restauration_T3_afrobeat_music_v1_0_0",
+  "cipher": "HMAC_SHA256_CTR_V1",
+  "source_contract": "contracts/config/T3_MUSIC_PACK_V1_0_0.json",
+  "tracks": [
+    {
+      "numero": 1,
+      "candidate_id": "t3_music_481806",
+      "resource": "audio/pistes/01.mp3",
+      "vault": "01.mp3.vault",
+      "iv_b64": "kUiHoQE+Yoif8fAd",
+      "sha256": "f84455f2611bdd54c3907d1f13f90b1561f0bbff04b4d8279f51364b14579e21",
+      "bytes": 721334,
+      "source_debut_s": 0.0,
+      "duration_s": 30.0,
+      "sample_rate_hz": 48000,
+      "channels": 2,
+      "bitrate_kbps": 192,
+      "contains_voice": false
+    },
+    {
+      "numero": 2,
+      "candidate_id": "t3_music_360659",
+      "resource": "audio/pistes/02.mp3",
+      "vault": "02.mp3.vault",
+      "iv_b64": "fH89g13oZFsCKEQB",
+      "sha256": "6ae8005d99dd67001b47a8137b1be4224d262b2e6bce8cc6b5f776c53e2251fc",
+      "bytes": 721340,
+      "source_debut_s": 0.0,
+      "duration_s": 30.0,
+      "sample_rate_hz": 48000,
+      "channels": 2,
+      "bitrate_kbps": 192,
+      "contains_voice": false
+    },
+    {
+      "numero": 3,
+      "candidate_id": "t3_music_485507",
+      "resource": "audio/pistes/03.mp3",
+      "vault": "03.mp3.vault",
+      "iv_b64": "K3Bhp0I25caOPQb1",
+      "sha256": "729e2c20058d005c432160297f8243b72026ed89cb26b85bc60f880b9bd8eedf",
+      "bytes": 721329,
+      "source_debut_s": 0.0,
+      "duration_s": 30.0,
+      "sample_rate_hz": 48000,
+      "channels": 2,
+      "bitrate_kbps": 192,
+      "contains_voice": false
+    },
+    {
+      "numero": 4,
+      "candidate_id": "t3_music_245452",
+      "resource": "audio/pistes/04.mp3",
+      "vault": "04.mp3.vault",
+      "iv_b64": "DDEanryTvrkpjdX7",
+      "sha256": "7128e7da92c1bf9b94b9973a8c190994bec2c227d55860f81e0db19a77e7ee87",
+      "bytes": 721345,
+      "source_debut_s": 0.0,
+      "duration_s": 30.0,
+      "sample_rate_hz": 48000,
+      "channels": 2,
+      "bitrate_kbps": 192,
+      "contains_voice": false
+    }
+  ]
+}

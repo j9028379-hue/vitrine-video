@@ -33,9 +33,10 @@ class RestaurationT2AppFlowTest {
         assertTrue(TemplateCatalogue.isSupported("COMMERCE-T3"))
         assertTrue(TemplateCatalogue.isSupported("COMMERCE-T4"))
         assertTrue(TemplateCatalogue.isSupported("RESTAURATION-T2"))
-        assertEquals(6, TemplateCatalogue.SUPPORTED_IDS.size)
+        assertEquals(7, TemplateCatalogue.SUPPORTED_IDS.size)
+        assertTrue(TemplateCatalogue.isSupported("RESTAURATION-T3"))
         assertEquals(
-            setOf("RESTAURATION-T2", "RESTAURATION-T5"),
+            setOf("RESTAURATION-T2", "RESTAURATION-T3", "RESTAURATION-T5"),
             TemplateCatalogue.SUPPORTED_IDS.filter { it.startsWith("RESTAURATION-T") }.toSet()
         )
         assertFalse(TemplateCatalogue.SUPPORTED_IDS.contains("RESTAURATION-T4"))
@@ -107,7 +108,7 @@ class RestaurationT2AppFlowTest {
     fun bridgeBlocksUnavailableRestaurationTemplatesButEnablesT2AndT5() {
         val bridge = File(assetsRoot(), "mockup/android-bridge.js").readText()
         assertTrue(bridge.contains("sector !== \"commerce\" && sector !== \"resto\""))
-        assertTrue(bridge.contains("[\"t1\", \"t2\", \"t3\", \"t4\", \"r2\", \"r4\"].includes(fmt)"))
+        assertTrue(bridge.contains("[\"t1\", \"t2\", \"t3\", \"t4\", \"r2\", \"r3\", \"r4\"].includes(fmt)"))
         assertFalse(bridge.contains("\"r1\"].includes(fmt)"))
         assertTrue(bridge.contains("fmt === \"r2\" ? \"RESTAURATION-T2\""))
         assertTrue(bridge.contains("activeTemplateFormat === \"t2\" || activeTemplateFormat === \"r2\""))

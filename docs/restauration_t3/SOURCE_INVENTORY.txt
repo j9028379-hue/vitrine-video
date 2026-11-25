@@ -1,0 +1,296 @@
+SOURCE=vitrine-video-t3-coulisses-preparation-a158691c2ce757fd8c8f1dfbd9d465f2e2ce1574.zip
+SOURCE_SHA256=372136baba5173a452850bbb7a9379041048f3e583651af964e2d541c020e6f3
+ARCHIVE_ENTRIES=280
+PRODUCTION_KEEP=23 AUDIT_ONLY=1 DROP=256
+
+[PRODUCTION_KEEP]
+KEEP assets/fonts/DMSerifDisplay-Regular.ttf SHA256=8cc3643535edf039aa5d95440a8542735e9197e4f4b8d9303e980fefbf5ab616 :: active display-serif face (OFL-1.1)
+KEEP assets/fonts/Montserrat-Variable.ttf SHA256=0f7b311b2f3279e4eef9b2f968bcdbab6e28f4daeb1f049f4f278a902bcd82f7 :: active variable light-sans face (OFL-1.1, wght 100..900)
+KEEP assets/fonts/OFL-DMSerifDisplay.txt SHA256=aa49c876a28d8c0b0a3027d6c25b9c607eee8c0fb96165011d42a6ace1408fe1 :: license for DM Serif Display
+KEEP assets/fonts/OFL-Montserrat.txt SHA256=fa036c290600f85c9c7747dbd2bd3ac26d28de0ac0582ff9320c53161765e19b :: license for Montserrat Variable
+KEEP assets/fonts/OFL-PlusJakartaSans.txt SHA256=f9a8e776b4b048227f2f046b8716083eb04b1539d9ad1d4b87e81c1df28f86e3 :: license for Plus Jakarta Sans
+KEEP assets/fonts/PlusJakartaSans-Variable.ttf SHA256=89b3fb38aa0d275d7a731d0d817a4f1622b316b4d7fbdedcf02ee9099ff68bc8 :: active variable utility face (OFL-1.1, wght 200..800)
+KEEP audio/music/t3-afrobeat-v1/BUILD_PROVENANCE.json SHA256=319f54ddfa5695801f91b3e3d70d3deb1fe115c33df814766922d2e1a5c3bc2d :: derivative build provenance/QC metadata
+KEEP audio/music/t3-afrobeat-v1/SHA256SUMS.txt SHA256=a72e068a8f7c6cb1311e118956dc821b4ca106c129d23f23aee4580c747067a3 :: source checksum manifest; only hashes/metadata, no raw music
+KEEP audio/music/t3-afrobeat-v1/source_manifest.json SHA256=820e542fa0127623afaf7df5f2d6a43e03997628fa09ea11f901e350371d5cc0 :: source provenance and approved track declarations
+KEEP capture-guide/consignes_T3.json SHA256=cfed4d23606af022199f3abb41fea509c8c47d478302dc27d402a7b3ff82ad06 :: approved four-scene capture guidance retained in contracts, not displayed as a large panel
+KEEP config/T3_CAPTURE_FLOW_V1_0_0.json SHA256=3d9a5dd61a5164fb3ca149b899a28af0888472ec8873ae47ace60508b0fd3074 :: 12 stable guide/record/review states and transient countdown contract
+KEEP config/T3_COULISSES_TEMPLATE_V1_0_0.json SHA256=b2cf7a1a3980b7057e09376ceb789335ff060e1cce5fd3128f9cf231a1c82978 :: canonical identity/format contract; voice-only references are removed in the production derivative
+KEEP config/T3_MUSIC_PACK_V1_0_0.json SHA256=4d4f86cb46c3a32b16c19497b88ae28a832fe94e164c487ea0a8d89978e6eaf1 :: four approved derivatives, manifest hashes, audio properties and strict cycle policy
+KEEP config/T3_TEXT_MOTION_V0_4_0.json SHA256=c8d0cc22881bf7705df128737ff43b6702ca7eb22fd5a362b534705b71e968d9 :: authoritative v0.4 text fields, timing, typography, font hashes and separator prohibition
+KEEP form/questions_T3.json SHA256=3a726446e3594a15964bf3722021fb2148975d72c7eb993def8bdc5c08c9ac01 :: six exact merchant questions, five required fields and optional accroche
+KEEP reverse-engineering/T3_TRANSITIONS_30S.json SHA256=94d0cd6a58fb001298b003c7bc7ae4637e9ece289e3169cc210cb5cdff807f60 :: authoritative v0.4 transition timeline, source ids and no-visible-separator rule
+KEEP schemas/T3_music_pack.schema.json SHA256=038b967841734686f8da34bfcb489d7440376c503c4b991668d9e148c8aa79cf :: strict approved music manifest schema
+KEEP schemas/T3_music_selection_state.schema.json SHA256=d91e2ecd056ac63ba8534f1a223adca4e308219ba331a921e97617e4a978b263 :: persistent music-rotation state schema
+KEEP schemas/T3_template_package.schema.json SHA256=004b54c8ea767e4496eb7cca4c850787c736ecc9046626579034b9a67f9fdacc :: canonical template package schema
+KEEP schemas/T3_voice_mix.schema.json SHA256=d6e61eef1eac2c675213008374e3780ef30144574440be814acd7f058fedfc49 :: mix contract schema; no fixed voice audio or transcript included
+KEEP schemas/render_error.schema.json SHA256=f4fac460bf2e9aa42ab7dadf6ed866576522c07991b0f7d22395010ae41468ef :: render error contract
+KEEP schemas/render_job.schema.json SHA256=2590ccc820124eb2ed2e69726359762bac274ca97742ebbe88c3fa31f9774daf :: strict render job payload contract
+KEEP schemas/render_result.schema.json SHA256=44ce26a918da0206e8e3dd91b1c67a2a3adee24ae60355ff653549c43584136e :: render result contract
+
+[AUDIT_ONLY_NOT_PACKAGED]
+AUDIT config/T3_VOICE_MIX_V1_0_0.json SHA256=50832c99ed66354174c6c299bc6cdb8b5bddc64fdf47132d2a2f0d1c881da10a :: read only to extract captured-voice mix parameters; source's Casa Tacos narration/voice ids are never copied
+
+[VERIFIED_THEN_SEALED_MUSIC]
+SEALED audio/music/t3-afrobeat-v1/t3_481806_laser_30s.mp3 SHA256=f84455f2611bdd54c3907d1f13f90b1561f0bbff04b4d8279f51364b14579e21 BYTES=721334 choice=A
+SEALED audio/music/t3-afrobeat-v1/t3_360659_omalicha_nwa_30s.mp3 SHA256=6ae8005d99dd67001b47a8137b1be4224d262b2e6bce8cc6b5f776c53e2251fc BYTES=721340 choice=B
+SEALED audio/music/t3-afrobeat-v1/t3_485507_safe_30s.mp3 SHA256=729e2c20058d005c432160297f8243b72026ed89cb26b85bc60f880b9bd8eedf BYTES=721329 choice=C
+SEALED audio/music/t3-afrobeat-v1/t3_245452_dlozi_lam_30s.mp3 SHA256=7128e7da92c1bf9b94b9973a8c190994bec2c227d55860f81e0db19a77e7ee87 BYTES=721345 choice=D
+
+[DROP]
+DROP  :: directory entry only
+DROP .github/ :: directory entry only
+DROP .github/workflows/ :: directory entry only
+DROP .github/workflows/build-integrator-package.yml :: build/render/control-plane code or source workflow; not Android runtime
+DROP .github/workflows/ci.yml :: build/render/control-plane code or source workflow; not Android runtime
+DROP .github/workflows/render-complete-voice-music-D.yml :: build/render/control-plane code or source workflow; not Android runtime
+DROP .github/workflows/render-silent.yml :: build/render/control-plane code or source workflow; not Android runtime
+DROP .gitignore :: not proven essential to the Android production runtime
+DROP FICHE_DEMARRAGE.md :: documentation, source script, workflow or development metadata
+DROP GITHUB_AUDIT_INITIAL.md :: documentation, source script, workflow or development metadata
+DROP GITHUB_DELIVERY.md :: documentation, source script, workflow or development metadata
+DROP LICENSE :: not proven essential to the Android production runtime
+DROP PROPOSITION_QUESTIONS_ET_12_ECRANS.md :: documentation, source script, workflow or development metadata
+DROP QUESTIONS_ET_12_ECRANS_APPROUVES.md :: documentation, source script, workflow or development metadata
+DROP README.md :: documentation, source script, workflow or development metadata
+DROP STATUS.json :: non-whitelisted metadata, proposal, superseded revision or schema not required by the mobile runtime
+DROP adapter/ :: directory entry only
+DROP adapter/__init__.py :: build/render/control-plane code or source workflow; not Android runtime
+DROP adapter/t3_adapter.py :: build/render/control-plane code or source workflow; not Android runtime
+DROP approvals/ :: directory entry only
+DROP approvals/APPROBATION_QUESTIONS_CAPTURE_12_ECRANS_2026-11-18.json :: non-whitelisted metadata, proposal, superseded revision or schema not required by the mobile runtime
+DROP approvals/APPROBATION_VOIX_CANDIDATE_A_2026-11-19.json :: non-whitelisted metadata, proposal, superseded revision or schema not required by the mobile runtime
+DROP assets/ :: directory entry only
+DROP assets/fonts/ :: directory entry only
+DROP audio/ :: directory entry only
+DROP audio/music/ :: directory entry only
+DROP audio/music/t3-afrobeat-v1/ :: directory entry only
+DROP audio/music/t3-afrobeat-v1/README.md :: documentation, source script, workflow or development metadata
+DROP audio/music/t3-afrobeat-v1/evidence/ :: directory entry only
+DROP audio/music/t3-afrobeat-v1/evidence/A_481806.json :: non-whitelisted metadata, proposal, superseded revision or schema not required by the mobile runtime
+DROP audio/music/t3-afrobeat-v1/evidence/B_360659.json :: non-whitelisted metadata, proposal, superseded revision or schema not required by the mobile runtime
+DROP audio/music/t3-afrobeat-v1/evidence/C_485507.json :: non-whitelisted metadata, proposal, superseded revision or schema not required by the mobile runtime
+DROP audio/music/t3-afrobeat-v1/evidence/D_245452.json :: non-whitelisted metadata, proposal, superseded revision or schema not required by the mobile runtime
+DROP audio/music/t3-afrobeat-v1/t3_245452_dlozi_lam_30s.mp3 :: approved 30-second source is verified and sealed; raw MP3 is never copied to APK assets
+DROP audio/music/t3-afrobeat-v1/t3_360659_omalicha_nwa_30s.mp3 :: approved 30-second source is verified and sealed; raw MP3 is never copied to APK assets
+DROP audio/music/t3-afrobeat-v1/t3_481806_laser_30s.mp3 :: approved 30-second source is verified and sealed; raw MP3 is never copied to APK assets
+DROP audio/music/t3-afrobeat-v1/t3_485507_safe_30s.mp3 :: approved 30-second source is verified and sealed; raw MP3 is never copied to APK assets
+DROP audio/scripts/ :: directory entry only
+DROP audio/scripts/build_t3_complete_voice.py :: build/render/control-plane code or source workflow; not Android runtime
+DROP audio/voice/ :: directory entry only
+DROP audio/voice/t3-voice-candidates-v1/ :: directory entry only
+DROP audio/voice/t3-voice-candidates-v1/NORMALIZATION_REPORT.json :: fixed Casa Tacos voice, candidate voices, WAV demos and voice stems are excluded
+DROP audio/voice/t3-voice-candidates-v1/README.md :: fixed Casa Tacos voice, candidate voices, WAV demos and voice stems are excluded
+DROP audio/voice/t3-voice-candidates-v1/SHA256SUMS.txt :: fixed Casa Tacos voice, candidate voices, WAV demos and voice stems are excluded
+DROP audio/voice/t3-voice-candidates-v1/T3_ECOUTE_4_VOIX.html :: fixed Casa Tacos voice, candidate voices, WAV demos and voice stems are excluded
+DROP audio/voice/t3-voice-candidates-v1/manifest.json :: fixed Casa Tacos voice, candidate voices, WAV demos and voice stems are excluded
+DROP audio/voice/t3-voice-candidates-v1/normalize_candidates.py :: fixed Casa Tacos voice, candidate voices, WAV demos and voice stems are excluded
+DROP audio/voice/t3-voice-candidates-v1/normalized/ :: directory entry only
+DROP audio/voice/t3-voice-candidates-v1/normalized/T3_VOIX_CANDIDATE_A_VOICE_02.wav :: fixed Casa Tacos voice, candidate voices, WAV demos and voice stems are excluded
+DROP audio/voice/t3-voice-candidates-v1/normalized/T3_VOIX_CANDIDATE_B.wav :: fixed Casa Tacos voice, candidate voices, WAV demos and voice stems are excluded
+DROP audio/voice/t3-voice-candidates-v1/normalized/T3_VOIX_CANDIDATE_C.wav :: fixed Casa Tacos voice, candidate voices, WAV demos and voice stems are excluded
+DROP audio/voice/t3-voice-candidates-v1/normalized/T3_VOIX_CANDIDATE_D.wav :: fixed Casa Tacos voice, candidate voices, WAV demos and voice stems are excluded
+DROP audio/voice/t3-voice-candidates-v1/source/ :: directory entry only
+DROP audio/voice/t3-voice-candidates-v1/source/T3_VOIX_CANDIDATE_A_VOICE_02.wav :: fixed Casa Tacos voice, candidate voices, WAV demos and voice stems are excluded
+DROP audio/voice/t3-voice-candidates-v1/source/T3_VOIX_CANDIDATE_B.wav :: fixed Casa Tacos voice, candidate voices, WAV demos and voice stems are excluded
+DROP audio/voice/t3-voice-candidates-v1/source/T3_VOIX_CANDIDATE_C.wav :: fixed Casa Tacos voice, candidate voices, WAV demos and voice stems are excluded
+DROP audio/voice/t3-voice-candidates-v1/source/T3_VOIX_CANDIDATE_D.wav :: fixed Casa Tacos voice, candidate voices, WAV demos and voice stems are excluded
+DROP audio/voice/t3-voice-v1/ :: directory entry only
+DROP audio/voice/t3-voice-v1/README.md :: fixed Casa Tacos voice, candidate voices, WAV demos and voice stems are excluded
+DROP audio/voice/t3-voice-v1/SHA256SUMS.txt :: fixed Casa Tacos voice, candidate voices, WAV demos and voice stems are excluded
+DROP audio/voice/t3-voice-v1/manifest.json :: fixed Casa Tacos voice, candidate voices, WAV demos and voice stems are excluded
+DROP audio/voice/t3-voice-v1/processed/ :: directory entry only
+DROP audio/voice/t3-voice-v1/processed/voix_fr_scene1_norm.wav :: fixed Casa Tacos voice, candidate voices, WAV demos and voice stems are excluded
+DROP audio/voice/t3-voice-v1/processed/voix_fr_scene2_norm.wav :: fixed Casa Tacos voice, candidate voices, WAV demos and voice stems are excluded
+DROP audio/voice/t3-voice-v1/processed/voix_fr_scene3_norm.wav :: fixed Casa Tacos voice, candidate voices, WAV demos and voice stems are excluded
+DROP audio/voice/t3-voice-v1/processed/voix_fr_scene4_norm.wav :: fixed Casa Tacos voice, candidate voices, WAV demos and voice stems are excluded
+DROP audio/voice/t3-voice-v1/source/ :: directory entry only
+DROP audio/voice/t3-voice-v1/source/voix_fr_scene1.wav :: fixed Casa Tacos voice, candidate voices, WAV demos and voice stems are excluded
+DROP audio/voice/t3-voice-v1/source/voix_fr_scene2.wav :: fixed Casa Tacos voice, candidate voices, WAV demos and voice stems are excluded
+DROP audio/voice/t3-voice-v1/source/voix_fr_scene3.wav :: fixed Casa Tacos voice, candidate voices, WAV demos and voice stems are excluded
+DROP audio/voice/t3-voice-v1/source/voix_fr_scene4.wav :: fixed Casa Tacos voice, candidate voices, WAV demos and voice stems are excluded
+DROP audio/voice/t3-voice-v1/t3_voice_stem_30s.wav :: fixed Casa Tacos voice, candidate voices, WAV demos and voice stems are excluded
+DROP capture-guide/ :: directory entry only
+DROP capture-guide/consignes_T3_PROPOSITION.json :: non-whitelisted metadata, proposal, superseded revision or schema not required by the mobile runtime
+DROP config/ :: directory entry only
+DROP config/T3_SILENT_IMPLEMENTATION_V0_1_0.json :: non-whitelisted metadata, proposal, superseded revision or schema not required by the mobile runtime
+DROP config/T3_SILENT_IMPLEMENTATION_V0_2_0.json :: non-whitelisted metadata, proposal, superseded revision or schema not required by the mobile runtime
+DROP config/T3_SILENT_IMPLEMENTATION_V0_3_0.json :: non-whitelisted metadata, proposal, superseded revision or schema not required by the mobile runtime
+DROP config/T3_TEXT_MOTION_V0_2_0.json :: non-whitelisted metadata, proposal, superseded revision or schema not required by the mobile runtime
+DROP config/T3_TEXT_MOTION_V0_3_0.json :: non-whitelisted metadata, proposal, superseded revision or schema not required by the mobile runtime
+DROP conformance/ :: directory entry only
+DROP conformance/T3_GOLDEN_V1.json :: test, fixture, demo, simulation, evidence, report or conformance data
+DROP demo/ :: directory entry only
+DROP demo/render_job_complete_v1_0_0.json :: test, fixture, demo, simulation, evidence, report or conformance data
+DROP demo/render_job_silent_demo.json :: test, fixture, demo, simulation, evidence, report or conformance data
+DROP demo/render_job_silent_demo_v0_3.json :: test, fixture, demo, simulation, evidence, report or conformance data
+DROP demo/render_job_silent_demo_v0_4.json :: test, fixture, demo, simulation, evidence, report or conformance data
+DROP docs/ :: directory entry only
+DROP docs/LICENCES_POLICES.md :: documentation, source script, workflow or development metadata
+DROP docs/LICENCES_RUSHS.md :: documentation, source script, workflow or development metadata
+DROP docs/T3_TRANSITION_VISIBILITY_CONTRACT.md :: documentation, source script, workflow or development metadata
+DROP docs/T3_TYPOGRAPHY_LEGIBILITY_CONTRACT.md :: documentation, source script, workflow or development metadata
+DROP docs/T3_VISIBLE_TEXT_CONTRACT.md :: documentation, source script, workflow or development metadata
+DROP engine/ :: directory entry only
+DROP engine/__init__.py :: build/render/control-plane code or source workflow; not Android runtime
+DROP engine/render_silent.py :: build/render/control-plane code or source workflow; not Android runtime
+DROP engine/text_motion.py :: build/render/control-plane code or source workflow; not Android runtime
+DROP fixtures/ :: directory entry only
+DROP fixtures/t3-coulisses/ :: directory entry only
+DROP fixtures/t3-coulisses/render_error.unsupported_media.json :: test, fixture, demo, simulation, evidence, report or conformance data
+DROP fixtures/t3-coulisses/render_job.valid.json :: test, fixture, demo, simulation, evidence, report or conformance data
+DROP fixtures/t3-coulisses/render_result.valid.json :: test, fixture, demo, simulation, evidence, report or conformance data
+DROP form/ :: directory entry only
+DROP form/questions_T3_PROPOSITION.json :: non-whitelisted metadata, proposal, superseded revision or schema not required by the mobile runtime
+DROP integration-handoff/ :: directory entry only
+DROP integration-handoff/T3_CLOUDFLARE_BOUNDARY_V1.json :: non-whitelisted metadata, proposal, superseded revision or schema not required by the mobile runtime
+DROP integration-handoff/T3_INTEGRATOR_HANDOFF_V1.md :: documentation, source script, workflow or development metadata
+DROP packages/ :: directory entry only
+DROP packages/t3-coulisses-v1/ :: directory entry only
+DROP packages/t3-coulisses-v1/package_spec.json :: non-whitelisted metadata, proposal, superseded revision or schema not required by the mobile runtime
+DROP proofs/ :: directory entry only
+DROP proofs/SHA256SUMS_RELEASE_RUN_44555498879.txt :: test, fixture, demo, simulation, evidence, report or conformance data
+DROP proofs/T3_DOWNLOADED_RELEASE_VALIDATION_RUN_44548349489.json :: test, fixture, demo, simulation, evidence, report or conformance data
+DROP proofs/T3_DOWNLOADED_RELEASE_VALIDATION_RUN_44551121356.json :: test, fixture, demo, simulation, evidence, report or conformance data
+DROP proofs/T3_DOWNLOADED_RELEASE_VALIDATION_RUN_44555498879.json :: test, fixture, demo, simulation, evidence, report or conformance data
+DROP proofs/T3_GITHUB_RELEASE_AUDIT_RUN_44555498879.json :: test, fixture, demo, simulation, evidence, report or conformance data
+DROP proofs/T3_GITHUB_SERVER_VALIDATION_RUN_44540350371.json :: test, fixture, demo, simulation, evidence, report or conformance data
+DROP proofs/T3_GITHUB_SERVER_VALIDATION_RUN_44548349489.json :: test, fixture, demo, simulation, evidence, report or conformance data
+DROP proofs/T3_GITHUB_SERVER_VALIDATION_RUN_44551121356.json :: test, fixture, demo, simulation, evidence, report or conformance data
+DROP proofs/T3_GITHUB_SERVER_VALIDATION_RUN_44555498879.json :: test, fixture, demo, simulation, evidence, report or conformance data
+DROP proofs/T3_SILENT_RENDER_REPORT_RUN_44540350371.json :: test, fixture, demo, simulation, evidence, report or conformance data
+DROP proofs/T3_SILENT_RENDER_REPORT_RUN_44548349489.json :: test, fixture, demo, simulation, evidence, report or conformance data
+DROP proofs/T3_SILENT_RENDER_REPORT_RUN_44551121356.json :: test, fixture, demo, simulation, evidence, report or conformance data
+DROP proofs/T3_SILENT_RENDER_REPORT_RUN_44555498879.json :: test, fixture, demo, simulation, evidence, report or conformance data
+DROP proofs/T3_TRANSITION_PROOF_RUN_44540350371.jpg :: screenshot, proof board, research image or contact sheet; not a UI component
+DROP proofs/T3_TRANSITION_TEXT_PROOF_RUN_44548349489.jpg :: screenshot, proof board, research image or contact sheet; not a UI component
+DROP proofs/T3_TRANSITION_TEXT_PROOF_RUN_44551121356.jpg :: screenshot, proof board, research image or contact sheet; not a UI component
+DROP proofs/T3_TRANSITION_TEXT_PROOF_RUN_44555498879.jpg :: screenshot, proof board, research image or contact sheet; not a UI component
+DROP proofs/complete-remediation-server/ :: directory entry only
+DROP proofs/complete-remediation-server/SHA256SUMS_COMPLETE_ARTIFACT_RUN_44574915753.txt :: test, fixture, demo, simulation, evidence, report or conformance data
+DROP proofs/complete-remediation-server/T3_COMPLETE_DOWNLOADED_ARTIFACT_VALIDATION_RUN_44574915753.json :: test, fixture, demo, simulation, evidence, report or conformance data
+DROP proofs/complete-remediation-server/T3_COMPLETE_GITHUB_RUN_44574915753.json :: test, fixture, demo, simulation, evidence, report or conformance data
+DROP proofs/complete-remediation-server/T3_COMPLETE_RENDER_REPORT_RUN_44574915753.json :: test, fixture, demo, simulation, evidence, report or conformance data
+DROP proofs/complete-remediation-server/T3_COMPLETE_SERVER_VALIDATION_RUN_44574915753.json :: test, fixture, demo, simulation, evidence, report or conformance data
+DROP proofs/complete-remediation-server/T3_VOICE_CANDIDATES_MANIFEST_RUN_44574915753.json :: test, fixture, demo, simulation, evidence, report or conformance data
+DROP proofs/complete-remediation-server/T3_VOICE_CANDIDATE_APPROVAL_RUN_44574915753.json :: test, fixture, demo, simulation, evidence, report or conformance data
+DROP proofs/complete-v0.7-server/ :: directory entry only
+DROP proofs/complete-v0.7-server/SHA256SUMS_COMPLETE_RELEASE_RUN_44564485698.txt :: test, fixture, demo, simulation, evidence, report or conformance data
+DROP proofs/complete-v0.7-server/T3_COMPLETE_DOWNLOADED_RELEASE_VALIDATION_RUN_44564485698.json :: test, fixture, demo, simulation, evidence, report or conformance data
+DROP proofs/complete-v0.7-server/T3_COMPLETE_GITHUB_RELEASE_AUDIT_RUN_44564485698.json :: test, fixture, demo, simulation, evidence, report or conformance data
+DROP proofs/complete-v0.7-server/T3_COMPLETE_RENDER_REPORT_RUN_44564485698.json :: test, fixture, demo, simulation, evidence, report or conformance data
+DROP proofs/complete-v0.7-server/T3_COMPLETE_SERVER_VALIDATION_RUN_44564485698.json :: test, fixture, demo, simulation, evidence, report or conformance data
+DROP proofs/integrator-package-remediation-server/ :: directory entry only
+DROP proofs/integrator-package-remediation-server/SHA256SUMS_INTEGRATOR_ARTIFACT_RUN_44577055304.txt :: test, fixture, demo, simulation, evidence, report or conformance data
+DROP proofs/integrator-package-remediation-server/T3_INTEGRATOR_PACKAGE_BUILD_REPORT_RUN_44577055304.json :: test, fixture, demo, simulation, evidence, report or conformance data
+DROP proofs/integrator-package-remediation-server/T3_INTEGRATOR_PACKAGE_DOWNLOADED_VALIDATION_RUN_44577055304.json :: test, fixture, demo, simulation, evidence, report or conformance data
+DROP proofs/integrator-package-remediation-server/T3_INTEGRATOR_PACKAGE_GITHUB_RUN_44577055304.json :: test, fixture, demo, simulation, evidence, report or conformance data
+DROP proofs/integrator-package-remediation-server/T3_INTEGRATOR_PACKAGE_SERVER_VALIDATION_RUN_44577055304.json :: test, fixture, demo, simulation, evidence, report or conformance data
+DROP proofs/owner-feedback/ :: directory entry only
+DROP proofs/owner-feedback/T3_V0_2_POLICE_ILLISIBLE_FINAL.png :: screenshot, proof board, research image or contact sheet; not a UI component
+DROP proofs/owner-feedback/T3_V0_2_POLICE_ILLISIBLE_IDENTITE.png :: screenshot, proof board, research image or contact sheet; not a UI component
+DROP proofs/owner-feedback/T3_V0_3_TRAITS_BLEUS_HORIZONTAUX.png :: screenshot, proof board, research image or contact sheet; not a UI component
+DROP proofs/owner-feedback/T3_V0_3_TRAITS_BLEUS_VERTICAUX.png :: screenshot, proof board, research image or contact sheet; not a UI component
+DROP proofs/separators-v0.4-server/ :: directory entry only
+DROP proofs/separators-v0.4-server/T3_V0_4_FRAME_769_40_PERCENT_RUN_44555498879.png :: screenshot, proof board, research image or contact sheet; not a UI component
+DROP proofs/separators-v0.4-server/T3_V0_4_FRAME_771_40_PERCENT_RUN_44555498879.png :: screenshot, proof board, research image or contact sheet; not a UI component
+DROP proofs/separators-v0.4-server/T3_V0_4_FRAME_774_40_PERCENT_RUN_44555498879.png :: screenshot, proof board, research image or contact sheet; not a UI component
+DROP proofs/separators-v0.4-server/T3_V0_4_FRAME_775_40_PERCENT_RUN_44555498879.png :: screenshot, proof board, research image or contact sheet; not a UI component
+DROP proofs/separators-v0.4-server/T3_V0_4_FRAME_778_40_PERCENT_RUN_44555498879.png :: screenshot, proof board, research image or contact sheet; not a UI component
+DROP proofs/separators-v0.4-server/T3_V0_4_FRAME_780_40_PERCENT_RUN_44555498879.png :: screenshot, proof board, research image or contact sheet; not a UI component
+DROP proofs/separators-v0.4-server/T3_V0_4_FRAME_781_40_PERCENT_RUN_44555498879.png :: screenshot, proof board, research image or contact sheet; not a UI component
+DROP proofs/separators-v0.4-server/T3_V0_4_SEPARATOR_PIXEL_AUDIT_RUN_44555498879.json :: test, fixture, demo, simulation, evidence, report or conformance data
+DROP proofs/typography-v0.3-server/ :: directory entry only
+DROP proofs/typography-v0.3-server/T3_V0_3_ACCROCHE_FRAME_551_40_PERCENT_RUN_44551121356.png :: screenshot, proof board, research image or contact sheet; not a UI component
+DROP proofs/typography-v0.3-server/T3_V0_3_FINAL_FRAME_899_40_PERCENT_RUN_44551121356.png :: screenshot, proof board, research image or contact sheet; not a UI component
+DROP proofs/typography-v0.3-server/T3_V0_3_IDENTITE_FRAME_086_40_PERCENT_RUN_44551121356.png :: screenshot, proof board, research image or contact sheet; not a UI component
+DROP qa/ :: directory entry only
+DROP qa/T3_APPROVED_CAPTURE_QA.json :: test, fixture, demo, simulation, evidence, report or conformance data
+DROP qa/T3_PROPOSITION_QA.json :: test, fixture, demo, simulation, evidence, report or conformance data
+DROP qa/T3_TRANSITIONS_30S_QA.json :: test, fixture, demo, simulation, evidence, report or conformance data
+DROP reports/ :: directory entry only
+DROP reports/AUDIT_ARCHITECTURE_T1_T2_T3_2026-11-18.json :: test, fixture, demo, simulation, evidence, report or conformance data
+DROP reports/AUDIT_ARCHITECTURE_T1_T2_T3_2026-11-18.md :: test, fixture, demo, simulation, evidence, report or conformance data
+DROP reports/RAPPORT_RENDU_COMPLET_GITHUB_RUN_44564485698.md :: test, fixture, demo, simulation, evidence, report or conformance data
+DROP reports/RAPPORT_RENDU_SILENCIEUX_GITHUB_RUN_44540350371.md :: test, fixture, demo, simulation, evidence, report or conformance data
+DROP reports/RAPPORT_RENDU_SILENCIEUX_GITHUB_RUN_44548349489.md :: test, fixture, demo, simulation, evidence, report or conformance data
+DROP reports/RAPPORT_RENDU_SILENCIEUX_GITHUB_RUN_44551121356.md :: test, fixture, demo, simulation, evidence, report or conformance data
+DROP reports/RAPPORT_RENDU_SILENCIEUX_GITHUB_RUN_44555498879.md :: test, fixture, demo, simulation, evidence, report or conformance data
+DROP reports/T3_FINAL_AUDIT_2026-11-18.md :: test, fixture, demo, simulation, evidence, report or conformance data
+DROP requirements.txt :: documentation, source script, workflow or development metadata
+DROP research/ :: directory entry only
+DROP research/LOT_03_A_CHOISIR.md :: screenshot, proof board, research image or contact sheet; not a UI component
+DROP research/archive/ :: directory entry only
+DROP research/archive/LOT_01_REFUSE.md :: screenshot, proof board, research image or contact sheet; not a UI component
+DROP research/archive/LOT_02_REFUSE.md :: screenshot, proof board, research image or contact sheet; not a UI component
+DROP research/archive/references_lot_01_refuse.json :: screenshot, proof board, research image or contact sheet; not a UI component
+DROP research/archive/references_lot_02_refuse.json :: screenshot, proof board, research image or contact sheet; not a UI component
+DROP research/evidence/ :: directory entry only
+DROP research/evidence/selected_refs_02_04/ :: directory entry only
+DROP research/evidence/selected_refs_02_04/REF_02_food_edit_burger_transition_strips.jpg :: screenshot, proof board, research image or contact sheet; not a UI component
+DROP research/evidence/selected_refs_02_04/REF_04_comida_restaurante_transition_strips.jpg :: screenshot, proof board, research image or contact sheet; not a UI component
+DROP research/references.json :: screenshot, proof board, research image or contact sheet; not a UI component
+DROP research/stock-selection/ :: directory entry only
+DROP research/stock-selection/README.md :: screenshot, proof board, research image or contact sheet; not a UI component
+DROP research/stock-selection/S1_ingredients_contact.jpg :: screenshot, proof board, research image or contact sheet; not a UI component
+DROP research/stock-selection/S2_gesture_contact.jpg :: screenshot, proof board, research image or contact sheet; not a UI component
+DROP research/stock-selection/S3_plating_contact.jpg :: screenshot, proof board, research image or contact sheet; not a UI component
+DROP research/stock-selection/S4_ready_contact.jpg :: screenshot, proof board, research image or contact sheet; not a UI component
+DROP reverse-engineering/ :: directory entry only
+DROP reverse-engineering/MATRICE_TRANSITIONS_2_4_30S.md :: documentation, source script, workflow or development metadata
+DROP reverse-engineering/REPORT_REFS_02_04.md :: documentation, source script, workflow or development metadata
+DROP reverse-engineering/T3_TRANSITIONS_30S_PROPOSITION.json :: non-whitelisted metadata, proposal, superseded revision or schema not required by the mobile runtime
+DROP rushes/ :: directory entry only
+DROP rushes/manifest.json :: rush/demo/golden video is not a production Android resource
+DROP schemas/ :: directory entry only
+DROP schemas/T3_voice_candidates.schema.json :: non-whitelisted metadata, proposal, superseded revision or schema not required by the mobile runtime
+DROP simulation/ :: directory entry only
+DROP simulation/README.md :: test, fixture, demo, simulation, evidence, report or conformance data
+DROP simulation/app.js :: test, fixture, demo, simulation, evidence, report or conformance data
+DROP simulation/index.html :: test, fixture, demo, simulation, evidence, report or conformance data
+DROP tests/ :: directory entry only
+DROP tests/test_audio_contract.py :: test, fixture, demo, simulation, evidence, report or conformance data
+DROP tests/test_contract.py :: test, fixture, demo, simulation, evidence, report or conformance data
+DROP tests/test_effects.py :: test, fixture, demo, simulation, evidence, report or conformance data
+DROP tests/test_integrator_architecture.py :: test, fixture, demo, simulation, evidence, report or conformance data
+DROP tests/test_text_motion.py :: test, fixture, demo, simulation, evidence, report or conformance data
+DROP tests/test_voice_candidates.py :: test, fixture, demo, simulation, evidence, report or conformance data
+DROP tools/ :: directory entry only
+DROP tools/build_t3_capture_flow.py :: build/render/control-plane code or source workflow; not Android runtime
+DROP tools/build_t3_integrator_package.py :: build/render/control-plane code or source workflow; not Android runtime
+DROP tools/fetch_rushes.py :: build/render/control-plane code or source workflow; not Android runtime
+DROP tools/record_t3_music_result.py :: build/render/control-plane code or source workflow; not Android runtime
+DROP tools/validate_complete.py :: build/render/control-plane code or source workflow; not Android runtime
+DROP tools/validate_silent.py :: build/render/control-plane code or source workflow; not Android runtime
+DROP tools/validate_t3_integrator_package.py :: build/render/control-plane code or source workflow; not Android runtime
+DROP ui-screens/ :: directory entry only
+DROP ui-screens/approved/ :: directory entry only
+DROP ui-screens/approved/T3_CAPTURE_S1_A_GUIDE.png :: screenshot, proof board, research image or contact sheet; not a UI component
+DROP ui-screens/approved/T3_CAPTURE_S1_B_RECORDING.png :: screenshot, proof board, research image or contact sheet; not a UI component
+DROP ui-screens/approved/T3_CAPTURE_S1_C_REVIEW.png :: screenshot, proof board, research image or contact sheet; not a UI component
+DROP ui-screens/approved/T3_CAPTURE_S2_A_GUIDE.png :: screenshot, proof board, research image or contact sheet; not a UI component
+DROP ui-screens/approved/T3_CAPTURE_S2_B_RECORDING.png :: screenshot, proof board, research image or contact sheet; not a UI component
+DROP ui-screens/approved/T3_CAPTURE_S2_C_REVIEW.png :: screenshot, proof board, research image or contact sheet; not a UI component
+DROP ui-screens/approved/T3_CAPTURE_S3_A_GUIDE.png :: screenshot, proof board, research image or contact sheet; not a UI component
+DROP ui-screens/approved/T3_CAPTURE_S3_B_RECORDING.png :: screenshot, proof board, research image or contact sheet; not a UI component
+DROP ui-screens/approved/T3_CAPTURE_S3_C_REVIEW.png :: screenshot, proof board, research image or contact sheet; not a UI component
+DROP ui-screens/approved/T3_CAPTURE_S4_A_GUIDE.png :: screenshot, proof board, research image or contact sheet; not a UI component
+DROP ui-screens/approved/T3_CAPTURE_S4_B_RECORDING.png :: screenshot, proof board, research image or contact sheet; not a UI component
+DROP ui-screens/approved/T3_CAPTURE_S4_C_REVIEW.png :: screenshot, proof board, research image or contact sheet; not a UI component
+DROP ui-screens/approved/T3_PLANCHE_12_ECRANS_APPROUVEE.png :: screenshot, proof board, research image or contact sheet; not a UI component
+DROP ui-screens/approved/manifest.json :: screenshot, proof board, research image or contact sheet; not a UI component
+DROP ui-screens/proposal/ :: directory entry only
+DROP ui-screens/proposal/T3_CAPTURE_S1_A_GUIDE.png :: screenshot, proof board, research image or contact sheet; not a UI component
+DROP ui-screens/proposal/T3_CAPTURE_S1_B_RECORDING.png :: screenshot, proof board, research image or contact sheet; not a UI component
+DROP ui-screens/proposal/T3_CAPTURE_S1_C_REVIEW.png :: screenshot, proof board, research image or contact sheet; not a UI component
+DROP ui-screens/proposal/T3_CAPTURE_S2_A_GUIDE.png :: screenshot, proof board, research image or contact sheet; not a UI component
+DROP ui-screens/proposal/T3_CAPTURE_S2_B_RECORDING.png :: screenshot, proof board, research image or contact sheet; not a UI component
+DROP ui-screens/proposal/T3_CAPTURE_S2_C_REVIEW.png :: screenshot, proof board, research image or contact sheet; not a UI component
+DROP ui-screens/proposal/T3_CAPTURE_S3_A_GUIDE.png :: screenshot, proof board, research image or contact sheet; not a UI component
+DROP ui-screens/proposal/T3_CAPTURE_S3_B_RECORDING.png :: screenshot, proof board, research image or contact sheet; not a UI component
+DROP ui-screens/proposal/T3_CAPTURE_S3_C_REVIEW.png :: screenshot, proof board, research image or contact sheet; not a UI component
+DROP ui-screens/proposal/T3_CAPTURE_S4_A_GUIDE.png :: screenshot, proof board, research image or contact sheet; not a UI component
+DROP ui-screens/proposal/T3_CAPTURE_S4_B_RECORDING.png :: screenshot, proof board, research image or contact sheet; not a UI component
+DROP ui-screens/proposal/T3_CAPTURE_S4_C_REVIEW.png :: screenshot, proof board, research image or contact sheet; not a UI component
+DROP ui-screens/proposal/T3_PLANCHE_12_ECRANS_PROPOSITION.png :: screenshot, proof board, research image or contact sheet; not a UI component
+DROP ui-screens/proposal/manifest.json :: screenshot, proof board, research image or contact sheet; not a UI component

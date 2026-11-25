@@ -31,6 +31,9 @@ jobs:
       - name: Verify RESTAURATION-T5 archive inventory, package and sealed music
         run: python3 tools/verify_restauration_t5_integrity.py
 
+      - name: Verify RESTAURATION-T3 selective package, v0.4 contract and sealed music
+        run: python3 tools/verify_restauration_t3_integrity.py
+
       - name: Prove T5 typography weights and transition travel
         run: |
           python3 -m pip install --quiet fonttools pillow
@@ -45,6 +48,7 @@ jobs:
             ci-artifacts/T2_INTEGRITY_REPORT.txt
             ci-artifacts/RESTAURATION_T2_INTEGRITY_REPORT.txt
             ci-artifacts/T5_INTEGRITY_REPORT.txt
+            ci-artifacts/RESTAURATION_T3_INTEGRITY_REPORT.txt
             docs/restauration_t5/proofs/T5_TYPOGRAPHY_PROOF.png
             docs/restauration_t5/proofs/T5_TYPOGRAPHY_REPORT.txt
             docs/restauration_t5/proofs/T5_TRANSITIONS_REPORT.txt

@@ -82,6 +82,13 @@ object ContratCandidatParser {
             val start = (interval.getDouble(0) * fps).roundToInt()
             val end = (interval.getDouble(1) * fps).roundToInt()
             val type = when (motif.uppercase()) {
+                "Q" -> TransitionType.QUATRE_VOLETS
+                "DIA" -> TransitionType.BALAYAGE_DIAGONAL
+                "PUSH" -> TransitionType.POUSSEE_VOILE
+                "FLASH" -> TransitionType.ECLAT_COLORE
+                "FADE" -> TransitionType.CROSSFADE
+                "CUT" -> TransitionType.CUT
+                "BOX" -> TransitionType.CASE_VERS_PLEIN_CADRE
                 "A" -> TransitionType.LAMELLES_OUVERTURE
                 "B" -> TransitionType.ECLAT_COLORE
                 "C" -> TransitionType.PAPIER_OBLIQUE
@@ -176,7 +183,7 @@ object ContratCandidatParser {
                 fontRelativePath = fontPath,
                 fallbackFontRelativePath = if (layer.optString("id") == "offre") fallbackFont else null,
                 fontSha256 = fontHash(declaredFont),
-                inkColorHex = ink, reliefColorHex = reliefHex,
+                inkColorHex = layer.optString("couleur", ink), reliefColorHex = reliefHex,
                 skipAutoWhatsappPrefix = layer.optBoolean("sans_prefixe_whatsapp", layer.optString("id") == "numero"),
                 // Declared variable-font weight (Playfair 800/900 for T5). Absent
                 // in T1–T4 layers, so their rendering is unchanged.

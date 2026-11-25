@@ -7,6 +7,7 @@ package com.vitrinevideo.app.flow
  */
 object TemplateCatalogue {
     const val RESTAURATION_T2 = "RESTAURATION-T2"
+    const val RESTAURATION_T3 = "RESTAURATION-T3"
     const val RESTAURATION_T5 = "RESTAURATION-T5"
 
     val SUPPORTED_IDS: Set<String> = setOf(
@@ -15,6 +16,7 @@ object TemplateCatalogue {
         "COMMERCE-T3",
         "COMMERCE-T4",
         RESTAURATION_T2,
+        RESTAURATION_T3,
         RESTAURATION_T5
     )
 
@@ -27,6 +29,7 @@ object TemplateCatalogue {
         "COMMERCE-T3" -> if (french) "Démonstration" else "Demonstration"
         "COMMERCE-T4" -> if (french) "Promotion" else "Special offer"
         RESTAURATION_T2 -> if (french) "Avant / Après" else "Before / After"
+        RESTAURATION_T3 -> if (french) "Coulisses de préparation" else "Behind the preparation"
         RESTAURATION_T5 -> "Formule, combo et offre"
         else -> if (french) "Votre vidéo" else "Your video"
     }
