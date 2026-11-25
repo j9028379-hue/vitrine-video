@@ -124,3 +124,40 @@ Nouveau composant commun `RecordingCountdown` (un seul propriétaire) :
 - Jeux JVM : `RestaurationT5PackageTest` (poids, transitions, durées),
   `RestaurationT5AppFlowTest` (absence de textes techniques, composant commun).
 - Instrumenté (téléphone requis) : `ShippedTemplatesInstrumentedTest`.
+
+## 8. Livraison
+
+| Élément | Valeur |
+|---|---|
+| Commit livré | `73721673cf3a78e012e114bd1cae6f5db21616db` |
+| CI | run `45678748202` — succès (JVM, paquets T2/T5, APK, delivery) |
+| APK Release | `VitrineVideo-release-T5-finale.apk` |
+| Taille | 55 368 018 octets |
+| SHA-256 | `336e28a56d45328fd857a0ee69c2300d27ca04c30cd444e0f7a556c7913f7c1c` |
+| Drive (dossier `1dpCOKKRsLtWItIY32_TPkd__5JT5m2jH`) | https://drive.google.com/file/d/1cE2odAiCzmhw0PiA_C_USIAwmKoPVCfy/view |
+
+Contrôle après dépôt : Drive recalcule `sha256Checksum =
+336e28a5…3f7c1c` et `size = 55368018`, identiques au fichier produit par
+la CI. L APK réassemblé depuis `ci-delivery/apk-chunks/` donne exactement
+la même empreinte.
+
+Vérifications faites **dans l APK**, pas seulement dans le JSON :
+
+- 6 paquets présents (`COMMERCE-T1..T4`, `RESTAURATION-T2`, `RESTAURATION-T5`) ;
+- paquet T5 embarqué = `6f3524e0…b55353a` (celui que les outils ont vérifié) ;
+- dex : `ON FILME !` présent, `RecordingCountdown` présent, 0 occurrence de
+  « Format vérifié », « Codecs : », « Musique COMMERCE-T3 » ;
+- maquette : 0 occurrence de « TEST T5 », « non connectée », « La maquette du
+  parcours » ; éléments approuvés présents (COMMENCER À FILMER, À FILMER,
+  À ÉVITER, CE QUE TU DOIS FAIRE, image de scène, lecteur audio).
+
+## 9. Limites déclarées
+
+1. Aucun JDK/Gradle/Android dans l environnement de rédaction : la compilation
+   et les tests JVM font foi via la CI ; les preuves typographiques locales sont
+   des rendus de la police réellement embarquée, pas un rendu téléphone.
+2. Aucune capture MP4 comparative n a pu être produite ici (pas de moteur de
+   rendu, pas de ffmpeg). Le rendu final doit être contrôlé sur le téléphone du
+   fondateur : c est la seule validation qui compte.
+3. Le MP4 de référence du jingle n est pas fourni ; la géométrie suit la mesure
+   T1 archivée.
