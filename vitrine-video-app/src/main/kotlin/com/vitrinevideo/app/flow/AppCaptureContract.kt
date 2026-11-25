@@ -238,11 +238,12 @@ class CaptureProgressionStateMachine(
             return
         }
         if (take.validatedByMerchant && take.sceneIndex in sceneIds.indices) {
-            val (requiredUs, allowFreeze) = sceneRequirements[take.sceneId]
-            if (requiredUs != null &&
-                SceneCaptureValidator.validate(take.snapshot(), requiredUs, allowFreeze) != null
-            ) {
-                return
+            val requirement = sceneRequirements[take.sceneId]
+            if (requirement != null) {
+                val (requiredUs, allowFreeze) = requirement
+                if (SceneCaptureValidator.validate(take.snapshot(), requiredUs, allowFreeze) != null) {
+                    return
+                }
             }
             takes[take.sceneId] = take
             visitedScreenSet += (take.sceneIndex * 3) + 1
