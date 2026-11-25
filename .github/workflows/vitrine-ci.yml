@@ -4,12 +4,7 @@ on:
   push:
     branches:
       - '**'
-  workflow_dispatch:
-    inputs:
-      run_render:
-        description: "Attempt the optional on-device render probe"
-        type: boolean
-        default: false
+  workflow_dispatch: {}
 
 permissions:
   contents: read
@@ -17,5 +12,8 @@ permissions:
 jobs:
   pipeline:
     uses: ./.github/workflows/_android-ci.yml
+    # Founder decision 2026-11-25: physical phone testing replaces the GitHub
+    # emulator probe. The instrumented test and reusable render job are kept in
+    # source but are never invoked from this entry workflow.
     with:
-      run_render: ${{ github.event_name == 'workflow_dispatch' && inputs.run_render || false }}
+      run_render: false

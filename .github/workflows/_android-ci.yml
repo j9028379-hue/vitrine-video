@@ -9,7 +9,7 @@ on:
         default: false
 
 permissions:
-  contents: read
+  contents: write
 
 env:
   GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx3g -Dkotlin.daemon.jvm.options=-Xmx1g"
@@ -51,10 +51,11 @@ jobs:
         shell: bash
         run: |
           set +e
-          ./gradlew :vitrine-render-engine:testDebugUnitTest --stacktrace 2>&1 | tee /tmp/engine-tests.log
+          mkdir -p ci-logs
+          ./gradlew :vitrine-render-engine:testDebugUnitTest --stacktrace 2>&1 | tee ci-logs/engine-tests.log
           code=${PIPESTATUS[0]}
           if [ "$code" -ne 0 ]; then
-            grep -E '^(e:|w:|FAILURE:|.* FAILED|.*error:)' /tmp/engine-tests.log | tail -25 | while IFS= read -r line; do
+            grep -E '^(e:|w:|FAILURE:|.* FAILED|.*error:)' ci-logs/engine-tests.log | tail -25 | while IFS= read -r line; do
               echo "::error::${line//'%'/'%25'}"
             done
           fi
@@ -64,10 +65,11 @@ jobs:
         shell: bash
         run: |
           set +e
-          ./gradlew :vitrine-video-app:testDebugUnitTest --stacktrace 2>&1 | tee /tmp/app-tests.log
+          mkdir -p ci-logs
+          ./gradlew :vitrine-video-app:testDebugUnitTest --stacktrace 2>&1 | tee ci-logs/app-tests.log
           code=${PIPESTATUS[0]}
           if [ "$code" -ne 0 ]; then
-            grep -E '^(e:|w:|FAILURE:|.* FAILED|.*error:)' /tmp/app-tests.log | tail -25 | while IFS= read -r line; do
+            grep -E '^(e:|w:|FAILURE:|.* FAILED|.*error:)' ci-logs/app-tests.log | tail -25 | while IFS= read -r line; do
               echo "::error::${line//'%'/'%25'}"
             done
           fi
@@ -103,6 +105,14 @@ jobs:
             **/build/reports/tests/**
           if-no-files-found: warn
 
+      - name: Upload build and test logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-logs
+          path: ci-logs/**
+          if-no-files-found: warn
+
   build:
     name: Debug + release APK
     needs: tests
@@ -130,8 +140,10 @@ jobs:
 
       - name: assembleDebug + assembleRelease
         run: |
+          set -o pipefail
+          mkdir -p ci-logs
           chmod +x gradlew
-          ./gradlew assembleDebug assembleRelease --stacktrace
+          ./gradlew assembleDebug assembleRelease --stacktrace 2>&1 | tee ci-logs/gradle-build.log
 
       - name: APK integrity, signature and SHA-256
         run: |
@@ -172,6 +184,67 @@ jobs:
           name: apk-release-evidence
           path: ci-artifacts/*
           if-no-files-found: error
+
+      - name: Upload Gradle build log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-logs
+          path: ci-logs/gradle-build.log
+          if-no-files-found: warn
+
+  delivery-package:
+    name: Downloadable APK delivery package
+    needs: [tests, build]
+    if: needs.build.result == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Download run artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: ci-delivery/artifacts
+
+      - name: Verify APKs and assemble transfer package
+        run: |
+          set -euo pipefail
+          APK_DIR=ci-delivery/artifacts/apk-release-evidence
+          test -s "$APK_DIR/VitrineVideo-debug.apk"
+          RELEASE_APK=$(find "$APK_DIR" -maxdepth 1 -name 'VitrineVideo-release*.apk' -type f | head -n 1)
+          test -n "$RELEASE_APK" && test -s "$RELEASE_APK"
+          {
+            echo "# VITRINE VIDÉO — APK delivery package"
+            echo "workflow_run=$GITHUB_RUN_ID"
+            echo "commit=$GITHUB_SHA"
+            echo "branch=$GITHUB_REF_NAME"
+            echo
+            echo "## APK"
+            sha256sum "$APK_DIR"/*.apk
+            stat -c '%n %s bytes' "$APK_DIR"/*.apk
+            echo
+            echo "## Artifacts included"
+            find ci-delivery/artifacts -type f | sort
+          } > ci-delivery/DELIVERY_MANIFEST.txt
+          tar -czf ci-delivery/vitrine-apk-evidence.tar.gz -C ci-delivery artifacts DELIVERY_MANIFEST.txt
+          sha256sum ci-delivery/vitrine-apk-evidence.tar.gz > ci-delivery/PACKAGE_SHA256.txt
+          cat ci-delivery/DELIVERY_MANIFEST.txt
+          cat ci-delivery/PACKAGE_SHA256.txt
+
+      - name: Publish transfer package on session branch
+        run: |
+          set -euo pipefail
+          git config user.name "Vitrine CI"
+          git config user.email "ci@vitrinevideo.local"
+          git add -f ci-delivery/DELIVERY_MANIFEST.txt ci-delivery/PACKAGE_SHA256.txt ci-delivery/vitrine-apk-evidence.tar.gz
+          if git diff --cached --quiet; then
+            echo "Delivery package unchanged"
+          else
+            git commit -m "CI APK delivery evidence [skip ci]"
+            git push origin "HEAD:refs/heads/$GITHUB_REF_NAME"
+          fi
 
   render:
     name: Optional on-device render probe
