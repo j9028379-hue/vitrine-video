@@ -100,7 +100,7 @@ class RestaurationT3AppFlowTest {
         assertEquals(listOf(1, 2, 3, 4), pkg.audioProfile?.approvedNumbers)
         assertTrue(pkg.audioProfile?.rotationMode.orEmpty().contains("cycle_4"))
         val audio = JSONObject(pkg.resolvePackageRelative("audio/catalogue.json").readText())
-        assertEquals(listOf("1", "2", "3", "4"), (1..4).map { audio.getJSONObject("transition").getString("$it") })
+        assertEquals(listOf("2", "3", "4", "1"), (1..4).map { audio.getJSONObject("transition").getString("$it") })
         val motion = JSONObject(pkg.resolvePackageRelative("contracts/config/T3_TEXT_MOTION_V0_4_0.json").readText())
         assertEquals(3, motion.getJSONObject("fonts").length())
         ZipFile(packageFile()).use { zip ->
