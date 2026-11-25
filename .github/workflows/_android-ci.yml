@@ -289,6 +289,8 @@ jobs:
             echo "Delivery package unchanged"
           else
             git commit -m "CI APK delivery evidence [skip ci]"
+            git fetch origin "$GITHUB_REF_NAME"
+            git rebase "origin/$GITHUB_REF_NAME"
             git push origin "HEAD:refs/heads/$GITHUB_REF_NAME"
           fi
 
