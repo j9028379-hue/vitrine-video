@@ -235,6 +235,8 @@ jobs:
           test -s "$APK_DIR/VitrineVideo-debug.apk"
           RELEASE_APK=$(find "$APK_DIR" -maxdepth 1 -name 'VitrineVideo-release*.apk' -type f | head -n 1)
           test -n "$RELEASE_APK" && test -s "$RELEASE_APK"
+          rm -rf ci-delivery/apk-chunks
+          mkdir -p ci-delivery/apk-chunks
           {
             echo "# VITRINE VIDÉO — APK delivery package"
             echo "workflow_run=$GITHUB_RUN_ID"
@@ -242,14 +244,31 @@ jobs:
             echo "branch=$GITHUB_REF_NAME"
             echo
             echo "## APK"
-            sha256sum "$APK_DIR"/*.apk
-            stat -c '%n %s bytes' "$APK_DIR"/*.apk
+            echo "T2 APKs exceed GitHub's 100 MB per-file limit, so each APK is stored as verified 48 MB chunks."
+            echo "Reassemble with: cat <apk>.part-* > <apk> (in lexicographic order)."
             echo
-            echo "## Artifacts included"
-            find ci-delivery/artifacts -type f | sort
           } > ci-delivery/DELIVERY_MANIFEST.txt
-          tar -czf ci-delivery/vitrine-apk-evidence.tar.gz -C ci-delivery artifacts DELIVERY_MANIFEST.txt
-          sha256sum ci-delivery/vitrine-apk-evidence.tar.gz > ci-delivery/PACKAGE_SHA256.txt
+          : > ci-delivery/PACKAGE_SHA256.txt
+          for APK in "$APK_DIR/VitrineVideo-debug.apk" "$RELEASE_APK"; do
+            NAME=$(basename "$APK")
+            cp "$APK" "ci-delivery/apk-chunks/$NAME"
+            split -b 48m -d -a 2 "ci-delivery/apk-chunks/$NAME" "ci-delivery/apk-chunks/$NAME.part-"
+            rm -f "ci-delivery/apk-chunks/$NAME"
+            echo "name=$NAME" >> ci-delivery/DELIVERY_MANIFEST.txt
+            stat -c 'size=%s bytes' "$APK" >> ci-delivery/DELIVERY_MANIFEST.txt
+            sha256sum "$APK" | sed "s|.*  |sha256=|" >> ci-delivery/DELIVERY_MANIFEST.txt
+            cat ci-delivery/apk-chunks/$NAME.part-* | sha256sum | sed "s|.*  |reassembled_sha256=|" >> ci-delivery/DELIVERY_MANIFEST.txt
+            for CHUNK in ci-delivery/apk-chunks/$NAME.part-*; do
+              printf 'chunk=%s ' "$(basename "$CHUNK")" >> ci-delivery/DELIVERY_MANIFEST.txt
+              stat -c 'bytes=%s' "$CHUNK" >> ci-delivery/DELIVERY_MANIFEST.txt
+            done
+            echo >> ci-delivery/DELIVERY_MANIFEST.txt
+            sha256sum ci-delivery/apk-chunks/$NAME.part-* >> ci-delivery/PACKAGE_SHA256.txt
+          done
+          {
+            echo "## Source CI artifacts"
+            find ci-delivery/artifacts -type f | sort
+          } >> ci-delivery/DELIVERY_MANIFEST.txt
           cat ci-delivery/DELIVERY_MANIFEST.txt
           cat ci-delivery/PACKAGE_SHA256.txt
 
@@ -258,7 +277,9 @@ jobs:
           set -euo pipefail
           git config user.name "Vitrine CI"
           git config user.email "ci@vitrinevideo.local"
-          git add -f ci-delivery/DELIVERY_MANIFEST.txt ci-delivery/PACKAGE_SHA256.txt ci-delivery/vitrine-apk-evidence.tar.gz
+          git rm -f --cached --ignore-unmatch ci-delivery/vitrine-apk-evidence.tar.gz || true
+          rm -f ci-delivery/vitrine-apk-evidence.tar.gz
+          git add -f ci-delivery/DELIVERY_MANIFEST.txt ci-delivery/PACKAGE_SHA256.txt ci-delivery/apk-chunks/
           if git diff --cached --quiet; then
             echo "Delivery package unchanged"
           else
