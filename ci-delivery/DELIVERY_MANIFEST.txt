@@ -1,12 +1,12 @@
 # VITRINE VIDÉO — APK delivery package
-workflow_run=45577749175
-commit=cc4b820044112e378000125bd2c8d4d203f528a7
+workflow_run=45578809380
+commit=ed30c6cfabc0c5ac575f87cd46c2bf83f17d0e36
 branch=arena/dd66abee-vitrine-video
 
 ## APK
-96401c42876aaad636faab58ad971941c4ce7055dcff82ae2bc3dfeaaad8890f  ci-delivery/artifacts/apk-release-evidence/VitrineVideo-debug.apk
-aa6ceeb0e09fc31d8055fc01fd9900f9e47e84b90c4854033ee14b3d53a91886  ci-delivery/artifacts/apk-release-evidence/VitrineVideo-release-ci-signed.apk
-ci-delivery/artifacts/apk-release-evidence/VitrineVideo-debug.apk 45348291 bytes
+d9fce8ad87c50be1b3efe67357a6d7a90d8264619f7c6d23517718f8c1b0e953  ci-delivery/artifacts/apk-release-evidence/VitrineVideo-debug.apk
+85b3420f108bbe567ea782c9d478679e22fdd4bde1098ee89a45e26e41ef7ad8  ci-delivery/artifacts/apk-release-evidence/VitrineVideo-release-ci-signed.apk
+ci-delivery/artifacts/apk-release-evidence/VitrineVideo-debug.apk 45348288 bytes
 ci-delivery/artifacts/apk-release-evidence/VitrineVideo-release-ci-signed.apk 43762903 bytes
 
 ## Artifacts included
@@ -14,7 +14,7 @@ ci-delivery/artifacts/apk-release-evidence/SHA256SUMS.txt
 ci-delivery/artifacts/apk-release-evidence/VitrineVideo-debug.apk
 ci-delivery/artifacts/apk-release-evidence/VitrineVideo-release-ci-signed.apk
 ci-delivery/artifacts/apk-release-evidence/VitrineVideo-release-ci-signed.apk.idsig
-ci-delivery/artifacts/apk-release-evidence/ci-only.jks
+ci-delivery/artifacts/build-logs/apk-verification.log
 ci-delivery/artifacts/build-logs/gradle-build.log
 ci-delivery/artifacts/junit-reports/vitrine-render-engine/build/reports/tests/testDebugUnitTest/classes/com.vitrinevideo.engine.AudioDuckingAndRotationTest.html
 ci-delivery/artifacts/junit-reports/vitrine-render-engine/build/reports/tests/testDebugUnitTest/classes/com.vitrinevideo.engine.CapabilitiesRejectionTest.html
