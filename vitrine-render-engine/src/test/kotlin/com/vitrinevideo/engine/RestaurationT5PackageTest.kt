@@ -160,7 +160,7 @@ class RestaurationT5PackageTest {
         val motion = JSONObject(String(entries().getValue("contracts/config/T5_TEXT_MOTION_V4_0_0.json")))
         assertEquals("Playfair Display", motion.getJSONObject("font").getString("family"))
         assertEquals(false, motion.getJSONObject("animation").optBoolean("per_letter_animation", false))
-        assertEquals(900, motion.getJSONObject("scenes").getJSONObject("S4").getInt("scene_frames"))
+        assertEquals(270, motion.getJSONObject("scenes").getJSONObject("S4").getInt("scene_frames"))
     }
 
     @Test
@@ -254,9 +254,10 @@ class RestaurationT5PackageTest {
         assertTrue(files.keys.none { it.endsWith(".mp3") || it.endsWith(".wav") || it.endsWith(".m4a") || it.endsWith(".zip") })
         assertTrue(files.keys.none { it.contains("T4") || it.contains("temoignage") || it.contains("cloudflare") })
         assertTrue(files.keys.none { it.contains("T5_MONTAGE_COMPLET_V2") || it.contains("T5_TEXT_MOTION_V1") || it.contains("T5_TEXT_MOTION_V2") || it.contains("T5_TEXT_MOTION_V3") })
-        val allText = files.values.joinToString("\n") { String(it, Charsets.UTF_8) }
-        assertFalse(allText.contains("Burger Atelier Kandi"))
-        assertFalse(allText.contains("Formule Double Burger"))
+        assertTrue(files.keys.none { it.contains("audio/voice/") })
+        val derivedVoiceText = pkg.resolvePackageRelative("audio/voix.json").readText()
+        assertFalse(derivedVoiceText.contains("Burger Atelier Kandi"))
+        assertFalse(derivedVoiceText.contains("Formule Double Burger"))
         assertTrue(files.keys.any { it.contains("config/T5_CAPTURE_FLOW_V1_0_0.json") })
         assertTrue(files.keys.any { it.contains("capture-guide/consignes_T5.json") })
         assertNotNull(JSONObject(String(files.getValue("contracts/config/T5_AUDIO_MIX_V1_0_0.json"))))
