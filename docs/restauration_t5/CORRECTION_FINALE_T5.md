@@ -199,11 +199,15 @@ Image : source inchangée (`assets/images/r4-sceneN-portrait.webp`,
 `object-fit: contain`, donc aucun recadrage ni déformation) ; elle occupe
 maintenant l espace libéré (min-height 68 cqh, flex 1).
 
-Défaut annexe corrigé dans le même geste : la scène 3 de T5 réutilisait
-`r4-scene1-portrait.webp` (fichier identique octet pour octet à la scène 1).
-Elle pointe désormais sur `r4-scene3-portrait.webp`, l une des quatre images
-officielles du dossier, et un test vérifie que les quatre fichiers sont
-distincts.
+**Défaut annexe trouvé, partiellement corrigé** : la balise de la scène 3
+pointait sur `r4-scene1-portrait.webp` (copier-coller). Elle pointe maintenant sur
+`r4-scene3-portrait.webp`, mais la CI a montré que **ce fichier officiel est
+identique octet pour octet à celui de la scène 1**
+(SHA-256 `e8e6f2b4…9225` pour les deux). Les scènes 1 et 3 affichent donc la
+même illustration. Je ne remplace pas une image approuvée de ma propre
+initiative : il faut fournir l illustration officielle de la scène 3 (ou
+confirmer que la répétition est voulue). Le test JVM documente ce constat au
+lieu de le masquer.
 
 Note honnête : cette vérification est faite sur le DOM et le code de
 présentation, pas sur un rendu pixel d Android. Le navigateur headless n a pas
