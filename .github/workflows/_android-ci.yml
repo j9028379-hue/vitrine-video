@@ -219,6 +219,12 @@ jobs:
           cat ci-artifacts/SHA256SUMS.txt
           while IFS= read -r line; do echo "::notice::APK_SHA256 $line"; done < ci-artifacts/SHA256SUMS.txt
 
+      - name: Audit release APK for T3 package integrity and excluded demo assets
+        run: |
+          RELEASE_DELIVERY=$(find ci-artifacts -maxdepth 1 -name 'VitrineVideo-release*.apk' -type f | head -n 1)
+          test -n "$RELEASE_DELIVERY"
+          python3 tools/verify_restauration_t3_apk.py "$RELEASE_DELIVERY"
+
       - name: Upload APKs and integrity report
         uses: actions/upload-artifact@v4
         with:
