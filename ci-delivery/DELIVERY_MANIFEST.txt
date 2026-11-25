@@ -1,6 +1,6 @@
 # VITRINE VIDÉO — APK delivery package
-workflow_run=45714170057
-commit=4354d6dcc23370acb3ffa8b56db71db520464fee
+workflow_run=45715519896
+commit=5243cf0c95039ef31cf285e38072e5fab443d96c
 branch=arena/dd66abee-vitrine-video
 
 ## APK
@@ -8,16 +8,16 @@ T2 APKs exceed GitHub's 100 MB per-file limit, so each APK is stored as verified
 Reassemble with: cat <apk>.part-* > <apk> (in lexicographic order).
 
 name=VitrineVideo-debug.apk
-size=60346134 bytes
-sha256=8e0466fbf2316004a3433a2bf3af6449ee86f6cc59d66f95967e7b1a68bfc085
-reassembled_sha256=8e0466fbf2316004a3433a2bf3af6449ee86f6cc59d66f95967e7b1a68bfc085
+size=60346133 bytes
+sha256=5145b2fd4a041b37fbdbfbb2f3af050e88a8617952f7073c5ab47a13b75fed68
+reassembled_sha256=5145b2fd4a041b37fbdbfbb2f3af050e88a8617952f7073c5ab47a13b75fed68
 chunk=VitrineVideo-debug.apk.part-00 bytes=50331648
-chunk=VitrineVideo-debug.apk.part-01 bytes=10014486
+chunk=VitrineVideo-debug.apk.part-01 bytes=10014485
 
 name=VitrineVideo-release-ci-signed.apk
 size=58743674 bytes
-sha256=1c41ad1c822608a45f57a92c3336f669ba7727f994fc391eb464dd62c8f218ad
-reassembled_sha256=1c41ad1c822608a45f57a92c3336f669ba7727f994fc391eb464dd62c8f218ad
+sha256=062ac60aec383ff97306530be2364fa80242a152af135185b968739d65fe9bd0
+reassembled_sha256=062ac60aec383ff97306530be2364fa80242a152af135185b968739d65fe9bd0
 chunk=VitrineVideo-release-ci-signed.apk.part-00 bytes=50331648
 chunk=VitrineVideo-release-ci-signed.apk.part-01 bytes=8412026
 
@@ -109,6 +109,10 @@ ci-delivery/artifacts/junit-reports/vitrine-video-app/build/test-results/testDeb
 ci-delivery/artifacts/junit-reports/vitrine-video-app/build/test-results/testDebugUnitTest/TEST-com.vitrinevideo.app.RestaurationT5AppFlowTest.xml
 ci-delivery/artifacts/junit-reports/vitrine-video-app/build/test-results/testDebugUnitTest/TEST-com.vitrinevideo.app.T2AppFlowTest.xml
 ci-delivery/artifacts/junit-reports/vitrine-video-app/build/test-results/testDebugUnitTest/TEST-com.vitrinevideo.app.T4ResponseContractTest.xml
+ci-delivery/artifacts/t2-t5-package-evidence/ci-artifacts/RESTAURATION_T2_INTEGRITY_REPORT.txt
+ci-delivery/artifacts/t2-t5-package-evidence/ci-artifacts/RESTAURATION_T3_INTEGRITY_REPORT.txt
+ci-delivery/artifacts/t2-t5-package-evidence/ci-artifacts/T2_INTEGRITY_REPORT.txt
+ci-delivery/artifacts/t2-t5-package-evidence/ci-artifacts/T5_INTEGRITY_REPORT.txt
 ci-delivery/artifacts/t2-t5-package-evidence/docs/restauration_t5/proofs/T5_TRANSITIONS_REPORT.txt
 ci-delivery/artifacts/t2-t5-package-evidence/docs/restauration_t5/proofs/T5_TYPOGRAPHY_PROOF.png
 ci-delivery/artifacts/t2-t5-package-evidence/docs/restauration_t5/proofs/T5_TYPOGRAPHY_REPORT.txt
