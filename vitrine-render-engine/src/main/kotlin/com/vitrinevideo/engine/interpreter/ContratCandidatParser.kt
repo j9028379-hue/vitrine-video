@@ -107,6 +107,10 @@ object ContratCandidatParser {
         // or legacy file-name keys. Both remain data-driven: no template is hardcoded here.
         fun fontFile(alias: String): String = fonts.optString(alias, "").takeIf { it.isNotBlank() }
             ?: when (alias) { "script" -> scriptFont; else -> serifFont }
+        val declaredFontHashes = json.optJSONObject("font_hashes") ?: JSONObject()
+        fun fontHash(file: String): String = declaredFontHashes.optString(file, "").ifBlank {
+            fonts.optString(file, "").takeIf { it.matches(Regex("^[0-9a-fA-F]{64}$")) }.orEmpty()
+        }
         val namedFontPaths = linkedMapOf<String, String>()
         val fontKeys = fonts.keys()
         while (fontKeys.hasNext()) {
@@ -119,7 +123,9 @@ object ContratCandidatParser {
             if (file.startsWith("/")) file else "$fontRoot/${file.trimStart('/')}"
         }.toMutableMap()
         extraFontPaths.putIfAbsent("fallback", "$fontRoot/DejaVuSans.ttf")
-        val extraFontHashes = namedFontPaths.mapValues { fonts.optString(it.value, fonts.optString(it.key, "")) }.toMutableMap()
+        // Named roles map role -> file name; their digests come from `font_hashes`
+        // when present, or from a legacy file-name -> digest map.
+        val extraFontHashes = namedFontPaths.mapValues { (_, file) -> fontHash(file) }.toMutableMap()
         extraFontHashes.putIfAbsent("fallback", fonts.optString("DejaVuSans.ttf", ""))
         val layers = json.optJSONArray("calques") ?: JSONArray()
 
@@ -152,8 +158,7 @@ object ContratCandidatParser {
                 maxLines = layer.optInt("lignes_max", 2), maxHeightPx = layer.optDouble("maxHeightPx", 132.0),
                 fontRelativePath = fontPath,
                 fallbackFontRelativePath = if (layer.optString("id") == "offre") fallbackFont else null,
-                fontSha256 = fonts.optString(fontAlias, "").takeIf { it.matches(Regex("^[0-9a-fA-F]{64}$")) }
-                    ?: fonts.optString(declaredFont, ""),
+                fontSha256 = fontHash(declaredFont),
                 inkColorHex = ink, reliefColorHex = reliefHex,
                 skipAutoWhatsappPrefix = layer.optBoolean("sans_prefixe_whatsapp", layer.optString("id") == "numero"),
                 overrideStyle = TextStyleSpec(
@@ -172,7 +177,7 @@ object ContratCandidatParser {
         val overlaySerif = fontFile("serif")
         val textSpec = if (textWindows.isEmpty()) null else TextOverlaySpec(
             fontFamily = "sans-serif", fontWeight = 400,
-            fontRelativePath = "$fontRoot/$overlaySerif", fontSha256 = fonts.optString(overlaySerif, ""),
+            fontRelativePath = "$fontRoot/$overlaySerif", fontSha256 = fontHash(overlaySerif),
             extraFontPaths = extraFontPaths,
             extraFontSha256s = extraFontHashes,
             colorHex = ink,

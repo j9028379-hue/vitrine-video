@@ -278,6 +278,7 @@ def build_partition(template, runtime, motion, form, guide) -> dict:
             },
         },
         "polices": fonts,
+        "font_hashes": {Path(data["file"]).name: data["sha256"] for data in motion["fonts"].values()},
         "typographie": typography,
         "calques": layers,
         "template_id_moteur": TEMPLATE_ID,
