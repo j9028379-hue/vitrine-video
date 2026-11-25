@@ -1,5 +1,5 @@
 name: Setup Android SDK 35
-description: Install or reuse Android SDK command-line tools, Platform 35 and Build Tools 35 on a fresh runner
+description: Install or verify Android SDK Platform 35 and Build Tools 35 on a GitHub runner
 
 runs:
   using: composite
@@ -7,25 +7,27 @@ runs:
     - name: Resolve, install and verify SDK packages
       shell: bash
       run: |
-        set -euo pipefail
+        set -uo pipefail
+        if [ -n "${ANDROID_SDK_ROOT:-}" ] && [ -z "${ANDROID_HOME:-}" ]; then
+          export ANDROID_HOME="$ANDROID_SDK_ROOT"
+        fi
         if [ -z "${ANDROID_HOME:-}" ]; then
-          if [ -n "${ANDROID_SDK_ROOT:-}" ]; then
-            export ANDROID_HOME="$ANDROID_SDK_ROOT"
-          else
-            export ANDROID_HOME="$HOME/Android/Sdk"
-          fi
+          export ANDROID_HOME="$HOME/Android/Sdk"
         fi
         echo "ANDROID_HOME=$ANDROID_HOME" >> "$GITHUB_ENV"
         mkdir -p "$ANDROID_HOME"
 
-        SDKMGR=""
-        if command -v sdkmanager >/dev/null 2>&1; then
-          SDKMGR="$(command -v sdkmanager)"
-        else
-          SDKMGR="$(find "$ANDROID_HOME" -type f -path '*/bin/sdkmanager' 2>/dev/null | head -n 1 || true)"
+        SDKMGR="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+        if [ ! -x "$SDKMGR" ]; then
+          CANDIDATE="$(command -v sdkmanager 2>/dev/null || true)"
+          if [ -n "$CANDIDATE" ] && [ -x "$CANDIDATE" ]; then SDKMGR="$CANDIDATE"; fi
+        fi
+        if [ ! -x "$SDKMGR" ]; then
+          CANDIDATE="$(find "$ANDROID_HOME" -type f -path '*/bin/sdkmanager' 2>/dev/null | head -n 1 || true)"
+          if [ -n "$CANDIDATE" ] && [ -x "$CANDIDATE" ]; then SDKMGR="$CANDIDATE"; fi
         fi
 
-        if [ -z "$SDKMGR" ]; then
+        if [ ! -x "$SDKMGR" ]; then
           echo "No sdkmanager found; installing command-line tools"
           curl -fsSL --retry 3 -o /tmp/commandlinetools.zip \
             https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip
@@ -38,7 +40,13 @@ runs:
         fi
 
         chmod +x "$SDKMGR"
-        yes | "$SDKMGR" --licenses >/dev/null 2>&1 || true
-        "$SDKMGR" --install "platform-tools" "platforms;android-35" "build-tools;35.0.0"
-        "$SDKMGR" --list_installed | grep -E 'platforms;android-35|build-tools;35\.0\.0|platform-tools'
+        yes | "$SDKMGR" --sdk_root="$ANDROID_HOME" --licenses > /dev/null 2>&1 || true
+        "$SDKMGR" --sdk_root="$ANDROID_HOME" \
+          "platform-tools" "platforms;android-35" "build-tools;35.0.0" || true
+
+        echo "SDK manager: $SDKMGR"
+        ls -d "$ANDROID_HOME"/platforms/android-35 "$ANDROID_HOME"/build-tools/35.0.0 "$ANDROID_HOME"/platform-tools
+        test -d "$ANDROID_HOME/platforms/android-35"
+        test -d "$ANDROID_HOME/build-tools/35.0.0"
+        test -x "$ANDROID_HOME/platform-tools/adb"
         echo "SDKMANAGER=$SDKMGR" >> "$GITHUB_ENV"
