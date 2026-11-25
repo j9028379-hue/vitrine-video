@@ -113,7 +113,16 @@ object ContratCandidatParser {
                 // travel (dish swipe / camera whip) gets the sliding primitive;
                 // everything else keeps its current mask geometry.
                 slideWhip = effect.optBoolean("full_frame_travel", false),
-                whipBlurPx = effect.optDouble("motion_blur_px", 5.0)
+                whipBlurPx = effect.optDouble("motion_blur_px", 5.0),
+                sourceFamily = effect.optString("source_family", ""),
+                sourceVariant = effect.optString("source_variant", ""),
+                sourceProfile = effect.optString("source_profile", ""),
+                sourceScene = effect.optString("source_scene", ""),
+                sourceFramesInclusive = effect.optJSONArray("source_frames_inclusive")?.let { frames ->
+                    (0 until frames.length()).map { frames.getInt(it) }
+                }.orEmpty(),
+                sourceDurationFrames = effect.optInt("source_duration_frames", 0),
+                sourceParametersJson = effect.optJSONObject("source_parameters")?.toString().orEmpty()
             )
         }
 
@@ -188,6 +197,7 @@ object ContratCandidatParser {
                 // Declared variable-font weight (Playfair 800/900 for T5). Absent
                 // in T1–T4 layers, so their rendering is unchanged.
                 declaredWeight = layer.optInt("poids", layer.optInt("graisse", 0)).takeIf { it in 100..900 } ?: 0,
+                trackingPx = layer.optDouble("tracking_px", 0.0),
                 overrideStyle = TextStyleSpec(
                     fontSizePx = layer.optDouble("taille_px", 60.0),
                     maxWidthPx = layer.optDouble("largeur_max", 606.0),

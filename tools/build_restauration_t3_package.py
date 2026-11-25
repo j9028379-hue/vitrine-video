@@ -252,6 +252,12 @@ def build_voice_mix_contract(mix_source: dict) -> dict:
             "duck_attack_curve": mix["duck_attack_curve"],
             "duck_release_curve": mix["duck_release_curve"],
             "voice_gain_db": mix["voice_gain_db"],
+            # Profile-owned speech detection/priority implementation. The source
+            # mix gate is 4 dB active voice-over-music; -48 dBFS RMS catches quiet
+            # handset speech while leaving the established packages unchanged.
+            "voice_vad_threshold_dbfs": -48.0,
+            "voice_hold_ms": 180,
+            "minimum_active_speech_to_music_db": mix_source["quality_gates"]["minimum_active_speech_to_music_db"],
             "master_target_lufs": mix["master_target_lufs"],
             "master_true_peak_dbtp_max": mix["master_true_peak_dbtp_max"],
             "delivery_audio": mix["delivery_audio"],
@@ -309,6 +315,11 @@ def build_partition(template: dict, flow: dict, motion: dict, transitions: dict,
             "source_profile": event["parameter_profile"],
             "source_frames_inclusive": event["frames"],
             "source_duration_frames": duration,
+            # Retain every authoritative parameter, keyframe and coordinate
+            # declaration from the transition profile. The renderer must either
+            # consume these generically or report the specific unsupported key;
+            # flattening different source families to a motif loses fidelity.
+            "source_parameters": transitions["transition_parameter_profiles"][event["parameter_profile"]],
             "separator_lines": False,
             "border_px": 0,
             "gap_px": 0,
@@ -353,6 +364,7 @@ def build_partition(template: dict, flow: dict, motion: dict, transitions: dict,
                 "mouvement": animation,
                 "interligne_ratio": 1.18,
                 "poids": role_spec["weight"] if role_spec["weight"] is not None else 400,
+                "tracking_px": role_spec.get("tracking_px", 0.0),
                 "sans_prefixe_whatsapp": field == "whatsapp",
                 "police_fichier": font_alias,
                 "couleur": motion["legibility"]["colors"][color_key],

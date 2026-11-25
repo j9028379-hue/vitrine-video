@@ -80,7 +80,13 @@ object MusicCatalogueParser {
             peakLimitDb = mixJson.optDouble("master_true_peak_dbtp_max", -2.0),
             truePeakMaxDbtp = if (mixJson.has("master_true_peak_dbtp_max")) mixJson.optDouble("master_true_peak_dbtp_max") else null,
             deliveryFormat = mixJson.optString("delivery_audio", ""),
-            minimumSpeechToMusicDb = if (gates.has("minimum_active_speech_to_music_db")) gates.optDouble("minimum_active_speech_to_music_db") else null
+            minimumSpeechToMusicDb = when {
+                mixJson.has("minimum_active_speech_to_music_db") -> mixJson.getDouble("minimum_active_speech_to_music_db")
+                gates.has("minimum_active_speech_to_music_db") -> gates.getDouble("minimum_active_speech_to_music_db")
+                else -> null
+            },
+            voiceVadThresholdDbfs = if (mixJson.has("voice_vad_threshold_dbfs")) mixJson.getDouble("voice_vad_threshold_dbfs") else null,
+            voiceHoldMs = if (mixJson.has("voice_hold_ms")) mixJson.getInt("voice_hold_ms") else null
         )
 
         // The catalogue itself is the versioned approval record of the playable

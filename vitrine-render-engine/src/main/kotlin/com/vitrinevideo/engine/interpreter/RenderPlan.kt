@@ -154,7 +154,15 @@ data class TransitionSpec(
      */
     val slideWhip: Boolean = false,
     /** Motion-blur strength in destination pixels at mid-transition; 0 disables it. */
-    val whipBlurPx: Double = 5.0
+    val whipBlurPx: Double = 5.0,
+    /** Optional source-family metadata and easing; empty legacy values retain historical behavior. */
+    val sourceFamily: String = "",
+    val sourceVariant: String = "",
+    val sourceScene: String = "",
+    val sourceProfile: String = "",
+    val sourceFramesInclusive: List<Int> = emptyList(),
+    val sourceDurationFrames: Int = 0,
+    val sourceParametersJson: String = ""
 )
 
 data class TextStyleSpec(
@@ -229,6 +237,8 @@ data class TextWindowSpec(
      * templates leave it unset so their current rendering is untouched.
      */
     val declaredWeight: Int = 0,
+    /** Tracking declared in physical pixels by the source typography contract. */
+    val trackingPx: Double = 0.0,
     val overrideStyle: TextStyleSpec? = null,
     /** T4 source-specific paired copy; kept as templates rather than flattened into demo text. */
     val textKind: String? = null,
@@ -317,7 +327,11 @@ data class AudioMixConfig(
     val releaseCurve: String = "",
     val truePeakMaxDbtp: Double? = null,
     val deliveryFormat: String = "",
-    val minimumSpeechToMusicDb: Double? = null
+    val minimumSpeechToMusicDb: Double? = null,
+    /** Optional profile-owned VAD threshold; null preserves legacy engine defaults. */
+    val voiceVadThresholdDbfs: Double? = null,
+    /** Optional profile-owned silence hold before the music release envelope starts. */
+    val voiceHoldMs: Int? = null
 )
 
 data class ApprovedTrack(

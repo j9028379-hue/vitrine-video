@@ -37,13 +37,21 @@ class AudioDuckingEngine(
         dbToLinear(targetOffset).toFloat()
     }
 
-    private val voiceVadThreshold = dbToLinear(-38.0) // RMS threshold for speech presence
+    private val voiceVadThreshold = dbToLinear(config.voiceVadThresholdDbfs ?: -38.0)
     private val hopSamples = max(1, sampleRateHz / 100) // 10 ms = 480 frames
     private val attackCoeff = exp(-1.0 / max(1.0, (config.attackMs / 10.0)))
     private val releaseCoeff = exp(-1.0 / max(1.0, (config.releaseMs / 10.0)))
+    private val voiceHoldHops = ceil((config.voiceHoldMs ?: 80).coerceAtLeast(0) / 10.0).toInt()
+    private val speechMusicRatioLinear = config.minimumSpeechToMusicDb?.let { dbToLinear(it) }
 
     private var duckEnvelope = 0.0 // 0.0 = no speech (bgLinear), 1.0 = speech active (duckLinear)
     private var lastVoiceHoldHops = 0
+    private var lastDetectedVoiceRms = 0.0
+    private var adaptiveReleaseStartDb = 0.0
+    private var adaptiveReleaseElapsedMs = 0
+    // Additional attenuation is enabled only for profiles that explicitly ship
+    // both a VAD threshold and a voice/music intelligibility gate.
+    private var adaptiveAttenuationDb = 0.0
 
     // Telemetry for verification/tests
     var maxPeakLinear: Float = 0f
@@ -56,6 +64,8 @@ class AudioDuckingEngine(
         private set
     var minAppliedMusicGain: Float = Float.MAX_VALUE
         private set
+    var minMeasuredSpeechToMusicDb: Double = Double.POSITIVE_INFINITY
+        private set
 
     fun processInterleavedPcm16(
         capturePcm: ShortArray,
@@ -67,21 +77,30 @@ class AudioDuckingEngine(
         while (idx < sampleCountFrames) {
             val block = min(hopSamples, sampleCountFrames - idx)
             var sumSq = 0.0
+            var musicSumSq = 0.0
             for (f in 0 until block) {
                 val base = (idx + f) * channels
-                val l = capturePcm[base] / 32768.0
-                val r = if (channels > 1) capturePcm[base + 1] / 32768.0 else l
-                val mono = 0.5 * (l + r)
-                sumSq += mono * mono
+                for (c in 0 until channels) {
+                    val voiceSample = capturePcm[base + c] / 32768.0
+                    val musicSample = musicPcm[base + c] / 32768.0
+                    sumSq += voiceSample * voiceSample
+                    musicSumSq += musicSample * musicSample
+                }
             }
-            val rms = sqrt(sumSq / block)
+            // Measure channel energy independently. Averaging L/R before RMS can
+            // cancel a valid anti-phase stereo voice recording to digital silence.
+            val channelSamples = block.toDouble() * channels
+            val rms = sqrt(sumSq / channelSamples)
+            val musicRms = sqrt(musicSumSq / channelSamples)
             val speechDetected = config.includeCaptureVoice && rms >= voiceVadThreshold
             if (speechDetected) {
-                lastVoiceHoldHops = 8 // 80 ms hold
+                lastVoiceHoldHops = voiceHoldHops
+                lastDetectedVoiceRms = rms
             } else if (lastVoiceHoldHops > 0) {
                 lastVoiceHoldHops--
             }
-            val targetDuck = if (speechDetected || lastVoiceHoldHops > 0) 1.0 else 0.0
+            val speechActive = speechDetected || lastVoiceHoldHops > 0
+            val targetDuck = if (speechActive) 1.0 else 0.0
             duckEnvelope = if (useLinearDbEnvelope) {
                 val stepMs = 10.0
                 val durationMs = if (targetDuck > duckEnvelope) config.attackMs else config.releaseMs
@@ -95,13 +114,43 @@ class AudioDuckingEngine(
             totalDuckingHops++
             if (duckEnvelope > 0.25) activeDuckingHops++
 
-            val musicGain = (if (useLinearDbEnvelope) {
+            val nominalMusicGain = (if (useLinearDbEnvelope) {
                 dbToLinear(config.bgGainDb + (effectiveDuckGainDb - config.bgGainDb) * duckEnvelope).toFloat()
             } else {
                 bgLinear + (duckLinear - bgLinear) * duckEnvelope.toFloat()
             }) * musicBaseScale
+
+            if (speechMusicRatioLinear != null && config.voiceVadThresholdDbfs != null && speechActive) {
+                val sourceMusic = max(musicRms, 1e-9)
+                val voice = max(lastDetectedVoiceRms * voiceLinear, 1e-9)
+                val targetTotalMusicGain = voice / (sourceMusic * speechMusicRatioLinear)
+                val targetAdditionalDb = minOf(0.0, linearToDb(targetTotalMusicGain / max(nominalMusicGain.toDouble(), 1e-9)))
+                // During an utterance only increase attenuation; do not chase
+                // individual syllable levels back upward. The declared release
+                // curve restores the bed after the configured speech hold.
+                adaptiveAttenuationDb = minOf(adaptiveAttenuationDb, targetAdditionalDb)
+                adaptiveReleaseElapsedMs = 0
+                adaptiveReleaseStartDb = adaptiveAttenuationDb
+            } else if (!speechActive && adaptiveAttenuationDb < 0.0) {
+                if (adaptiveReleaseElapsedMs == 0) adaptiveReleaseStartDb = adaptiveAttenuationDb
+                adaptiveReleaseElapsedMs += 10
+                val progress = (adaptiveReleaseElapsedMs.toDouble() / max(1, config.releaseMs)).coerceIn(0.0, 1.0)
+                adaptiveAttenuationDb = adaptiveReleaseStartDb * (1.0 - progress)
+            }
+            val adaptiveGain = if (speechMusicRatioLinear != null && config.voiceVadThresholdDbfs != null) {
+                dbToLinear(adaptiveAttenuationDb).toFloat()
+            } else 1f
+            val musicGain = nominalMusicGain * adaptiveGain
             if (musicGain > maxAppliedMusicGain) maxAppliedMusicGain = musicGain
             if (musicGain < minAppliedMusicGain) minAppliedMusicGain = musicGain
+            if (speechActive && musicRms > 1e-9) {
+                val voiceOutRms = lastDetectedVoiceRms * voiceLinear
+                val musicOutRms = musicRms * musicGain
+                minMeasuredSpeechToMusicDb = minOf(
+                    minMeasuredSpeechToMusicDb,
+                    linearToDb(voiceOutRms / max(musicOutRms.toDouble(), 1e-9))
+                )
+            }
             for (f in 0 until block) {
                 val base = (idx + f) * channels
                 for (c in 0 until channels) {

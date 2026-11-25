@@ -38,7 +38,7 @@ class VitrineBitmapTextOverlay(
     private val fontFiles: Map<String, File> = emptyMap()
 ) : BitmapOverlay() {
 
-    private data class GlyphCacheKey(val ch: Char, val fontSizeTenths: Int)
+    private data class GlyphCacheKey(val ch: Char, val fontSizeTenths: Int, val trackingHundredthsPx: Int)
     private data class CachedGlyph(
         val bitmap: Bitmap,
         val advancePx: Float,
@@ -140,6 +140,7 @@ class VitrineBitmapTextOverlay(
             val resolvedSpec = if (fallback != null && fillPaint.typeface == fallback) w.copy(fontRelativePath = w.fallbackFontRelativePath) else w
             TextFieldResolver.layoutWindow(resolvedSpec, spec, resp) { txt, sz ->
                 fillPaint.textSize = sz
+                fillPaint.letterSpacing = if (sz > 0f) (resolvedSpec.trackingPx / sz).toFloat() else 0f
                 fillPaint.measureText(txt)
             }
         }
@@ -261,6 +262,9 @@ class VitrineBitmapTextOverlay(
         strokePaint.typeface = selectedTypeface
         fillPaint.textSize = sz
         strokePaint.textSize = sz
+        val trackingEm = if (sz > 0f) (window.trackingPx / sz).toFloat() else 0f
+        fillPaint.letterSpacing = trackingEm
+        strokePaint.letterSpacing = trackingEm
         val ink = parseColor(window.inkColorHex ?: spec.colorHex, Color.WHITE)
         val relief = parseColor(window.reliefColorHex ?: spec.relief.strokeColorRgba, Color.BLACK)
         fillPaint.color = ink
@@ -456,7 +460,11 @@ class VitrineBitmapTextOverlay(
     }
 
     private fun getOrCreateGlyph(ch: Char, fontSizePx: Float): CachedGlyph {
-        val key = GlyphCacheKey(ch, (fontSizePx * 10f).roundToInt())
+        val key = GlyphCacheKey(
+            ch,
+            (fontSizePx * 10f).roundToInt(),
+            (fillPaint.letterSpacing * 10000f).roundToInt()
+        )
         glyphCache[key]?.let { return it }
 
         val s = ch.toString()
