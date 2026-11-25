@@ -122,7 +122,7 @@ object RenderScriptTextLayoutParser {
 
     /** Window pairs are read in source order from `a,b=(...)` in the reference script. */
     private fun parseWindows(script: String, groups: List<TextGroup>): Map<Int, Pair<Int, Int>> {
-        val line = script.lineSequence().firstOrNull { it.trimStart().startsWith("a,b=") } ?: script
+        val line = script.lineSequence().firstOrNull { it.contains("a,b=") } ?: script
         val pairs = pairPattern.findAll(line)
             .map { m -> m.groupValues[1].toInt() to m.groupValues[2].toInt() }
             .toList()

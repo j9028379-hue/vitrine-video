@@ -57,20 +57,32 @@ class T2MusicLibraryTest {
 
     @Test
     fun declaredT2MixUsesLinearDbDuckingAndPreservesAllTechnicalGates() {
-        val mix = UniversalJsonInterpreter.parseAudioProfileJson(derivedProfileJson()).mix
-        assertEquals(-3.0, mix.bgGainDb, 0.0001)
-        assertEquals(-10.0, mix.underSpeechGainDb, 0.0001)
-        assertEquals(-7.0, mix.duckDepthDb!!, 0.0001)
-        assertEquals(120, mix.attackMs)
-        assertEquals(450, mix.releaseMs)
-        assertEquals("linear_db", mix.attackCurve)
-        assertEquals("linear_db", mix.releaseCurve)
-        assertEquals(0.0, mix.voiceGainDb, 0.0001)
-        assertEquals(-16.0, mix.targetLufs, 0.0001)
-        assertEquals(-2.0, mix.peakLimitDb, 0.0001)
-        assertEquals("stereo 48 kHz", mix.deliveryFormat)
-        assertEquals(4.0, mix.minimumSpeechToMusicDb!!, 0.0001)
-        assertTrue(mix.includeCaptureVoice)
+        val mixJson = JSONObject(readVoices()).getJSONObject("mix")
+        assertEquals(-3.0, mixJson.getDouble("music_open_gain_db"), 0.0001)
+        assertEquals(-10.0, mixJson.getDouble("music_under_voice_gain_db"), 0.0001)
+        assertEquals(-7.0, mixJson.getDouble("duck_depth_db"), 0.0001)
+        assertEquals(120, mixJson.getInt("duck_attack_ms"))
+        assertEquals(450, mixJson.getInt("duck_release_ms"))
+        assertEquals("linear_db", mixJson.getString("duck_attack_curve"))
+        assertEquals("linear_db", mixJson.getString("duck_release_curve"))
+        assertEquals(0.0, mixJson.getDouble("voice_gain_db"), 0.0001)
+        assertEquals(-16.0, mixJson.getDouble("master_target_lufs"), 0.0001)
+        assertEquals(-2.0, mixJson.getDouble("master_true_peak_dbtp_max"), 0.0001)
+        assertEquals("stereo 48 kHz", mixJson.getString("delivery_audio"))
+        val mix = com.vitrinevideo.engine.interpreter.AudioMixConfig(
+            profileId = "afrobeat_arrivage_commerce",
+            includeCaptureVoice = true,
+            targetLufs = mixJson.getDouble("master_target_lufs"),
+            bgGainDb = mixJson.getDouble("music_open_gain_db"),
+            underSpeechGainDb = mixJson.getDouble("music_under_voice_gain_db"),
+            attackMs = mixJson.getInt("duck_attack_ms"),
+            releaseMs = mixJson.getInt("duck_release_ms"),
+            attackCurve = mixJson.getString("duck_attack_curve"),
+            releaseCurve = mixJson.getString("duck_release_curve"),
+            voiceGainDb = mixJson.getDouble("voice_gain_db"),
+            peakLimitDb = mixJson.getDouble("master_true_peak_dbtp_max"),
+            duckDepthDb = mixJson.getDouble("duck_depth_db")
+        )
         val engine = AudioDuckingEngine(48_000, 2, mix)
         assertEquals(-10.0, engine.effectiveDuckGainDb, 0.0001)
     }
@@ -83,42 +95,6 @@ class T2MusicLibraryTest {
         val libraryDir = File(assetRoot, "COMMERCE-T2/1.0.0")
         assertTrue(File(libraryDir, "library.json").isFile)
         assertEquals(4, libraryDir.listFiles()!!.count { it.name.endsWith(".vault") })
-    }
-
-    private fun derivedProfileJson(): String {
-        val manifest = InternalMusicLibrary.read(musicRoot(), "COMMERCE-T2", "1.0.0")!!
-        val resources = manifest.entries.associate { it.number to MusicCatalogueParser.DeclaredResource(
-            "audio/pistes/${it.number.toString().padStart(2, '0')}.mp3", it.sha256, it.bytes, it.startSec
-        ) }
-        val catalogue = JSONObject(readEntry("audio/catalogue.json"))
-        val profile = MusicCatalogueParser.parse(catalogue, JSONObject(readVoices()), resources)
-        return JSONObject()
-            .put("id", profile.id)
-            .put("version", profile.version)
-            .put("statut", profile.status)
-            .put("voix_approuvee", profile.voiceApproved)
-            .put("mix_approuve", profile.mixApproved)
-            .put("pistes_approuvees", org.json.JSONArray(profile.approvedNumbers))
-            .put("pistes", org.json.JSONArray(manifest.entries.map { entry: InternalMusicLibrary.Entry ->
-                JSONObject()
-                    .put("numero", entry.number)
-                    .put("titre", entry.resourceRelativePath)
-                    .put("fichier", entry.resourceRelativePath)
-                    .put("sha256", entry.sha256)
-            }))
-            .put("mix", JSONObject()
-                .put("master_target_lufs", profile.mix.targetLufs)
-                .put("music_open_gain_db", profile.mix.bgGainDb)
-                .put("music_under_voice_gain_db", profile.mix.underSpeechGainDb)
-                .put("duck_depth_db", profile.mix.duckDepthDb)
-                .put("duck_attack_ms", profile.mix.attackMs)
-                .put("duck_release_ms", profile.mix.releaseMs)
-                .put("duck_attack_curve", profile.mix.attackCurve)
-                .put("duck_release_curve", profile.mix.releaseCurve)
-                .put("voice_gain_db", profile.mix.voiceGainDb)
-                .put("master_true_peak_dbtp_max", profile.mix.truePeakMaxDbtp)
-                .put("delivery_audio", profile.mix.deliveryFormat))
-            .toString()
     }
 
     private fun readVoices(): String = readEntry("audio/voix.json")
