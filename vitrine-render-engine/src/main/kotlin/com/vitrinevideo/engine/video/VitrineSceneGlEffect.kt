@@ -24,6 +24,10 @@ import com.vitrinevideo.engine.interpreter.RenderPlan
 import com.vitrinevideo.engine.interpreter.TransitionType
 import com.vitrinevideo.engine.interpreter.VisualEffectSpec
 import com.vitrinevideo.engine.timeline.TimelineEngine
+import org.json.JSONArray
+import org.json.JSONObject
+import kotlin.math.PI
+import kotlin.math.cos
 import kotlin.math.max
 import kotlin.math.min
 
@@ -167,6 +171,7 @@ private class VitrineSceneShaderProgram(
 
         val shot = state.shot
         val tr = state.activeTransition
+        val sourceMode = sourceFamilyMode(tr)
         val transform = evaluateShotTransform(shot, frame, tr)
         val zoom = transform.zoom
         val panNormX = transform.panX
@@ -209,7 +214,7 @@ private class VitrineSceneShaderProgram(
             main.setFloatUniform("uMainPanY", panNormY)
         }
 
-        val mask = if (tr != null) TransitionGeometry.evaluate(tr, frame) else null
+        val mask = if (tr != null && sourceMode == 0) TransitionGeometry.evaluate(tr, frame) else null
         main.setIntUniform("uHasHoldFrame", if (hasHoldFrame) 1 else 0)
         val grading = plan.colorGrading
         main.setIntUniform("uApplyTint", if (grading.shouldRenderAddedTint) 1 else 0)
@@ -285,6 +290,7 @@ private class VitrineSceneShaderProgram(
             floatArrayOf(it.scrimTop.toFloat(), it.scrimBottom.toFloat(), 1f, 0f)
         } ?: floatArrayOf(0f, 0f, 0f, 0f))
 
+        setSourceFamilyUniforms(main, tr, frame, sourceMode)
         val zeroRect = floatArrayOf(0f, 0f, 0f, 0f)
         main.setFloatsUniform("uWhipSlide", floatArrayOf(0f, 0f))
         if (mask == null) {
@@ -442,6 +448,87 @@ private class VitrineSceneShaderProgram(
             }
         } ?: 0f
 
+    private fun sourceFamilyMode(transition: com.vitrinevideo.engine.interpreter.TransitionSpec?): Int =
+        when (transition?.sourceFamily) {
+            "R4_MULTI_PANEL_MATCH_CUT" -> 15
+            else -> 0
+        }
+
+    private fun sourceCurveValue(curve: JSONArray, localFrame: Int, easing: String): Double {
+        if (curve.length() == 0) return 0.0
+        val first = curve.getJSONObject(0)
+        if (localFrame <= first.getInt("frame")) return first.getDouble("value")
+        for (index in 1 until curve.length()) {
+            val a = curve.getJSONObject(index - 1)
+            val b = curve.getJSONObject(index)
+            val aFrame = a.getInt("frame")
+            val bFrame = b.getInt("frame")
+            if (localFrame <= bFrame) {
+                var t = ((localFrame - aFrame).toDouble() / max(1, bFrame - aFrame)).coerceIn(0.0, 1.0)
+                t = when (easing.lowercase()) {
+                    "sine_in" -> 1.0 - cos(t * PI * 0.5)
+                    "sine_in_out" -> 0.5 - 0.5 * cos(PI * t)
+                    "cubic_in_out" -> if (t < 0.5) 4.0 * t * t * t else 1.0 - ((-2.0 * t + 2.0).let { it * it * it }) / 2.0
+                    "cubic_out" -> 1.0 - (1.0 - t) * (1.0 - t) * (1.0 - t)
+                    else -> t
+                }
+                return a.getDouble("value") + (b.getDouble("value") - a.getDouble("value")) * t
+            }
+        }
+        return curve.getJSONObject(curve.length() - 1).getDouble("value")
+    }
+
+    private fun setSourceFamilyUniforms(
+        program: GlProgram,
+        transition: com.vitrinevideo.engine.interpreter.TransitionSpec?,
+        frame: Int,
+        mode: Int
+    ) {
+        program.setIntUniform("uSourceMode", mode)
+        program.setFloatsUniform("uSourcePanel", floatArrayOf(0f, 1f, 1f, 0f))
+        program.setFloatsUniform("uSourcePanelPhase", floatArrayOf(0f, 1f, 0f, 0f))
+        program.setFloatsUniform("uSourcePanelRows", floatArrayOf(0f, 0f, 0f, 3f))
+        program.setFloatsUniform("uSourcePanelColumns", floatArrayOf(0f, 0f, 0f, 3f))
+        if (mode != 15 || transition == null) return
+
+        val params = JSONObject(transition.sourceParametersJson)
+        require(params.optString("match_anchor") == "plate_or_glass_center")
+        require(params.optString("duplicate_audio") == "muted")
+        require(params.optDouble("gap_px", -1.0) == 0.0)
+        require(params.optDouble("border_px", -1.0) == 0.0)
+        require(!params.optBoolean("separator_lines", true))
+        require(params.isNull("separator_color"))
+        require(params.optString("separator_policy") == "forbidden_by_owner")
+
+        val localFrame = frame - transition.startFrame
+        val phases = params.getJSONArray("subphases")
+        require(phases.length() == 2)
+        val firstFrames = phases.getJSONObject(0).getJSONArray("local_frames")
+        val phaseIndex = if (localFrame <= firstFrames.getInt(1)) 0 else 1
+        val phase = phases.getJSONObject(phaseIndex)
+        val phaseFrames = phase.getJSONArray("local_frames")
+        val phaseStart = phaseFrames.getInt(0)
+        val phaseEnd = phaseFrames.getInt(1)
+        val rowOffsets = phase.optJSONArray("row_x_offsets_normalized") ?: JSONArray()
+        val columnOffsets = phase.optJSONArray("column_y_offsets_normalized") ?: JSONArray()
+        fun offsets(values: JSONArray): FloatArray = floatArrayOf(
+            values.optDouble(0, 0.0).toFloat(),
+            values.optDouble(1, 0.0).toFloat(),
+            values.optDouble(2, 0.0).toFloat(),
+            values.length().toFloat()
+        )
+        val easing = params.optString("easing", "linear")
+        val scale = sourceCurveValue(params.getJSONArray("panel_scale"), localFrame, easing)
+        val opacity = sourceCurveValue(params.getJSONArray("panel_opacity"), localFrame, easing)
+        program.setFloatsUniform("uSourcePanel", floatArrayOf(localFrame.toFloat(), scale.toFloat(), opacity.toFloat(), phaseIndex.toFloat()))
+        program.setFloatsUniform(
+            "uSourcePanelPhase",
+            floatArrayOf(phaseStart.toFloat(), phaseEnd.toFloat(), phase.optInt("entry_stagger_frames", 0).toFloat(), phaseIndex.toFloat())
+        )
+        program.setFloatsUniform("uSourcePanelRows", offsets(rowOffsets))
+        program.setFloatsUniform("uSourcePanelColumns", offsets(columnOffsets))
+    }
+
     private fun evaluateShotTransform(shot: CutSegmentSpec, frame: Int, transition: com.vitrinevideo.engine.interpreter.TransitionSpec?): ShotTransform {
         val m: MotionSpec = shot.motion
         val len = max(1, shot.outEndFrameExcluded - shot.outStartFrame - 1)
@@ -575,6 +662,11 @@ private class VitrineSceneShaderProgram(
             uniform vec4 uTextScrim;
             uniform int uTransMode;
             uniform int uHasHoldFrame;
+            uniform int uSourceMode;
+            uniform vec4 uSourcePanel;
+            uniform vec4 uSourcePanelPhase;
+            uniform vec4 uSourcePanelRows;
+            uniform vec4 uSourcePanelColumns;
             uniform vec2 uWhipSlide;
             uniform float uTransParam;
             uniform vec2 uTransDiag;
@@ -610,6 +702,32 @@ private class VitrineSceneShaderProgram(
                 vec2 topDownUv = vec2(vTexSamplingCoord.x, 1.0 - vTexSamplingCoord.y);
                 vec4 incoming = sampleScenePixel(topDownUv);
                 vec4 composed = incoming;
+                if (uSourceMode == 15) {
+                    // R4_MULTI_PANEL_MATCH_CUT uses the JSON's two ordered phases.
+                    // The rows/columns have zero border and zero gap by contract.
+                    vec2 panelUv = (topDownUv - vec2(0.5)) / max(uSourcePanel.y, 0.01) + vec2(0.5);
+                    if (uSourcePanelPhase.w < 0.5) {
+                        float count = max(uSourcePanelRows.w, 1.0);
+                        float row = min(floor(topDownUv.y * count), count - 1.0);
+                        float rowDelay = row * uSourcePanelPhase.z;
+                        float phaseDuration = max(uSourcePanelPhase.y - uSourcePanelPhase.x - uSourcePanelPhase.z * (count - 1.0), 1.0);
+                        float t = clamp((uSourcePanel.x - uSourcePanelPhase.x - rowDelay) / phaseDuration, 0.0, 1.0);
+                        float q = t < 0.5 ? 4.0 * t * t * t : 1.0 - pow(-2.0 * t + 2.0, 3.0) * 0.5;
+                        float offset = row < 0.5 ? uSourcePanelRows.x : (row < 1.5 ? uSourcePanelRows.y : uSourcePanelRows.z);
+                        panelUv.x += offset * (1.0 - q);
+                    } else {
+                        float count = max(uSourcePanelColumns.w, 1.0);
+                        float column = min(floor(topDownUv.x * count), count - 1.0);
+                        float columnDelay = column * uSourcePanelPhase.z;
+                        float phaseDuration = max(uSourcePanelPhase.y - uSourcePanelPhase.x - uSourcePanelPhase.z * (count - 1.0), 1.0);
+                        float t = clamp((uSourcePanel.x - uSourcePanelPhase.x - columnDelay) / phaseDuration, 0.0, 1.0);
+                        float q = t < 0.5 ? 4.0 * t * t * t : 1.0 - pow(-2.0 * t + 2.0, 3.0) * 0.5;
+                        float offset = column < 0.5 ? uSourcePanelColumns.x : (column < 1.5 ? uSourcePanelColumns.y : uSourcePanelColumns.z);
+                        panelUv.y += offset * (1.0 - q);
+                    }
+                    vec4 panelImage = sampleScenePixel(clamp(panelUv, vec2(0.0), vec2(1.0)));
+                    composed.rgb = mix(incoming.rgb, panelImage.rgb, clamp(uSourcePanel.z, 0.0, 1.0));
+                }
                 if (uTransMode != 0) {
                     vec2 holdUv = clamp((vTexSamplingCoord - 0.5) / max(uHoldZoom, 0.01) + 0.5, 0.0, 1.0);
                     vec4 hold = texture2D(uHoldSampler, holdUv);
