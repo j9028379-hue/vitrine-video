@@ -451,6 +451,7 @@ private class VitrineSceneShaderProgram(
     private fun sourceFamilyMode(transition: com.vitrinevideo.engine.interpreter.TransitionSpec?): Int =
         when (transition?.sourceFamily) {
             "R2_FLASH_TRANSITION" -> 7
+            "R4_SOFT_OVERLAY_BLEND" -> 8
             "R4_MULTI_PANEL_MATCH_CUT" -> 15
             else -> 0
         }
@@ -496,9 +497,28 @@ private class VitrineSceneShaderProgram(
         program.setFloatsUniform("uSourceFlashColor0", floatArrayOf(1f, 0f, 0f, 0f))
         program.setFloatsUniform("uSourceFlashColor1", floatArrayOf(0f, 0f, 1f, 0f))
         program.setFloatsUniform("uSourceFlashColor2", floatArrayOf(1f, 0.5f, 0f, 0f))
-        if ((mode != 15 && mode != 7) || transition == null) return
+        program.setFloatsUniform("uSourceSoft", floatArrayOf(1f, 0f, 1f, 0f))
+        program.setFloatsUniform("uSourceSoftBlur", floatArrayOf(0f, 0f, 0f, 0f))
+        if ((mode != 15 && mode != 7 && mode != 8) || transition == null) return
 
         val params = JSONObject(transition.sourceParametersJson)
+        if (mode == 8) {
+            require(params.optInt("layers") == 2)
+            require(params.optString("base_blend_mode") == "normal")
+            require(params.optString("overlay_blend_mode") == "screen")
+            val localFrame = frame - transition.startFrame
+            val easing = params.optString("easing", "linear")
+            val outgoing = sourceCurveValue(params.getJSONArray("outgoing_opacity"), localFrame, easing)
+            val incoming = sourceCurveValue(params.getJSONArray("incoming_opacity"), localFrame, easing)
+            val blurPx = sourceCurveValue(params.getJSONArray("gaussian_blur_px"), localFrame, easing)
+            val scale = sourceCurveValue(params.getJSONArray("scale"), localFrame, easing)
+            program.setFloatsUniform("uSourceSoft", floatArrayOf(outgoing.toFloat(), incoming.toFloat(), scale.toFloat(), 0f))
+            program.setFloatsUniform("uSourceSoftBlur", floatArrayOf(
+                blurPx.toFloat() / max(1, outWidth).toFloat(),
+                blurPx.toFloat() / max(1, outHeight).toFloat(), 0f, 0f
+            ))
+            return
+        }
         if (mode == 7) {
             val profiles = params.getJSONObject("variant_profiles")
             val localFrame = frame - transition.startFrame
@@ -728,6 +748,8 @@ private class VitrineSceneShaderProgram(
             uniform vec4 uSourceFlashColor0;
             uniform vec4 uSourceFlashColor1;
             uniform vec4 uSourceFlashColor2;
+            uniform vec4 uSourceSoft;
+            uniform vec4 uSourceSoftBlur;
             uniform vec4 uSourcePanel;
             uniform vec4 uSourcePanelPhase;
             uniform vec4 uSourcePanelRows;
@@ -792,6 +814,26 @@ private class VitrineSceneShaderProgram(
                     }
                     vec4 panelImage = sampleScenePixel(clamp(panelUv, vec2(0.0), vec2(1.0)));
                     composed.rgb = mix(incoming.rgb, panelImage.rgb, clamp(uSourcePanel.z, 0.0, 1.0));
+                }
+                if (uSourceMode == 8) {
+                    // Two-layer source blend: outgoing normal base, incoming
+                    // screen overlay, with the declared scale and Gaussian radius.
+                    vec2 holdUv = clamp((vTexSamplingCoord - 0.5) / max(uHoldZoom, 0.01) + 0.5, 0.0, 1.0);
+                    vec2 scaledUv = (topDownUv - vec2(0.5)) / max(uSourceSoft.z, 0.01) + vec2(0.5);
+                    vec2 blurRadius = uSourceSoftBlur.xy;
+                    vec3 blurred = sampleScenePixel(clamp(scaledUv, vec2(0.0), vec2(1.0))).rgb * 4.0;
+                    blurred += sampleScenePixel(clamp(scaledUv + vec2(blurRadius.x, 0.0), vec2(0.0), vec2(1.0))).rgb * 2.0;
+                    blurred += sampleScenePixel(clamp(scaledUv - vec2(blurRadius.x, 0.0), vec2(0.0), vec2(1.0))).rgb * 2.0;
+                    blurred += sampleScenePixel(clamp(scaledUv + vec2(0.0, blurRadius.y), vec2(0.0), vec2(1.0))).rgb * 2.0;
+                    blurred += sampleScenePixel(clamp(scaledUv - vec2(0.0, blurRadius.y), vec2(0.0), vec2(1.0))).rgb * 2.0;
+                    blurred += sampleScenePixel(clamp(scaledUv + blurRadius, vec2(0.0), vec2(1.0))).rgb;
+                    blurred += sampleScenePixel(clamp(scaledUv - blurRadius, vec2(0.0), vec2(1.0))).rgb;
+                    blurred += sampleScenePixel(clamp(scaledUv + vec2(blurRadius.x, -blurRadius.y), vec2(0.0), vec2(1.0))).rgb;
+                    blurred += sampleScenePixel(clamp(scaledUv + vec2(-blurRadius.x, blurRadius.y), vec2(0.0), vec2(1.0))).rgb;
+                    blurred /= 16.0;
+                    vec3 outgoing = texture2D(uHoldSampler, holdUv).rgb * clamp(uSourceSoft.x, 0.0, 1.0);
+                    vec3 screened = 1.0 - (1.0 - outgoing) * (1.0 - blurred);
+                    composed.rgb = mix(outgoing, screened, clamp(uSourceSoft.y, 0.0, 1.0));
                 }
                 if (uTransMode != 0) {
                     vec2 holdUv = clamp((vTexSamplingCoord - 0.5) / max(uHoldZoom, 0.01) + 0.5, 0.0, 1.0);
