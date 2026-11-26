@@ -205,9 +205,12 @@ class VitrineRenderEngine(
                     stream.readBytes().toString(Charsets.UTF_8)
                 }
             }.getOrNull()
-            val audioProfile = request.preparsedAudioProfile ?: request.audioProfileJsonFile?.let {
-                UniversalJsonInterpreter.parseAudioProfile(it, founderApprovalJson)
-            }
+            val audioProfile = UniversalJsonInterpreter.resolveAudioProfileForRender(
+                preparsedProfile = request.preparsedAudioProfile,
+                profileFile = request.audioProfileJsonFile,
+                founderApprovalJson = founderApprovalJson,
+                templateId = request.templateId
+            )
 
             listener?.onProgress(RenderProgress(RenderStage.PREFLIGHT, 12, "Validation intégrité captures et stockage"))
             val preFlight = PreFlightValidator.validate(context, request, plan, audioProfile, config)

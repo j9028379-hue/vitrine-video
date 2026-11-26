@@ -33,6 +33,38 @@ object UniversalJsonInterpreter {
         return parseAudioProfileJson(profileFile.readText(), founderApprovalJson)
     }
 
+    /**
+     * Resolve audio exactly as the render path does, including the package-loader
+     * fast path. A founder decision is applied after either source is selected,
+     * so pre-parsed package profiles cannot bypass the decision record.
+     */
+    fun resolveAudioProfileForRender(
+        preparsedProfile: AudioProfileSpec?,
+        profileFile: File?,
+        founderApprovalJson: String?,
+        templateId: String
+    ): AudioProfileSpec? {
+        val profile = preparsedProfile ?: profileFile?.let { parseAudioProfile(it) } ?: return null
+        return applyFounderAudioApproval(profile, founderApprovalJson, templateId)
+    }
+
+    fun applyFounderAudioApproval(
+        profile: AudioProfileSpec,
+        founderApprovalJson: String?,
+        templateId: String? = null
+    ): AudioProfileSpec {
+        if (founderApprovalJson.isNullOrBlank()) return profile
+        val approval = runCatching { FounderAudioApprovalParser.parseAll(founderApprovalJson) }
+            .getOrNull()
+            ?.firstOrNull { it.profileId == profile.id && (templateId.isNullOrBlank() || it.templateId == templateId) }
+            ?: return profile
+        return profile.copy(
+            founderApprovalId = approval.approvalId,
+            founderApprovedTrackNumbers = approval.approvedTrackNumbers,
+            founderApprovedFiles = approval.approvedFiles
+        )
+    }
+
     fun parseAudioProfileJson(rawJson: String, founderApprovalJson: String? = null): AudioProfileSpec {
         val json = JSONObject(rawJson)
         val status = json.optString("statut", "validé")
@@ -82,16 +114,8 @@ object UniversalJsonInterpreter {
             tracks = tracks,
             mix = mix
         )
-        if (founderApprovalJson.isNullOrBlank()) return profile
-        val approval = runCatching { FounderAudioApprovalParser.parseAll(founderApprovalJson) }
-            .getOrNull()
-            ?.firstOrNull { it.profileId == profile.id }
-            ?: return profile
-        return profile.copy(
-            founderApprovalId = approval.approvalId,
-            founderApprovedTrackNumbers = approval.approvedTrackNumbers,
-            founderApprovedFiles = approval.approvedFiles
-        )
+        val declaredTemplateId = json.optString("template_id").takeIf { it.isNotBlank() }
+        return applyFounderAudioApproval(profile, founderApprovalJson, declaredTemplateId)
     }
 
     private fun validateStructuralIntegrity(plan: RenderPlan) {
