@@ -214,7 +214,7 @@ private class VitrineSceneShaderProgram(
             main.setFloatUniform("uMainPanY", panNormY)
         }
 
-        val mask = if (tr != null && sourceMode == 0) TransitionGeometry.evaluate(tr, frame) else null
+        val mask = if (tr != null && (sourceMode == 0 || sourceMode == 7)) TransitionGeometry.evaluate(tr, frame) else null
         main.setIntUniform("uHasHoldFrame", if (hasHoldFrame) 1 else 0)
         val grading = plan.colorGrading
         main.setIntUniform("uApplyTint", if (grading.shouldRenderAddedTint) 1 else 0)
@@ -450,6 +450,7 @@ private class VitrineSceneShaderProgram(
 
     private fun sourceFamilyMode(transition: com.vitrinevideo.engine.interpreter.TransitionSpec?): Int =
         when (transition?.sourceFamily) {
+            "R2_FLASH_TRANSITION" -> 7
             "R4_MULTI_PANEL_MATCH_CUT" -> 15
             else -> 0
         }
@@ -489,9 +490,67 @@ private class VitrineSceneShaderProgram(
         program.setFloatsUniform("uSourcePanelPhase", floatArrayOf(0f, 1f, 0f, 0f))
         program.setFloatsUniform("uSourcePanelRows", floatArrayOf(0f, 0f, 0f, 3f))
         program.setFloatsUniform("uSourcePanelColumns", floatArrayOf(0f, 0f, 0f, 3f))
-        if (mode != 15 || transition == null) return
+        program.setFloatsUniform("uSourceFlash", floatArrayOf(0f, 0f, 0f, 0f))
+        program.setFloatsUniform("uSourceFlashColor", floatArrayOf(0f, 0f, 0f, 0f))
+        program.setFloatsUniform("uSourceFlashGeometry", floatArrayOf(0f, 0f, 4f, 0f))
+        program.setFloatsUniform("uSourceFlashColor0", floatArrayOf(1f, 0f, 0f, 0f))
+        program.setFloatsUniform("uSourceFlashColor1", floatArrayOf(0f, 0f, 1f, 0f))
+        program.setFloatsUniform("uSourceFlashColor2", floatArrayOf(1f, 0.5f, 0f, 0f))
+        if ((mode != 15 && mode != 7) || transition == null) return
 
         val params = JSONObject(transition.sourceParametersJson)
+        if (mode == 7) {
+            val profiles = params.getJSONObject("variant_profiles")
+            val localFrame = frame - transition.startFrame
+            val variant = transition.sourceVariant
+            when (variant) {
+                "electric_light_streak+white_flash" -> {
+                    val profile = profiles.getJSONObject("electric_white")
+                    val streakOpacity = sourceCurveValue(profile.getJSONArray("streak_opacity"), localFrame, "linear")
+                    val flashOpacity = sourceCurveValue(profile.getJSONArray("white_flash_opacity"), localFrame, "linear")
+                    val streakColor = profile.getString("streak_color")
+                    program.setFloatsUniform("uSourceFlash", floatArrayOf(streakOpacity.toFloat(), flashOpacity.toFloat(), localFrame.toFloat(), 1f))
+                    program.setFloatsUniform("uSourceFlashColor", floatArrayOf(
+                        rgbComponent(streakColor, 0), rgbComponent(streakColor, 1), rgbComponent(streakColor, 2),
+                        profile.getDouble("streak_glow_px").toFloat() / max(outWidth, outHeight).toFloat()
+                    ))
+                    program.setFloatsUniform("uSourceFlashGeometry", floatArrayOf(
+                        profile.getDouble("streak_angle_degrees").toFloat(),
+                        profile.getInt("light_streak_count").toFloat(),
+                        params.optInt("incoming_layer_visible_from_local_frame", 0).toFloat(), 0f
+                    ))
+                }
+                "red_blue_strobe_film_burn" -> {
+                    val profile = profiles.getJSONObject("red_blue_strobe_film_burn")
+                    val colors = profile.getJSONArray("colors")
+                    program.setFloatsUniform("uSourceFlash", floatArrayOf(
+                        sourceCurveValue(profile.getJSONArray("opacity"), localFrame, "linear").toFloat(),
+                        profile.getInt("pulse_count").toFloat(), localFrame.toFloat(), 2f
+                    ))
+                    val opacityCurve = profile.getJSONArray("opacity")
+                    val pulsePeaks = (1 until opacityCurve.length() - 1).filter { index ->
+                        val previous = opacityCurve.getJSONObject(index - 1).getDouble("value")
+                        val current = opacityCurve.getJSONObject(index).getDouble("value")
+                        val next = opacityCurve.getJSONObject(index + 1).getDouble("value")
+                        current > previous && current > next
+                    }
+                    require(pulsePeaks.size == profile.getInt("pulse_count") - 1)
+                    program.setFloatsUniform("uSourceFlashGeometry", floatArrayOf(
+                        opacityCurve.getJSONObject(pulsePeaks[0]).getInt("frame").toFloat(),
+                        opacityCurve.getJSONObject(pulsePeaks[1]).getInt("frame").toFloat(), 0f,
+                        profile.getDouble("edge_burn_blur_px").toFloat() / max(outWidth, outHeight).toFloat()
+                    ))
+                    for (index in 0 until 3) {
+                        val color = colors.getString(index)
+                        program.setFloatsUniform("uSourceFlashColor$index", floatArrayOf(
+                            rgbComponent(color, 0), rgbComponent(color, 1), rgbComponent(color, 2), 0f
+                        ))
+                    }
+                }
+                else -> throw IllegalArgumentException("Unsupported R2 flash variant: $variant")
+            }
+            return
+        }
         require(params.optString("match_anchor") == "plate_or_glass_center")
         require(params.optString("duplicate_audio") == "muted")
         require(params.optDouble("gap_px", -1.0) == 0.0)
@@ -663,6 +722,12 @@ private class VitrineSceneShaderProgram(
             uniform int uTransMode;
             uniform int uHasHoldFrame;
             uniform int uSourceMode;
+            uniform vec4 uSourceFlash;
+            uniform vec4 uSourceFlashColor;
+            uniform vec4 uSourceFlashGeometry;
+            uniform vec4 uSourceFlashColor0;
+            uniform vec4 uSourceFlashColor1;
+            uniform vec4 uSourceFlashColor2;
             uniform vec4 uSourcePanel;
             uniform vec4 uSourcePanelPhase;
             uniform vec4 uSourcePanelRows;
@@ -794,8 +859,10 @@ private class VitrineSceneShaderProgram(
                             }
                         } else if (uTransMode == 5) {
                             composed = mix(hold, incoming, q);
-                            float flash = 0.22 * (1.0 - abs(2.0 * q - 1.0));
-                            composed.rgb = mix(composed.rgb, vec3(0.91, 0.44, 0.85), flash * 0.45);
+                            if (uSourceMode != 7) {
+                                float flash = 0.22 * (1.0 - abs(2.0 * q - 1.0));
+                                composed.rgb = mix(composed.rgb, vec3(0.91, 0.44, 0.85), flash * 0.45);
+                            }
                         } else if (uTransMode == 6) {
                             float edge = -0.18 + 1.36 * q + (0.5 - p.y) * 0.32;
                             float d = p.x - edge;
@@ -830,6 +897,36 @@ private class VitrineSceneShaderProgram(
                         if (count >= 3 && pointInRect(topDownUv, uTransRect2)) inside = true;
                         if (count >= 4 && pointInRect(topDownUv, uTransRect3)) inside = true;
                         composed = inside ? incoming : hold;
+                    }
+                }
+                if (uSourceMode == 7) {
+                    if (uSourceFlash.w < 1.5) {
+                        // Variant electric_light_streak+white_flash: three
+                        // declared streaks and a separate white screen-flash curve.
+                        float angle = uSourceFlashGeometry.x * 0.01745329252;
+                        vec2 normal = vec2(-sin(angle), cos(angle));
+                        float lineCoord = dot(topDownUv - vec2(0.5), normal);
+                        float width = max(uSourceFlashColor.a, 0.001);
+                        float streak = 0.0;
+                        float count = uSourceFlashGeometry.y;
+                        if (count > 0.5) streak += exp(-pow((lineCoord + 0.20) / width, 2.0));
+                        if (count > 1.5) streak += exp(-pow(lineCoord / width, 2.0));
+                        if (count > 2.5) streak += exp(-pow((lineCoord - 0.20) / width, 2.0));
+                        float streakAlpha = clamp(uSourceFlash.x * streak, 0.0, 1.0);
+                        vec3 streaked = 1.0 - (1.0 - composed.rgb) * (1.0 - uSourceFlashColor.rgb);
+                        composed.rgb = mix(composed.rgb, streaked, streakAlpha);
+                        composed.rgb = mix(composed.rgb, vec3(1.0), clamp(uSourceFlash.y, 0.0, 1.0));
+                    } else {
+                        // Variant red_blue_strobe_film_burn: pulse colors stay
+                        // distinct and are selected at the profile's own peaks.
+                        vec3 pulseColor = uSourceFlash.z <= uSourceFlashGeometry.x
+                            ? uSourceFlashColor0.rgb
+                            : (uSourceFlash.z <= uSourceFlashGeometry.y ? uSourceFlashColor1.rgb : uSourceFlashColor2.rgb);
+                        float edgeDistance = min(min(topDownUv.x, 1.0 - topDownUv.x), min(topDownUv.y, 1.0 - topDownUv.y));
+                        float blurRadius = max(uSourceFlashGeometry.w, 0.001);
+                        float edgeBurn = 1.0 - smoothstep(blurRadius * 0.25, blurRadius, edgeDistance);
+                        vec3 burned = 1.0 - (1.0 - composed.rgb) * (1.0 - pulseColor);
+                        composed.rgb = mix(composed.rgb, burned, clamp(uSourceFlash.x * edgeBurn, 0.0, 1.0));
                     }
                 }
                 if (uVeilColor.a > 0.0) {
