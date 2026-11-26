@@ -295,8 +295,8 @@ class VitrineTemporalFrameOverlay private constructor(
                 cellWidth = (plan.width - grid.getInt("gap_px") * (grid.getInt("columns") - 1)) / grid.getInt("columns")
                 cellHeight = (plan.height - grid.getInt("gap_px") * (grid.getInt("rows") - 1)) / grid.getInt("rows")
             } else {
-                cellWidth = minOf(plan.width / 2, 240)
-                cellHeight = minOf(plan.height / 2, 427)
+                cellWidth = plan.width / 2
+                cellHeight = plan.height / 2
             }
             val estimatedBytes = wantedFrames.size.toLong() * cellWidth * cellHeight * 4L
             require(estimatedBytes <= MAX_CACHE_BYTES) {
