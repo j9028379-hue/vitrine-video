@@ -382,20 +382,32 @@ jobs:
           disable-animations: true
           script: |
             set -euo pipefail
+            mkdir -p ci-artifacts/android-t3
             chmod +x gradlew
             adb wait-for-device
-            ./gradlew :vitrine-render-engine:installDebugAndroidTest --stacktrace
+            set +e
+            ./gradlew :vitrine-render-engine:installDebugAndroidTest --stacktrace 2>&1 | tee ci-artifacts/android-t3/install-test-apk.log
+            INSTALL_STATUS=${PIPESTATUS[0]}
+            set -e
+            if [ "$INSTALL_STATUS" -ne 0 ]; then
+              tail -n 100 ci-artifacts/android-t3/install-test-apk.log | sed 's/^/::error::/'
+              exit "$INSTALL_STATUS"
+            fi
             ROOT=/sdcard/Android/data/com.vitrinevideo.engine/files/t3_fixture
             adb shell mkdir -p "$ROOT/captures" "$ROOT/music/RESTAURATION-T3/1.0.0"
             adb push vitrine-video-app/src/main/assets/packages/RESTAURATION-T3-1.0.0.zip "$ROOT/RESTAURATION-T3-1.0.0.zip"
             adb push test-fixtures/t3_fixture/captures/. "$ROOT/captures/"
             adb push vitrine-video-app/src/main/assets/music/RESTAURATION-T3/1.0.0/. "$ROOT/music/RESTAURATION-T3/1.0.0/"
             set +e
-            ./gradlew :vitrine-render-engine:connectedDebugAndroidTest --stacktrace
-            TEST_STATUS=$?
+            ./gradlew :vitrine-render-engine:connectedDebugAndroidTest --stacktrace 2>&1 | tee ci-artifacts/android-t3/connected-tests.log
+            TEST_STATUS=${PIPESTATUS[0]}
             set -e
-            mkdir -p ci-artifacts/android-t3
             adb pull "$ROOT/android_evidence" ci-artifacts/android-t3/ || true
+            if [ "$TEST_STATUS" -ne 0 ]; then
+              echo "### Android instrumentation failure details" >> "$GITHUB_STEP_SUMMARY"
+              tail -n 120 ci-artifacts/android-t3/connected-tests.log >> "$GITHUB_STEP_SUMMARY"
+              tail -n 100 ci-artifacts/android-t3/connected-tests.log | sed 's/^/::error::/'
+            fi
             if [ "$TEST_STATUS" -eq 0 ]; then
               test -s ci-artifacts/android-t3/android_evidence/android_decoded_frame_evidence.json
               test -s ci-artifacts/android-t3/android_evidence/transition_probe.json
