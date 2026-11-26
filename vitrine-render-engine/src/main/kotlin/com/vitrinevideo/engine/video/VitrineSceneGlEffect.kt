@@ -463,6 +463,7 @@ private class VitrineSceneShaderProgram(
             "R2_FLASH_TRANSITION" -> 7
             "R4_SOFT_OVERLAY_BLEND" -> 8
             "R4_MULTI_PANEL_MATCH_CUT" -> 15
+            "R2_SELECTIVE_COLOR_REVEAL" -> 17
             else -> if (family.startsWith("R2_") || family.startsWith("R4_")) {
                 throw IllegalArgumentException("Unsupported source transition family: $family")
             } else 0
@@ -542,9 +543,37 @@ private class VitrineSceneShaderProgram(
         program.setFloatsUniform("uSourceWipeClosure1", floatArrayOf(0f, 0f, 0f, 0f))
         program.setFloatsUniform("uSourceWipeReveal0", floatArrayOf(0f, 0f, 0f, 0f))
         program.setFloatsUniform("uSourceWipeReveal1", floatArrayOf(0f, 0f, 0f, 0f))
-        if ((mode != 15 && mode != 7 && mode != 8 && mode != 4 && mode != 3 && mode != 14 && mode != 12 && mode != 13 && mode != 10 && mode != 5 && mode != 2 && mode != 16) || transition == null) return
+        program.setFloatsUniform("uSourceSelective", floatArrayOf(0f, 1f, 0f, 1f))
+        program.setFloatsUniform("uSourceSelectiveGeometry", floatArrayOf(0f, 0f, 0f, 0f))
+        program.setFloatsUniform("uSourceSelectiveColor", floatArrayOf(0f, 0f, 0f, 0f))
+        if ((mode != 15 && mode != 7 && mode != 8 && mode != 4 && mode != 3 && mode != 14 && mode != 12 && mode != 13 && mode != 10 && mode != 5 && mode != 2 && mode != 16 && mode != 17) || transition == null) return
 
         val params = JSONObject(transition.sourceParametersJson)
+        if (mode == 17) {
+            val localFrame = frame - transition.startFrame
+            val panel = params.getJSONObject("color_panel")
+            require(params.optDouble("base_saturation", -1.0) == 0.0)
+            require(params.optDouble("final_saturation", -1.0) == 1.0)
+            require(params.optBoolean("preserve_skin_tones"))
+            val easing = panel.optString("easing", "linear")
+            val progress = sourceCurveValue(panel.getJSONArray("progress"), localFrame, easing)
+            val incomingScale = sourceCurveValue(params.getJSONArray("incoming_scale"), localFrame, easing)
+            val tint = panel.getString("tint")
+            program.setFloatsUniform("uSourceSelective", floatArrayOf(
+                progress.toFloat(), incomingScale.toFloat(),
+                params.getDouble("base_saturation").toFloat(), params.getDouble("final_saturation").toFloat()
+            ))
+            val featherPx = panel.getDouble("feather_px").toFloat()
+            program.setFloatsUniform("uSourceSelectiveGeometry", floatArrayOf(
+                panel.getDouble("angle_degrees").toFloat(),
+                featherPx / max(1, outWidth).toFloat(),
+                featherPx / max(1, outHeight).toFloat(), panel.getDouble("tint_opacity").toFloat()
+            ))
+            program.setFloatsUniform("uSourceSelectiveColor", floatArrayOf(
+                rgbComponent(tint, 0), rgbComponent(tint, 1), rgbComponent(tint, 2), 1f
+            ))
+            return
+        }
         if (mode == 16) {
             require(params.optInt("strip_count") == 6)
             require(params.optString("destination") == "S4_hero_frame_not_black")
@@ -1021,6 +1050,9 @@ private class VitrineSceneShaderProgram(
             uniform vec4 uSourceWipeClosure1;
             uniform vec4 uSourceWipeReveal0;
             uniform vec4 uSourceWipeReveal1;
+            uniform vec4 uSourceSelective;
+            uniform vec4 uSourceSelectiveGeometry;
+            uniform vec4 uSourceSelectiveColor;
             uniform vec4 uSourcePanel;
             uniform vec4 uSourcePanelPhase;
             uniform vec4 uSourcePanelRows;
@@ -1163,6 +1195,28 @@ private class VitrineSceneShaderProgram(
                     mosaic *= 1.0 - clamp(uSourceMosaic.w, 0.0, 1.0) * fold;
                     float visibility = clamp(uSourceMosaic.x, 0.0, 1.0) * (1.0 - clamp(uSourceMosaic.y, 0.0, 1.0));
                     composed.rgb = mix(incoming.rgb, mosaic, visibility);
+                } else if (uSourceMode == 17) {
+                    vec2 center = vec2(0.5, 0.5);
+                    float angle = uSourceSelectiveGeometry.x * 0.01745329252;
+                    vec2 delta = topDownUv - center;
+                    vec2 panelUv = vec2(delta.x * cos(angle) - delta.y * sin(angle), delta.x * sin(angle) + delta.y * cos(angle)) + center;
+                    float panelCoordinate = panelUv.x;
+                    float edge = -0.10 + uSourceSelective.x;
+                    float feather = max(max(uSourceSelectiveGeometry.y, uSourceSelectiveGeometry.z), 0.00001);
+                    float reveal = 1.0 - smoothstep(edge - feather, edge + feather, panelCoordinate);
+                    vec2 sourceUv = center + (topDownUv - center) / max(uSourceSelective.y, 0.01);
+                    vec3 source = sampleScenePixel(clamp(sourceUv, vec2(0.0), vec2(1.0))).rgb;
+                    float luminance = dot(source, vec3(0.2126, 0.7152, 0.0722));
+                    float cb = 0.5 - 0.168736 * source.r - 0.331264 * source.g + 0.5 * source.b;
+                    float cr = 0.5 + 0.5 * source.r - 0.418688 * source.g - 0.081312 * source.b;
+                    bool skinTone = source.r > source.g && source.g > source.b &&
+                        cb >= 0.32 && cb <= 0.52 && cr >= 0.35 && cr <= 0.62;
+                    float saturation = mix(uSourceSelective.z, uSourceSelective.w, reveal);
+                    if (skinTone) saturation = uSourceSelective.w;
+                    vec3 selective = mix(vec3(luminance), source, clamp(saturation, 0.0, 1.0));
+                    float panelStripe = 1.0 - smoothstep(feather, feather * 2.0, abs(panelCoordinate - edge));
+                    vec3 tintScreen = 1.0 - (1.0 - selective) * (1.0 - uSourceSelectiveColor.rgb);
+                    composed.rgb = mix(selective, tintScreen, clamp(panelStripe * uSourceSelectiveGeometry.w, 0.0, 1.0));
                 } else if (uSourceMode == 12) {
                     vec2 center = uSourceRotateGeometry.zw;
                     float angle = uSourceRotate.w * 0.01745329252;
