@@ -48,7 +48,7 @@ class VitrineTemporalFrameOverlay private constructor(
     override fun getBitmap(presentationTimeUs: Long): Bitmap {
         val frame = timeline.usToFrame(presentationTimeUs)
         val fade = backgroundFades.firstOrNull { frame in it.startFrame until it.startFrame + it.durationFrames }
-        val source = sources.firstOrNull { frame in it.transition.startFrame until it.endFrameExclusive }
+        val source = sources.firstOrNull { frame in it.transition.startFrame until it.endFrameExcluded }
         if (fade == null && source == null) return emptyBitmap
         canvas.drawColor(Color.TRANSPARENT, PorterDuff.Mode.CLEAR)
         if (fade != null) {
