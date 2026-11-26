@@ -15,6 +15,7 @@ import com.vitrinevideo.engine.api.EngineConfig
 import com.vitrinevideo.engine.audio.VitrineAudioProcessor
 import com.vitrinevideo.engine.graphics.VitrineBitmapTextOverlay
 import com.vitrinevideo.engine.graphics.VitrineDeclarativeFinalOverlay
+import com.vitrinevideo.engine.graphics.VitrineTemporalFrameOverlay
 import com.vitrinevideo.engine.interpreter.AudioMixConfig
 import com.vitrinevideo.engine.interpreter.RenderPlan
 import com.vitrinevideo.engine.timeline.PreFlightReport
@@ -104,6 +105,7 @@ class Media3RenderPipeline(
         val videoEffects = mutableListOf<Effect>(
             VitrineSceneGlEffect(plan)
         )
+        VitrineTemporalFrameOverlay.createEffect(plan, preFlight)?.let { videoEffects += it }
         plan.textOverlay?.let { textSpec ->
             videoEffects += VitrineBitmapTextOverlay.createEffect(plan, textSpec, responses, resourcesDir)
         }

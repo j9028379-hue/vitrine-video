@@ -464,6 +464,11 @@ private class VitrineSceneShaderProgram(
             "R4_SOFT_OVERLAY_BLEND" -> 8
             "R4_MULTI_PANEL_MATCH_CUT" -> 15
             "R2_SELECTIVE_COLOR_REVEAL" -> 17
+            "R4_TILED_GRID_INTRO" -> 18
+            "R2_MULTI_PANEL_SPLIT" -> 19
+            "R4_BACKGROUND_FADE_TO_BLACK" -> throw IllegalArgumentException(
+                "Transition $family requires a reliable subject matte; the T3 package declares no matte and the universal renderer must not synthesize one"
+            )
             else -> if (family.startsWith("R2_") || family.startsWith("R4_")) {
                 throw IllegalArgumentException("Unsupported source transition family: $family")
             } else 0
