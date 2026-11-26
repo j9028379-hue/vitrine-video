@@ -28,6 +28,7 @@ class VitrineAudioProcessor(
     private var musicRaf: RandomAccessFile? = null
     private var musicDataBytes: Long = 0L
     private var musicFrameCursor: Double = 0.0
+    private var openedMusicPath: String? = null
 
     private var capShortBuf = ShortArray(4096)
     private var musShortBuf = ShortArray(4096)
@@ -55,14 +56,18 @@ class VitrineAudioProcessor(
     }
 
     private fun openMusicStream() {
-        closeMusicStream()
         val f = musicPcmFile ?: return // A null bed is valid only for profiles with no music.
         require(f.isFile && f.length() >= 8L && f.length() % 4L == 0L) {
             "Piste musicale PCM absente, vide ou tronquée: ${f.path}"
         }
+        val path = f.canonicalPath
+        val sameStream = path == openedMusicPath && musicDataBytes == f.length()
+        closeMusicStream()
         musicRaf = RandomAccessFile(f, "r")
         musicDataBytes = f.length()
-        musicFrameCursor = 0.0
+        if (!sameStream) musicFrameCursor = 0.0
+        musicFrameCursor %= (musicDataBytes / 4L).toDouble()
+        openedMusicPath = path
     }
 
     private fun closeMusicStream() {
@@ -174,6 +179,9 @@ class VitrineAudioProcessor(
 
     override fun onReset() {
         closeMusicStream()
+        musicDataBytes = 0L
+        musicFrameCursor = 0.0
+        openedMusicPath = null
         duckingEngine = null
     }
 }
