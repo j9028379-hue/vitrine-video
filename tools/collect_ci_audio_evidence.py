@@ -3,7 +3,7 @@
 from __future__ import annotations
 import hashlib, json, shutil
 from pathlib import Path
-from tools.build_synthetic_render_evidence import BASE, checksums
+from build_synthetic_render_evidence import BASE, checksums
 
 ROOT=Path(__file__).resolve().parents[1]
 STAGE=BASE/'audio-ci'
