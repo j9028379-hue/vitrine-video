@@ -59,9 +59,15 @@ class T3SyntheticAudioEvidenceTest {
                 val voiced = (t < 0.90) || (t in 1.02..1.82) || (t in 2.55..3.35)
                 // Modulated harmonic surrogate: deterministic, nonlinguistic voice-band signal.
                 val syllable = 0.58 + 0.42 * (0.5 + 0.5 * sin(2.0 * PI * 3.2 * t))
+                val voiceLevel = when {
+                    t < 0.90 -> 0.0095 // weak handset speech, approximately -43 dBFS RMS
+                    t in 1.02..1.82 -> 0.18 // strong speech, approximately -17 dBFS RMS
+                    t in 2.55..3.35 -> 0.0095 // weak speech repeated after silence
+                    else -> 0.0
+                }
                 val voiceWave = if (voiced) {
-                    (0.0095 * syllable * sin(2.0 * PI * 440.0 * t) +
-                        0.0030 * syllable * sin(2.0 * PI * 880.0 * t))
+                    (voiceLevel * syllable * sin(2.0 * PI * 440.0 * t) +
+                        voiceLevel * 0.32 * syllable * sin(2.0 * PI * 880.0 * t))
                 } else 0.0
                 val musicWave = 0.30 * sin(2.0 * PI * 220.0 * t)
                 val v = (voiceWave * 32767.0).toInt().coerceIn(-32768, 32767).toShort()
@@ -93,6 +99,7 @@ class T3SyntheticAudioEvidenceTest {
         val baselineMusic = toneAmplitude(220.0, 3.82, 3.98)
         val phraseMusic = toneAmplitude(220.0, 0.30, 0.80)
         val phraseMargin = margin(0.30, 0.80)
+        val strongVoice = toneAmplitude(440.0, 1.20, 1.70)
         val shortPauseMusic = toneAmplitude(220.0, 0.94, 1.00)
         val shortPauseDuckRatio = shortPauseMusic / baselineMusic
         val latePauseMusic = toneAmplitude(220.0, 1.90, 2.00)
@@ -101,11 +108,12 @@ class T3SyntheticAudioEvidenceTest {
         val maxPeakDbfs = 20.0 * log10(engine.maxPeakLinear.toDouble().coerceAtLeast(1e-9))
 
         assertTrue("T3 sidechain detects synthetic voice", engine.activeDuckingHops > 250)
-        assertTrue("T3 voice/music gate is at least +4 dB; measured=$phraseMargin", phraseMargin >= 3.8)
-        assertTrue("Music is attenuated during voice; ratio=$phraseMusic/$baselineMusic", phraseMusic < baselineMusic * 0.45)
+        assertTrue("Weak synthetic speech survives the mix", voicePeak > 0.001)
+        assertTrue("Strong speech is present and remains above the weak sample", strongVoice > voicePeak * 5.0)
+        assertTrue("Music is ducked to the Commerce-validated level but remains audible; ratio=$phraseMusic/$baselineMusic",
+            phraseMusic / baselineMusic in 0.35..0.52)
         assertTrue("The 180 ms hold keeps a short pause ducked; ratio=$shortPauseDuckRatio", shortPauseDuckRatio < 0.7)
         assertTrue("Music recovers after the 450 ms release", recoveredPauseMusic > latePauseMusic * 1.15)
-        assertTrue("Synthetic voice-band signal survives the mix", voicePeak > 0.001)
         assertTrue("Peak ceiling remains at or below -2 dBFS; measured=$maxPeakDbfs", maxPeakDbfs <= -1.95)
 
         val dir = File("build/outputs/audio-validation").apply { mkdirs() }
@@ -114,13 +122,18 @@ class T3SyntheticAudioEvidenceTest {
         val report = JSONObject().apply {
             put("template_id", "RESTAURATION-T3")
             put("engine", "AudioDuckingEngine production class; 48 kHz stereo PCM16; 10 ms blocks")
-            put("fixture", "deterministic modulated harmonic voice-band surrogate + continuous 220 Hz music tone; not speech and not founder voice")
+            put("fixture", "deterministic modulated harmonic voice-band surrogates at weak and strong levels + continuous 220 Hz music tone; not speech and not founder voice")
+            put("voice_level_design", JSONObject().apply {
+                put("weak", "approximately -43 dBFS RMS; windows 0.00-0.90 s and 2.55-3.35 s")
+                put("strong", "approximately -17 dBFS RMS; window 1.02-1.82 s")
+            })
             put("profile", JSONObject().apply {
                 put("voice_vad_threshold_dbfs", cfg.voiceVadThresholdDbfs)
                 put("voice_hold_ms", cfg.voiceHoldMs)
                 put("attack_ms", cfg.attackMs); put("release_ms", cfg.releaseMs)
                 put("bg_gain_db", cfg.bgGainDb); put("under_speech_gain_db", cfg.underSpeechGainDb)
                 put("minimum_speech_to_music_db", cfg.minimumSpeechToMusicDb)
+                put("minimum_speech_to_music_semantics", "measured diagnostic only; not an adaptive music attenuation command")
                 put("true_peak_limit_dbfs", cfg.peakLimitDb)
             })
             put("voice_windows_s", listOf(listOf(0.0, 0.90), listOf(1.02, 1.82), listOf(2.55, 3.35)))

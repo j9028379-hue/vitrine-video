@@ -349,6 +349,7 @@ data class AudioMixConfig(
     val releaseCurve: String = "",
     val truePeakMaxDbtp: Double? = null,
     val deliveryFormat: String = "",
+    /** Declared speech/music quality target, retained for reporting; not a command to attenuate the music bed further. */
     val minimumSpeechToMusicDb: Double? = null,
     /** Optional profile-owned VAD threshold; null preserves legacy engine defaults. */
     val voiceVadThresholdDbfs: Double? = null,

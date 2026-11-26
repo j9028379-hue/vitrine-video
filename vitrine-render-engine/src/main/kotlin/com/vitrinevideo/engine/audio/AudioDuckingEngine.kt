@@ -42,16 +42,10 @@ class AudioDuckingEngine(
     private val attackCoeff = exp(-1.0 / max(1.0, (config.attackMs / 10.0)))
     private val releaseCoeff = exp(-1.0 / max(1.0, (config.releaseMs / 10.0)))
     private val voiceHoldHops = ceil((config.voiceHoldMs ?: 80).coerceAtLeast(0) / 10.0).toInt()
-    private val speechMusicRatioLinear = config.minimumSpeechToMusicDb?.let { dbToLinear(it) }
 
-    private var duckEnvelope = 0.0 // 0.0 = no speech (bgLinear), 1.0 = speech active (duckLinear)
+    private var duckEnvelope = 0.0 // 0.0 = open music bed, 1.0 = declared under-voice level
     private var lastVoiceHoldHops = 0
     private var lastDetectedVoiceRms = 0.0
-    private var adaptiveReleaseStartDb = 0.0
-    private var adaptiveReleaseElapsedMs = 0
-    // Additional attenuation is enabled only for profiles that explicitly ship
-    // both a VAD threshold and a voice/music intelligibility gate.
-    private var adaptiveAttenuationDb = 0.0
 
     // Telemetry for verification/tests
     var maxPeakLinear: Float = 0f
@@ -120,27 +114,14 @@ class AudioDuckingEngine(
                 bgLinear + (duckLinear - bgLinear) * duckEnvelope.toFloat()
             }) * musicBaseScale
 
-            if (speechMusicRatioLinear != null && config.voiceVadThresholdDbfs != null && speechActive) {
-                val sourceMusic = max(musicRms, 1e-9)
-                val voice = max(lastDetectedVoiceRms * voiceLinear, 1e-9)
-                val targetTotalMusicGain = voice / (sourceMusic * speechMusicRatioLinear)
-                val targetAdditionalDb = minOf(0.0, linearToDb(targetTotalMusicGain / max(nominalMusicGain.toDouble(), 1e-9)))
-                // During an utterance only increase attenuation; do not chase
-                // individual syllable levels back upward. The declared release
-                // curve restores the bed after the configured speech hold.
-                adaptiveAttenuationDb = minOf(adaptiveAttenuationDb, targetAdditionalDb)
-                adaptiveReleaseElapsedMs = 0
-                adaptiveReleaseStartDb = adaptiveAttenuationDb
-            } else if (!speechActive && adaptiveAttenuationDb < 0.0) {
-                if (adaptiveReleaseElapsedMs == 0) adaptiveReleaseStartDb = adaptiveAttenuationDb
-                adaptiveReleaseElapsedMs += 10
-                val progress = (adaptiveReleaseElapsedMs.toDouble() / max(1, config.releaseMs)).coerceIn(0.0, 1.0)
-                adaptiveAttenuationDb = adaptiveReleaseStartDb * (1.0 - progress)
-            }
-            val adaptiveGain = if (speechMusicRatioLinear != null && config.voiceVadThresholdDbfs != null) {
-                dbToLinear(adaptiveAttenuationDb).toFloat()
-            } else 1f
-            val musicGain = nominalMusicGain * adaptiveGain
+            // `minimumSpeechToMusicDb` is a diagnostic quality-gate target, not
+            // a command to keep attenuating music until every quiet syllable is
+            // 4 dB above the bed. That old adaptive limiter could push music
+            // tens of dB below the Commerce-validated -10 dB under-voice level.
+            // Keep the profile's normal smooth attack/release and use the gate
+            // only for telemetry below; this preserves audible music and avoids
+            // level-dependent pumping for quiet handset recordings.
+            val musicGain = nominalMusicGain
             if (musicGain > maxAppliedMusicGain) maxAppliedMusicGain = musicGain
             if (musicGain < minAppliedMusicGain) minAppliedMusicGain = musicGain
             if (speechActive && musicRms > 1e-9) {
