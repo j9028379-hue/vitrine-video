@@ -451,7 +451,9 @@ private class VitrineSceneShaderProgram(
     private fun sourceFamilyMode(transition: com.vitrinevideo.engine.interpreter.TransitionSpec?): Int =
         when (transition?.sourceFamily) {
             "R2_RADIAL_ZOOM" -> 3
+            "R2_HARD_ACTION_MATCH_CUT" -> 5
             "R4_ORANGE_FLASH" -> 4
+            "R4_KALEIDOSCOPE_MOSAIC" -> 10
             "R4_ROTATING_MASK" -> 12
             "R4_RADIAL_BLUR" -> 13
             "R4_WHIP_ZOOM" -> 14
@@ -518,9 +520,48 @@ private class VitrineSceneShaderProgram(
         program.setFloatsUniform("uSourceRotateGeometry", floatArrayOf(0f, 0f, 0.5f, 0.5f))
         program.setFloatsUniform("uSourceSpin", floatArrayOf(1f, 1f, 0f, 0f))
         program.setFloatsUniform("uSourceSpinGeometry", floatArrayOf(0f, 0f, 5f, 24f))
-        if ((mode != 15 && mode != 7 && mode != 8 && mode != 4 && mode != 3 && mode != 14 && mode != 12 && mode != 13) || transition == null) return
+        program.setFloatsUniform("uSourceMosaic", floatArrayOf(0f, 0f, 1.08f, 0.22f))
+        program.setFloatsUniform("uSourceMosaicWidths", floatArrayOf(0.16f, 0.18f, 0.32f, 0.18f))
+        program.setFloatsUniform("uSourceMosaicRotations", floatArrayOf(-6f, -3f, 0f, 3f))
+        program.setFloatsUniform("uSourceMosaicLast", floatArrayOf(0.16f, 6f, 0f, 0f))
+        program.setFloatsUniform("uSourceCut", floatArrayOf(0f, 1f, 1f, 1f))
+        if ((mode != 15 && mode != 7 && mode != 8 && mode != 4 && mode != 3 && mode != 14 && mode != 12 && mode != 13 && mode != 10 && mode != 5) || transition == null) return
 
         val params = JSONObject(transition.sourceParametersJson)
+        if (mode == 5) {
+            require(params.optInt("crossfade_frames", -1) == 0)
+            require(params.optInt("cut_on_local_frame", -1) == 1)
+            require(params.optInt("outgoing_hold_frames", -1) == 1)
+            require(params.optInt("incoming_hold_frames", -1) == 1)
+            program.setFloatsUniform("uSourceCut", floatArrayOf(
+                (frame - transition.startFrame).toFloat(),
+                params.getInt("cut_on_local_frame").toFloat(),
+                params.getInt("outgoing_hold_frames").toFloat(),
+                params.getInt("incoming_hold_frames").toFloat()
+            ))
+            return
+        }
+        if (mode == 10) {
+            require(params.optInt("strip_count") == 5)
+            require(params.optString("orientation") == "vertical")
+            require(params.optBoolean("alternate_horizontal_mirror"))
+            require(params.optDouble("gap_px", -1.0) == 0.0)
+            val widths = params.getJSONArray("strip_widths_normalized")
+            val rotations = params.getJSONArray("strip_rotation_degrees")
+            require(widths.length() == 5 && rotations.length() == 5)
+            val localFrame = frame - transition.startFrame
+            val easing = params.optString("easing", "linear")
+            program.setFloatsUniform("uSourceMosaic", floatArrayOf(
+                sourceCurveValue(params.getJSONArray("entry_progress"), localFrame, easing).toFloat(),
+                sourceCurveValue(params.getJSONArray("merge_to_incoming"), localFrame, easing).toFloat(),
+                params.optDouble("source_scale", 1.0).toFloat(),
+                params.optDouble("fold_shading_opacity", 0.0).toFloat()
+            ))
+            program.setFloatsUniform("uSourceMosaicWidths", FloatArray(4) { widths.getDouble(it).toFloat() })
+            program.setFloatsUniform("uSourceMosaicRotations", FloatArray(4) { rotations.getDouble(it).toFloat() })
+            program.setFloatsUniform("uSourceMosaicLast", floatArrayOf(widths.getDouble(4).toFloat(), rotations.getDouble(4).toFloat(), 0f, 0f))
+            return
+        }
         if (mode == 12) {
             require(params.optString("mask_shape") == "circle_plate")
             require(params.optString("anchor") == "detected_plate_center_or_frame_center")
@@ -881,6 +922,11 @@ private class VitrineSceneShaderProgram(
             uniform vec4 uSourceRotateGeometry;
             uniform vec4 uSourceSpin;
             uniform vec4 uSourceSpinGeometry;
+            uniform vec4 uSourceMosaic;
+            uniform vec4 uSourceMosaicWidths;
+            uniform vec4 uSourceMosaicRotations;
+            uniform vec4 uSourceMosaicLast;
+            uniform vec4 uSourceCut;
             uniform vec4 uSourcePanel;
             uniform vec4 uSourcePanelPhase;
             uniform vec4 uSourcePanelRows;
@@ -926,7 +972,53 @@ private class VitrineSceneShaderProgram(
                 vec2 topDownUv = vec2(vTexSamplingCoord.x, 1.0 - vTexSamplingCoord.y);
                 vec4 incoming = sampleScenePixel(topDownUv);
                 vec4 composed = incoming;
-                if (uSourceMode == 12) {
+                if (uSourceMode == 5) {
+                    bool incomingLayer = uSourceCut.x >= uSourceCut.y;
+                    composed = sampleWhipSource(topDownUv, incomingLayer);
+                } else if (uSourceMode == 10) {
+                    float stripStart = 0.0;
+                    float stripWidth = uSourceMosaicWidths.x;
+                    float stripRotation = uSourceMosaicRotations.x;
+                    float stripIndex = 0.0;
+                    if (topDownUv.x >= uSourceMosaicWidths.x) {
+                        stripStart = uSourceMosaicWidths.x;
+                        stripWidth = uSourceMosaicWidths.y;
+                        stripRotation = uSourceMosaicRotations.y;
+                        stripIndex = 1.0;
+                    }
+                    if (topDownUv.x >= uSourceMosaicWidths.x + uSourceMosaicWidths.y) {
+                        stripStart = uSourceMosaicWidths.x + uSourceMosaicWidths.y;
+                        stripWidth = uSourceMosaicWidths.z;
+                        stripRotation = uSourceMosaicRotations.z;
+                        stripIndex = 2.0;
+                    }
+                    if (topDownUv.x >= uSourceMosaicWidths.x + uSourceMosaicWidths.y + uSourceMosaicWidths.z) {
+                        stripStart = uSourceMosaicWidths.x + uSourceMosaicWidths.y + uSourceMosaicWidths.z;
+                        stripWidth = uSourceMosaicWidths.w;
+                        stripRotation = uSourceMosaicRotations.w;
+                        stripIndex = 3.0;
+                    }
+                    if (topDownUv.x >= uSourceMosaicWidths.x + uSourceMosaicWidths.y + uSourceMosaicWidths.z + uSourceMosaicWidths.w) {
+                        stripStart = uSourceMosaicWidths.x + uSourceMosaicWidths.y + uSourceMosaicWidths.z + uSourceMosaicWidths.w;
+                        stripWidth = uSourceMosaicLast.x;
+                        stripRotation = uSourceMosaicLast.y;
+                        stripIndex = 4.0;
+                    }
+                    float localX = clamp((topDownUv.x - stripStart) / max(stripWidth, 0.001), 0.0, 1.0);
+                    if (mod(stripIndex, 2.0) > 0.5) localX = 1.0 - localX;
+                    vec2 stripCenter = vec2(stripStart + stripWidth * 0.5, 0.5);
+                    vec2 sourceUv = vec2(stripStart + localX * stripWidth, topDownUv.y);
+                    sourceUv = stripCenter + (sourceUv - stripCenter) / max(uSourceMosaic.z, 0.01);
+                    float angle = stripRotation * 0.01745329252;
+                    vec2 local = sourceUv - stripCenter;
+                    sourceUv = stripCenter + vec2(local.x * cos(angle) - local.y * sin(angle), local.x * sin(angle) + local.y * cos(angle));
+                    vec3 mosaic = sampleScenePixel(clamp(sourceUv, vec2(0.0), vec2(1.0))).rgb;
+                    float edgeDistance = min(localX, 1.0 - localX);
+                    float fold = 1.0 - smoothstep(0.0, 0.035, edgeDistance);
+                    mosaic *= 1.0 - clamp(uSourceMosaic.w, 0.0, 1.0) * fold;
+                    float visibility = clamp(uSourceMosaic.x, 0.0, 1.0) * (1.0 - clamp(uSourceMosaic.y, 0.0, 1.0));
+                    composed.rgb = mix(incoming.rgb, mosaic, visibility);
+                } else if (uSourceMode == 12) {
                     vec2 center = uSourceRotateGeometry.zw;
                     float angle = uSourceRotate.w * 0.01745329252;
                     vec2 delta = topDownUv - center;
