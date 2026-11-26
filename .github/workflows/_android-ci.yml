@@ -221,7 +221,9 @@ jobs:
           fi
           rm -f ci-artifacts/ci-only.jks
           for f in ci-artifacts/*.apk; do
+            size=$(stat -c '%s' "$f")
             stat -c '%n %s bytes' "$f"
+            echo "::notice::APK_SIZE_BYTES $size $(basename "$f")"
             sha256sum "$f" >> ci-artifacts/SHA256SUMS.txt
           done
           "$APKSIGNER" verify --verbose ci-artifacts/VitrineVideo-release*.apk
@@ -383,6 +385,34 @@ jobs:
           script: |
             set -euo pipefail
             mkdir -p ci-artifacts/android-t3
+            capture_live_emulator_failure() {
+              status=$?
+              if [ "$status" -ne 0 ]; then
+                adb devices -l > ci-artifacts/android-t3/live-adb-devices.log 2>&1 || true
+                adb logcat -b all -d > ci-artifacts/android-t3/live-logcat.log 2>&1 || true
+                ps auxww | grep -E '[e]mulator|[q]emu|[a]db' > ci-artifacts/android-t3/live-emulator-processes.log || true
+                for log in ci-artifacts/android-t3/install-test-apk.log ci-artifacts/android-t3/connected-tests.log; do
+                  [ -f "$log" ] || continue
+                  tail -n 80 "$log" >> "$GITHUB_STEP_SUMMARY"
+                  while IFS= read -r line; do
+                    safe=$(printf '%s' "$line" | sed 's/%/%25/g; s/\r//g')
+                    echo "::notice title=Live Android failure log::$safe"
+                  done < <(tail -n 40 "$log")
+                done
+                for log in ci-artifacts/android-t3/live-adb-devices.log ci-artifacts/android-t3/live-emulator-processes.log; do
+                  while IFS= read -r line; do
+                    safe=$(printf '%s' "$line" | sed 's/%/%25/g; s/\r//g')
+                    echo "::notice title=Live Android failure log::$safe"
+                  done < "$log"
+                done
+                tail -n 100 ci-artifacts/android-t3/live-logcat.log | while IFS= read -r line; do
+                  safe=$(printf '%s' "$line" | sed 's/%/%25/g; s/\r//g')
+                  echo "::notice title=Live Android logcat::$safe"
+                done
+              fi
+              return "$status"
+            }
+            trap capture_live_emulator_failure EXIT
             chmod +x gradlew
             adb wait-for-device
             set +e
