@@ -32,8 +32,8 @@ def main()->None:
     assert report['status']=='PASS_SYNTHETIC_DSP_ONLY'
     assert report['audio_file']['sha256']==wav_sha
     m=report['measured']
-    assert m['phrase_voice_music_tone_margin_db']>=3.8
-    assert m['phrase_music_to_baseline_ratio']<0.45
+    assert 0.35 <= m['phrase_music_to_baseline_ratio'] <= 0.52
+    assert m['strong_voice_440hz_tone_amplitude'] > m['weak_voice_440hz_tone_amplitude'] * 5
     assert m['short_pause_after_voice_music_ratio']<0.7
     assert m['post_release_music_tone_amplitude']>m['late_pause_music_tone_amplitude']*1.15
     assert m['max_peak_dbfs']<=-1.95

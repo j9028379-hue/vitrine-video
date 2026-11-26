@@ -143,6 +143,8 @@ class T3SyntheticAudioEvidenceTest {
                 put("active_ducking_hops", engine.activeDuckingHops)
                 put("min_speech_music_margin_db_over_voiced_hops", engine.minMeasuredSpeechToMusicDb)
                 put("phrase_voice_music_tone_margin_db", phraseMargin)
+                put("weak_voice_440hz_tone_amplitude", voicePeak)
+                put("strong_voice_440hz_tone_amplitude", strongVoice)
                 put("baseline_music_tone_amplitude", baselineMusic)
                 put("phrase_music_tone_amplitude", phraseMusic)
                 put("phrase_music_to_baseline_ratio", phraseMusic / baselineMusic)

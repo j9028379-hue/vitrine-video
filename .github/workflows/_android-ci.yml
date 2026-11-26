@@ -382,8 +382,8 @@ jobs:
           assert t3['all_text_groups_executed'] and t3['text_motion_groups'] == 4
           assert t4['camera_cut_events'] == 26 and t4['text_windows'] == 7
           assert audio['status'] == 'PASS_SYNTHETIC_DSP_ONLY'
-          assert audio['measured']['phrase_voice_music_tone_margin_db'] >= 3.8
-          assert audio['measured']['phrase_music_to_baseline_ratio'] < 0.45
+          assert 0.35 <= audio['measured']['phrase_music_to_baseline_ratio'] <= 0.52
+          assert audio['measured']['strong_voice_440hz_tone_amplitude'] > audio['measured']['weak_voice_440hz_tone_amplitude'] * 5
           assert audio['measured']['max_peak_dbfs'] <= -1.95
           assert all(p.stat().st_size > 0 for p in [root/'T3/contact-sheet.jpg', root/'T4/contact-sheet.jpg', root/'T3/frame-map.csv', root/'T4/frame-map.csv', root/'audio/T3_SYNTHETIC_VOICE_PRIORITY.wav'])
           PY

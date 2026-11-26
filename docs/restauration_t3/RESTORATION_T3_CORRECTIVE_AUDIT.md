@@ -1,6 +1,6 @@
 # RESTAURATION-T3 corrective audit — in progress
 
-**State:** not release-approved. No local Kotlin compilation, unit test execution, rendered video, real-capture audio measurement, or physical-phone playback has completed. The CI-signed APK and Drive delivery are therefore still pending.
+**State:** not release-approved. The Drive source archive was rechecked at SHA-256 `372136baba5173a452850bbb7a9379041048f3e583651af964e2d541c020e6f3` (280 entries); its transition JSON SHA-256 is `94d0cd6a58fb001298b003c7bc7ae4637e9ece289e3169cc210cb5cdff807f60`, with 17 events and 16 profiles. The source JSON itself declares `approval_state.transition_timeline_approved=false`; that status is preserved and is not treated as owner approval. CI run `45770967235` passed 147 JVM tests and Debug/Release APK build/audit, but its final synthetic-evidence job failed because the collector still asserted the removed adaptive +4 dB music attenuation. The collector assertions have now been aligned to the requested audible −10 dB duck; rerun is pending. The universal GL renderer still does not consume transition properties. No Android pixel/render proof, human phone listening, or final mission APK/Drive delivery has been completed.
 
 ## Source-contract fidelity matrix
 
