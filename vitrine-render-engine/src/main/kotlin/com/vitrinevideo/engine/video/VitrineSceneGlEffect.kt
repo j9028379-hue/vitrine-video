@@ -448,8 +448,9 @@ private class VitrineSceneShaderProgram(
             }
         } ?: 0f
 
-    private fun sourceFamilyMode(transition: com.vitrinevideo.engine.interpreter.TransitionSpec?): Int =
-        when (transition?.sourceFamily) {
+    private fun sourceFamilyMode(transition: com.vitrinevideo.engine.interpreter.TransitionSpec?): Int {
+        val family = transition?.sourceFamily ?: return 0
+        return when (family) {
             "R2_GEOMETRIC_ARROW_MASK" -> 2
             "R2_RADIAL_ZOOM" -> 3
             "R2_HARD_ACTION_MATCH_CUT" -> 5
@@ -462,8 +463,11 @@ private class VitrineSceneShaderProgram(
             "R2_FLASH_TRANSITION" -> 7
             "R4_SOFT_OVERLAY_BLEND" -> 8
             "R4_MULTI_PANEL_MATCH_CUT" -> 15
-            else -> 0
+            else -> if (family.startsWith("R2_") || family.startsWith("R4_")) {
+                throw IllegalArgumentException("Unsupported source transition family: $family")
+            } else 0
         }
+    }
 
     private fun sourceCurveValue(curve: JSONArray, localFrame: Int, easing: String): Double {
         if (curve.length() == 0) return 0.0
@@ -1072,14 +1076,16 @@ private class VitrineSceneShaderProgram(
                     vec3 layer = sampleWhipSource(topDownUv, true).rgb;
                     for (int strip = 0; strip < 6; strip++) {
                         float stripIndex = float(strip);
-                        float centerX = (stripIndex + 0.5) / uSourceWipe.x;
+                        float centerX = (stripIndex + 0.5) / uSourceWipe.y;
                         float closeProgress = strip < 4 ? uSourceWipeClosure0[strip] : uSourceWipeClosure1[strip - 4];
                         float revealProgress = strip < 4 ? uSourceWipeReveal0[strip] : uSourceWipeReveal1[strip - 4];
-                        float gate = abs(topDownUv.x - centerX) - uSourceWipe.w * 0.5;
+                        float gate = abs(rotated.x - centerX) - uSourceWipe.w * 0.5;
                         float close = 1.0 - smoothstep(closeProgress - feather, closeProgress + feather, gate);
                         float reveal = 1.0 - smoothstep(revealProgress - feather, revealProgress + feather, gate);
                         float stripMask = max(close, reveal);
-                        vec2 stripUv = vec2(centerX + (topDownUv.x - centerX) / max(1.0 - closeProgress * 0.92, 0.08), topDownUv.y);
+                        vec2 stripRotatedUv = vec2(centerX + (rotated.x - centerX) / max(1.0 - closeProgress * 0.92, 0.08), rotated.y);
+                        vec2 stripDelta = stripRotatedUv - center;
+                        vec2 stripUv = center + vec2(stripDelta.x * cos(angle) + stripDelta.y * sin(angle), -stripDelta.x * sin(angle) + stripDelta.y * cos(angle));
                         vec3 sourceFrame = sampleWhipSource(stripUv, reveal > close).rgb;
                         layer = mix(layer, sourceFrame, stripMask);
                     }
@@ -1263,7 +1269,7 @@ private class VitrineSceneShaderProgram(
                 if (uSourceMode == 8) {
                     // Two-layer source blend: outgoing normal base, incoming
                     // screen overlay, with the declared scale and Gaussian radius.
-                    vec2 holdUv = clamp((vTexSamplingCoord - 0.5) / max(uHoldZoom, 0.01) + 0.5, 0.0, 1.0);
+                    vec2 holdUv = clamp((vTexSamplingCoord - 0.5) / max(uSourceSoft.z, 0.01) + 0.5, 0.0, 1.0);
                     vec2 scaledUv = (topDownUv - vec2(0.5)) / max(uSourceSoft.z, 0.01) + vec2(0.5);
                     vec2 blurRadius = uSourceSoftBlur.xy;
                     vec3 blurred = sampleScenePixel(clamp(scaledUv, vec2(0.0), vec2(1.0))).rgb * 4.0;
