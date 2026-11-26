@@ -382,8 +382,17 @@ jobs:
           arch: arm64-v8a
           profile: pixel_2
           emulator-boot-timeout: 900
-          emulator-options: -no-window -no-snapshot -gpu swiftshader_indirect -noaudio -no-boot-anim -memory 3072 -cores 2
+          emulator-options: -verbose -no-window -no-snapshot -gpu swiftshader_indirect -noaudio -no-boot-anim -memory 3072 -cores 2
           disable-animations: true
+          pre-emulator-launch-script: |
+            set -euo pipefail
+            EMULATOR_BIN="$ANDROID_HOME/emulator/emulator"
+            mv "$EMULATOR_BIN" "$EMULATOR_BIN.vitrine-real"
+            cat > "$EMULATOR_BIN" <<'WRAPPER'
+            #!/bin/bash
+            exec "$0.vitrine-real" "$@" >> "${RUNNER_TEMP}/vitrine-emulator-startup.log" 2>&1
+            WRAPPER
+            chmod +x "$EMULATOR_BIN"
           script: |
             set -euo pipefail
             mkdir -p ci-artifacts/android-t3
@@ -455,6 +464,7 @@ jobs:
           python3 - <<'PY'
           import os
           import subprocess
+          from collections import deque
           from pathlib import Path
 
           root = Path("ci-artifacts/android-t3")
@@ -481,9 +491,14 @@ jobs:
               except Exception as exc:
                   output = f"[diagnostic failed: {type(exc).__name__}: {exc}]\n"
               (root / filename).write_text(output)
+          startup_log = Path(os.environ.get("RUNNER_TEMP", "")) / "vitrine-emulator-startup.log"
+          if startup_log.is_file():
+              with startup_log.open(errors="replace") as source:
+                  startup_tail = deque(source, maxlen=500)
+              (root / "emulator-startup.log").write_text("".join(startup_tail))
           summary = ["### Android runner failure diagnostics", "```text"]
           log_files = [root / name for name in commands]
-          log_files += [root / "install-test-apk.log", root / "connected-tests.log"]
+          log_files += [root / "install-test-apk.log", root / "connected-tests.log", root / "emulator-startup.log"]
           for path in log_files:
               if not path.is_file():
                   continue
