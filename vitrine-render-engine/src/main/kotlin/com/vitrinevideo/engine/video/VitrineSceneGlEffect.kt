@@ -452,6 +452,8 @@ private class VitrineSceneShaderProgram(
         when (transition?.sourceFamily) {
             "R2_RADIAL_ZOOM" -> 3
             "R4_ORANGE_FLASH" -> 4
+            "R4_ROTATING_MASK" -> 12
+            "R4_RADIAL_BLUR" -> 13
             "R4_WHIP_ZOOM" -> 14
             "R2_FLASH_TRANSITION" -> 7
             "R4_SOFT_OVERLAY_BLEND" -> 8
@@ -512,9 +514,48 @@ private class VitrineSceneShaderProgram(
         program.setFloatsUniform("uSourceRadialGeometry", floatArrayOf(0.5f, 0f, 0f, 24f))
         program.setFloatsUniform("uSourceWhip", floatArrayOf(1f, 1f, 0f, 0f))
         program.setFloatsUniform("uSourceWhipGeometry", floatArrayOf(0f, 0f, 4f, 8f))
-        if ((mode != 15 && mode != 7 && mode != 8 && mode != 4 && mode != 3 && mode != 14) || transition == null) return
+        program.setFloatsUniform("uSourceRotate", floatArrayOf(1f, 1f, 0f, 0f))
+        program.setFloatsUniform("uSourceRotateGeometry", floatArrayOf(0f, 0f, 0.5f, 0.5f))
+        program.setFloatsUniform("uSourceSpin", floatArrayOf(1f, 1f, 0f, 0f))
+        program.setFloatsUniform("uSourceSpinGeometry", floatArrayOf(0f, 0f, 5f, 24f))
+        if ((mode != 15 && mode != 7 && mode != 8 && mode != 4 && mode != 3 && mode != 14 && mode != 12 && mode != 13) || transition == null) return
 
         val params = JSONObject(transition.sourceParametersJson)
+        if (mode == 12) {
+            require(params.optString("mask_shape") == "circle_plate")
+            require(params.optString("anchor") == "detected_plate_center_or_frame_center")
+            val localFrame = frame - transition.startFrame
+            val easing = params.optString("easing", "linear")
+            val incomingScale = sourceCurveValue(params.getJSONArray("incoming_scale"), localFrame, easing)
+            val outgoingScale = sourceCurveValue(params.getJSONArray("outgoing_scale"), localFrame, easing)
+            val radius = sourceCurveValue(params.getJSONArray("radius_normalized"), localFrame, easing)
+            val rotation = sourceCurveValue(params.getJSONArray("rotation_degrees"), localFrame, easing)
+            val feather = params.optDouble("feather_px", 0.0).toFloat()
+            program.setFloatsUniform("uSourceRotate", floatArrayOf(
+                incomingScale.toFloat(), outgoingScale.toFloat(), radius.toFloat(), rotation.toFloat()
+            ))
+            program.setFloatsUniform("uSourceRotateGeometry", floatArrayOf(
+                feather / max(1, outWidth).toFloat(), feather / max(1, outHeight).toFloat(), 0.5f, 0.5f
+            ))
+            return
+        }
+        if (mode == 13) {
+            require(params.optString("anchor") == "detected_plate_center_or_frame_center")
+            val localFrame = frame - transition.startFrame
+            val easing = params.optString("easing", "linear")
+            val outgoingScale = sourceCurveValue(params.getJSONArray("outgoing_scale"), localFrame, easing)
+            val incomingScale = sourceCurveValue(params.getJSONArray("incoming_scale"), localFrame, easing)
+            val spin = sourceCurveValue(params.getJSONArray("spin_degrees"), localFrame, easing)
+            val blur = sourceCurveValue(params.getJSONArray("radial_amount_normalized"), localFrame, easing)
+            program.setFloatsUniform("uSourceSpin", floatArrayOf(
+                outgoingScale.toFloat(), incomingScale.toFloat(), spin.toFloat(), localFrame.toFloat()
+            ))
+            program.setFloatsUniform("uSourceSpinGeometry", floatArrayOf(
+                blur.toFloat(), blur.toFloat(), params.optInt("incoming_visible_from_local_frame", 0).toFloat(),
+                params.optInt("radial_samples", 24).toFloat()
+            ))
+            return
+        }
         if (mode == 14) {
             require(params.optString("anchor") == "detected_plate_center_or_frame_center")
             val localFrame = frame - transition.startFrame
@@ -836,6 +877,10 @@ private class VitrineSceneShaderProgram(
             uniform vec4 uSourceRadialGeometry;
             uniform vec4 uSourceWhip;
             uniform vec4 uSourceWhipGeometry;
+            uniform vec4 uSourceRotate;
+            uniform vec4 uSourceRotateGeometry;
+            uniform vec4 uSourceSpin;
+            uniform vec4 uSourceSpinGeometry;
             uniform vec4 uSourcePanel;
             uniform vec4 uSourcePanelPhase;
             uniform vec4 uSourcePanelRows;
@@ -881,7 +926,37 @@ private class VitrineSceneShaderProgram(
                 vec2 topDownUv = vec2(vTexSamplingCoord.x, 1.0 - vTexSamplingCoord.y);
                 vec4 incoming = sampleScenePixel(topDownUv);
                 vec4 composed = incoming;
-                if (uSourceMode == 14) {
+                if (uSourceMode == 12) {
+                    vec2 center = uSourceRotateGeometry.zw;
+                    float angle = uSourceRotate.w * 0.01745329252;
+                    vec2 delta = topDownUv - center;
+                    vec2 rotated = vec2(delta.x * cos(angle) - delta.y * sin(angle), delta.x * sin(angle) + delta.y * cos(angle));
+                    vec2 incomingUv = center + rotated / max(uSourceRotate.x, 0.01);
+                    vec2 outgoingUv = center + rotated / max(uSourceRotate.y, 0.01);
+                    vec3 incomingFrame = sampleWhipSource(incomingUv, true).rgb;
+                    vec3 outgoingFrame = sampleWhipSource(outgoingUv, false).rgb;
+                    float distanceFromAnchor = length(topDownUv - center);
+                    float feather = max(uSourceRotateGeometry.x, uSourceRotateGeometry.y);
+                    float reveal = 1.0 - smoothstep(uSourceRotate.z - feather, uSourceRotate.z + feather, distanceFromAnchor);
+                    composed.rgb = mix(outgoingFrame, incomingFrame, clamp(reveal, 0.0, 1.0));
+                } else if (uSourceMode == 13) {
+                    bool incomingLayer = uSourceSpin.w >= uSourceSpinGeometry.z;
+                    float scale = incomingLayer ? uSourceSpin.y : uSourceSpin.x;
+                    float angle = uSourceSpin.z * 0.01745329252;
+                    vec2 center = vec2(0.5, 0.5);
+                    vec2 delta = topDownUv - center;
+                    vec2 rotated = vec2(delta.x * cos(angle) - delta.y * sin(angle), delta.x * sin(angle) + delta.y * cos(angle));
+                    vec2 radialUv = center + rotated / max(scale, 0.01);
+                    vec2 ray = radialUv - center;
+                    vec2 direction = ray / max(length(ray), 0.0001);
+                    vec3 radialAccum = vec3(0.0);
+                    for (int sampleIndex = 0; sampleIndex < 24; sampleIndex++) {
+                        float t = (float(sampleIndex) / 23.0 - 0.5) * 2.0;
+                        vec2 sampleUv = clamp(radialUv + direction * uSourceSpinGeometry.xy * t, vec2(0.0), vec2(1.0));
+                        radialAccum += sampleWhipSource(sampleUv, incomingLayer).rgb;
+                    }
+                    composed.rgb = radialAccum / 24.0;
+                } else if (uSourceMode == 14) {
                     bool incomingLayer = uSourceWhip.w >= uSourceWhipGeometry.z;
                     float scale = incomingLayer ? uSourceWhip.y : uSourceWhip.x;
                     float angle = uSourceWhip.z * 0.01745329252;
