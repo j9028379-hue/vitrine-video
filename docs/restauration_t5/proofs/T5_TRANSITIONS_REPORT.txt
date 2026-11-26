@@ -1,0 +1,40 @@
+RESTAURATION T5 — TRANSITION TRAVEL PROOF
+geometry replayed from TransitionGeometry (smoothstep over the declared window,
+full-frame travel, motion blur peaking mid-transition)
+
+T5_T1_DISH_SWIPE_LEFT motif=T5L direction=left frames=176..183
+  step 0: travel=0.000 seam_x=1.000 blur_px=0.00
+  step 1: travel=0.055 seam_x=0.945 blur_px=1.43
+  step 2: travel=0.198 seam_x=0.802 blur_px=2.86
+  step 3: travel=0.394 seam_x=0.606 blur_px=4.29
+  step 4: travel=0.606 seam_x=0.394 blur_px=4.29
+  step 5: travel=0.802 seam_x=0.198 blur_px=2.86
+  step 6: travel=0.945 seam_x=0.055 blur_px=1.43
+  step 7: travel=1.000 seam_x=0.000 blur_px=0.00
+
+T5_T1_CAMERA_WHIP_RIGHT motif=T5R direction=right frames=416..423
+  step 0: travel=0.000 seam_x=0.000 blur_px=0.00
+  step 1: travel=0.055 seam_x=0.055 blur_px=1.43
+  step 2: travel=0.198 seam_x=0.198 blur_px=2.86
+  step 3: travel=0.394 seam_x=0.394 blur_px=4.29
+  step 4: travel=0.606 seam_x=0.606 blur_px=4.29
+  step 5: travel=0.802 seam_x=0.802 blur_px=2.86
+  step 6: travel=0.945 seam_x=0.945 blur_px=1.43
+  step 7: travel=1.000 seam_x=1.000 blur_px=0.00
+
+T5_T1_DISH_SWIPE_LEFT_FINAL motif=T5LF direction=left frames=626..633
+  step 0: travel=0.000 seam_x=1.000 blur_px=0.00
+  step 1: travel=0.055 seam_x=0.945 blur_px=1.43
+  step 2: travel=0.198 seam_x=0.802 blur_px=2.86
+  step 3: travel=0.394 seam_x=0.606 blur_px=4.29
+  step 4: travel=0.606 seam_x=0.394 blur_px=4.29
+  step 5: travel=0.802 seam_x=0.198 blur_px=2.86
+  step 6: travel=0.945 seam_x=0.055 blur_px=1.43
+  step 7: travel=1.000 seam_x=0.000 blur_px=0.00
+
+LIMIT: the reference jingle MP4 itself is not present in the delivered archive
+(research/REFERENCE_MANIFEST.json documents it as a private reference that is not
+versioned). The geometry above follows the measured T1 description in
+research/REVERSE_ENGINEERING_V1.md: very fast lateral impulse, motion blur hiding the
+cut, constant subject position, and the declared 8-frame window. Any further
+acceleration/rhythm detail requires the original video to be supplied.

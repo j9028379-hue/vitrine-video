@@ -1,0 +1,11 @@
+RESTAURATION T5 VERSION / REFERENCE MATRIX
+official archive=a4c5a11af20565c845bfb31baf8ae787003cd23b164fdf0f5205250c5f1dd08e (filename token 3036c8b648b04fa3a9e5c982c7eb1f1a6fc86e00)
+app template_id=RESTAURATION-T5 version=1.0.0; Restauration IDs T1/T2/T3/T5 only
+authoritative montage=montage/T5_MONTAGE_COMPLET_V3_0_0.json
+authoritative runtime=config/T5_RUNTIME_CONTRACT_V3_0_0.json (V2_0_0 excluded)
+authoritative text motion=config/T5_TEXT_MOTION_V4_0_0.json (V1/V2/V3 excluded)
+universal engine adapter derived from montage/runtime/text motion; no T5 parallel engine
+transitions T1 dish swipe left / camera whip right / dish swipe left, 8 frames at 180/420/630
+music 1->2->3->4->1: 300338 -> 324016 -> 292156 -> 345669, commit after completed render+mux+audio QC only
+fixed Burger Atelier voice exemplar and all four MP3 clips excluded; captured voice or music only
+Commerce T1/T2/T3/T4 and Restauration T2 packages untouched; no new domain/app

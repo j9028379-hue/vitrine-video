@@ -1,0 +1,399 @@
+name: Vitrine Video — reusable Android CI
+
+on:
+  workflow_call:
+    inputs:
+      run_render:
+        description: "Render synthetic T3/T4 reference proofs without requiring an emulator"
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+env:
+  GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx3g -Dkotlin.daemon.jvm.options=-Xmx1g"
+
+jobs:
+  t2-package:
+    name: T2/T5 packages, SHA and internal music evidence
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Regenerate RESTAURATION-T3 package from official source archive
+        run: python3 tools/build_restauration_t3_package.py
+
+      - name: Verify COMMERCE-T2 package, manifest, vault and mix
+        run: python3 tools/verify_t2_integrity.py
+
+      - name: Verify RESTAURATION-T2 archive inventory, package and sealed music
+        run: python3 tools/verify_restauration_t2_integrity.py
+
+      - name: Verify RESTAURATION-T5 archive inventory, package and sealed music
+        run: python3 tools/verify_restauration_t5_integrity.py
+
+      - name: Verify RESTAURATION-T3 selective package, v0.4 contract and sealed music
+        run: python3 tools/verify_restauration_t3_integrity.py
+
+      - name: Prove T5 typography weights and transition travel
+        run: |
+          python3 -m pip install --quiet fonttools pillow
+          python3 tools/prove_t5_typography_and_transitions.py
+
+      - name: Upload T2/T5 evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: t2-t5-package-evidence
+          path: |
+            ci-artifacts/T2_INTEGRITY_REPORT.txt
+            ci-artifacts/RESTAURATION_T2_INTEGRITY_REPORT.txt
+            ci-artifacts/T5_INTEGRITY_REPORT.txt
+            ci-artifacts/RESTAURATION_T3_INTEGRITY_REPORT.txt
+            docs/restauration_t5/proofs/T5_TYPOGRAPHY_PROOF.png
+            docs/restauration_t5/proofs/T5_TYPOGRAPHY_REPORT.txt
+            docs/restauration_t5/proofs/T5_TRANSITIONS_REPORT.txt
+          if-no-files-found: warn
+
+  tests:
+    name: JVM test suites
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: JDK 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Android SDK Platform 35 + Build Tools
+        uses: ./.github/actions/setup-android
+
+      - name: local.properties (generated, never committed)
+        run: |
+          set -euo pipefail
+          echo "sdk.dir=${ANDROID_HOME:-$ANDROID_SDK_ROOT}" > local.properties
+          test -s local.properties
+
+      - name: Gradle wrapper 8.10.2 + cache
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: wrapper
+
+      - name: Wrapper sanity
+        run: |
+          chmod +x gradlew
+          ./gradlew --version
+
+      - name: Engine unit tests
+        shell: bash
+        run: |
+          set +e
+          mkdir -p ci-logs
+          ./gradlew :vitrine-render-engine:testDebugUnitTest --stacktrace 2>&1 | tee ci-logs/engine-tests.log
+          code=${PIPESTATUS[0]}
+          if [ "$code" -ne 0 ]; then
+            grep -E '^(e:|w:|FAILURE:|.* FAILED|.*error:)' ci-logs/engine-tests.log | tail -25 | while IFS= read -r line; do
+              echo "::error::${line//'%'/'%25'}"
+            done
+          fi
+          exit "$code"
+
+      - name: App unit tests
+        shell: bash
+        run: |
+          set +e
+          mkdir -p ci-logs
+          ./gradlew :vitrine-video-app:testDebugUnitTest --stacktrace 2>&1 | tee ci-logs/app-tests.log
+          code=${PIPESTATUS[0]}
+          if [ "$code" -ne 0 ]; then
+            grep -E '^(e:|w:|FAILURE:|.* FAILED|.*error:)' ci-logs/app-tests.log | tail -25 | while IFS= read -r line; do
+              echo "::error::${line//'%'/'%25'}"
+            done
+          fi
+          exit "$code"
+
+      - name: JUnit XML summary
+        if: always()
+        run: |
+          python3 - <<'PY'
+          import glob, xml.etree.ElementTree as ET
+          total=fail=err=skip=0
+          for f in glob.glob('**/build/test-results/**/*.xml', recursive=True):
+              r=ET.parse(f).getroot()
+              total+=int(r.get('tests') or 0); fail+=int(r.get('failures') or 0)
+              err+=int(r.get('errors') or 0); skip+=int(r.get('skipped') or 0)
+          print(f'::notice::JUNIT_TOTAL={total} FAILURES={fail} ERRORS={err} SKIPPED={skip}')
+          for f in glob.glob('**/build/test-results/**/*.xml', recursive=True):
+              r=ET.parse(f).getroot()
+              for case in r.iter('testcase'):
+                  for kind in ('failure','error'):
+                      for node in case.findall(kind):
+                          msg=(node.get('message') or node.text or '').replace('\n',' ').replace('%','%25')
+                          print(f"::error::{case.get('classname')}.{case.get('name')}: {msg}")
+          PY
+
+      - name: Upload JUnit reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: junit-reports
+          path: |
+            **/build/test-results/**/*.xml
+            **/build/reports/tests/**
+            vitrine-render-engine/build/outputs/audio-validation/**
+            vitrine-render-engine/build/outputs/render-validation/**
+          if-no-files-found: warn
+
+      - name: Upload build and test logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-logs
+          path: ci-logs/**
+          if-no-files-found: warn
+
+  build:
+    name: Debug + release APK
+    needs: tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: JDK 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Android SDK Platform 35 + Build Tools
+        uses: ./.github/actions/setup-android
+
+      - name: local.properties
+        run: echo "sdk.dir=${ANDROID_HOME:-$ANDROID_SDK_ROOT}" > local.properties
+
+      - name: Gradle cache
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: wrapper
+
+      - name: assembleDebug + assembleRelease
+        run: |
+          set -o pipefail
+          mkdir -p ci-logs
+          chmod +x gradlew
+          ./gradlew assembleDebug assembleRelease --stacktrace 2>&1 | tee ci-logs/gradle-build.log
+
+      - name: APK integrity, signature and SHA-256
+        run: |
+          set -euo pipefail
+          exec > >(tee ci-logs/apk-verification.log) 2>&1
+          mkdir -p ci-artifacts
+          : > ci-artifacts/SHA256SUMS.txt
+          DEBUG_APK=$(find . -path '*/build/outputs/apk/debug/*.apk' -type f | head -n 1)
+          RELEASE_APK=$(find . -path '*/build/outputs/apk/release/*.apk' -type f | head -n 1)
+          test -n "$DEBUG_APK" && test -s "$DEBUG_APK"
+          test -n "$RELEASE_APK" && test -s "$RELEASE_APK"
+          cp "$DEBUG_APK" ci-artifacts/VitrineVideo-debug.apk
+          APKSIGNER="$ANDROID_HOME/build-tools/35.0.0/apksigner"
+          "$APKSIGNER" verify --verbose ci-artifacts/VitrineVideo-debug.apk
+          if [[ "$RELEASE_APK" == *unsigned* ]]; then
+            # CI-only verification key: never committed, never used for a store build.
+            keytool -genkeypair -keystore ci-artifacts/ci-only.jks \
+              -storepass vitrine-ci-only -keypass vitrine-ci-only \
+              -alias ci-only -keyalg RSA -keysize 2048 -validity 1 \
+              -dname "CN=Vitrine CI verification only" >/dev/null 2>&1
+            cp "$RELEASE_APK" ci-artifacts/VitrineVideo-release-ci-signed.apk
+            "$APKSIGNER" sign --ks ci-artifacts/ci-only.jks \
+              --ks-pass pass:vitrine-ci-only --key-pass pass:vitrine-ci-only \
+              ci-artifacts/VitrineVideo-release-ci-signed.apk >/dev/null 2>&1
+          else
+            cp "$RELEASE_APK" ci-artifacts/VitrineVideo-release.apk
+          fi
+          rm -f ci-artifacts/ci-only.jks
+          for f in ci-artifacts/*.apk; do
+            stat -c '%n %s bytes' "$f"
+            sha256sum "$f" >> ci-artifacts/SHA256SUMS.txt
+          done
+          "$APKSIGNER" verify --verbose ci-artifacts/VitrineVideo-release*.apk
+          cat ci-artifacts/SHA256SUMS.txt
+          while IFS= read -r line; do echo "::notice::APK_SHA256 $line"; done < ci-artifacts/SHA256SUMS.txt
+
+      - name: Audit release APK for T3 package integrity and excluded demo assets
+        run: |
+          RELEASE_DELIVERY=$(find ci-artifacts -maxdepth 1 -name 'VitrineVideo-release*.apk' -type f | head -n 1)
+          test -n "$RELEASE_DELIVERY"
+          python3 tools/verify_restauration_t3_apk.py "$RELEASE_DELIVERY"
+
+      - name: Upload APKs and integrity report
+        uses: actions/upload-artifact@v4
+        with:
+          name: apk-release-evidence
+          path: ci-artifacts/*
+          if-no-files-found: error
+
+      - name: Upload Gradle build log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-logs
+          path: ci-logs/**
+          if-no-files-found: warn
+
+  delivery-package:
+    name: Downloadable APK delivery package
+    needs: [tests, build, render]
+    if: needs.build.result == 'success' && needs.render.result == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Download run artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: ci-delivery/artifacts
+
+      - name: Verify APKs and assemble transfer package
+        run: |
+          set -euo pipefail
+          APK_DIR=ci-delivery/artifacts/apk-release-evidence
+          test -s "$APK_DIR/VitrineVideo-debug.apk"
+          RELEASE_APK=$(find "$APK_DIR" -maxdepth 1 -name 'VitrineVideo-release*.apk' -type f | head -n 1)
+          test -n "$RELEASE_APK" && test -s "$RELEASE_APK"
+          rm -rf ci-delivery/apk-chunks
+          mkdir -p ci-delivery/apk-chunks
+          {
+            echo "# VITRINE VIDÉO — APK delivery package"
+            echo "workflow_run=$GITHUB_RUN_ID"
+            echo "commit=$GITHUB_SHA"
+            echo "branch=$GITHUB_REF_NAME"
+            echo
+            echo "## APK"
+            echo "T2 APKs exceed GitHub's 100 MB per-file limit, so each APK is stored as verified 48 MB chunks."
+            echo "Reassemble with: cat <apk>.part-* > <apk> (in lexicographic order)."
+            echo
+          } > ci-delivery/DELIVERY_MANIFEST.txt
+          : > ci-delivery/PACKAGE_SHA256.txt
+          for APK in "$APK_DIR/VitrineVideo-debug.apk" "$RELEASE_APK"; do
+            NAME=$(basename "$APK")
+            cp "$APK" "ci-delivery/apk-chunks/$NAME"
+            split -b 48m -d -a 2 "ci-delivery/apk-chunks/$NAME" "ci-delivery/apk-chunks/$NAME.part-"
+            rm -f "ci-delivery/apk-chunks/$NAME"
+            echo "name=$NAME" >> ci-delivery/DELIVERY_MANIFEST.txt
+            stat -c 'size=%s bytes' "$APK" >> ci-delivery/DELIVERY_MANIFEST.txt
+            sha256sum "$APK" | awk '{print "sha256="$1}' >> ci-delivery/DELIVERY_MANIFEST.txt
+            cat ci-delivery/apk-chunks/$NAME.part-* | sha256sum | awk '{print "reassembled_sha256="$1}' >> ci-delivery/DELIVERY_MANIFEST.txt
+            for CHUNK in ci-delivery/apk-chunks/$NAME.part-*; do
+              printf 'chunk=%s ' "$(basename "$CHUNK")" >> ci-delivery/DELIVERY_MANIFEST.txt
+              stat -c 'bytes=%s' "$CHUNK" >> ci-delivery/DELIVERY_MANIFEST.txt
+            done
+            echo >> ci-delivery/DELIVERY_MANIFEST.txt
+            sha256sum ci-delivery/apk-chunks/$NAME.part-* >> ci-delivery/PACKAGE_SHA256.txt
+          done
+          {
+            echo "## Source CI artifacts"
+            find ci-delivery/artifacts -type f | sort
+          } >> ci-delivery/DELIVERY_MANIFEST.txt
+          cat ci-delivery/DELIVERY_MANIFEST.txt
+          cat ci-delivery/PACKAGE_SHA256.txt
+
+      - name: Publish transfer package on session branch
+        run: |
+          set -euo pipefail
+          git config user.name "Vitrine CI"
+          git config user.email "ci@vitrinevideo.local"
+          git rm -f --cached --ignore-unmatch ci-delivery/vitrine-apk-evidence.tar.gz || true
+          rm -f ci-delivery/vitrine-apk-evidence.tar.gz
+          git add -f ci-delivery/DELIVERY_MANIFEST.txt ci-delivery/PACKAGE_SHA256.txt ci-delivery/apk-chunks/
+          if git diff --cached --quiet; then
+            echo "Delivery package unchanged"
+          else
+            git commit -m "CI APK delivery evidence [skip ci]"
+            git fetch origin "$GITHUB_REF_NAME"
+            git rebase "origin/$GITHUB_REF_NAME"
+            git push origin "HEAD:refs/heads/$GITHUB_REF_NAME"
+          fi
+
+  render:
+    name: Synthetic T3/T4 reference renders and evidence
+    needs: build
+    if: ${{ inputs.run_render }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install deterministic host render dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install numpy pillow opencv-python-headless imageio-ffmpeg
+          npm install --prefix "$RUNNER_TEMP/ffprobe" --no-audit --no-fund ffprobe-static
+          FFPROBE_BIN=$(node -p "require('$RUNNER_TEMP/ffprobe/node_modules/ffprobe-static').path")
+          echo "FFPROBE_BIN=$FFPROBE_BIN" >> "$GITHUB_ENV"
+
+      - name: Render synthetic T3/T4 with checked-in Python references
+        run: python tools/render_synthetic_reference_renders.py
+
+      - name: Extract control frames, frame maps, ffprobe metadata and SHA-256
+        run: python tools/build_synthetic_render_evidence.py
+
+      - name: Download JVM audio DSP evidence
+        uses: actions/download-artifact@v4
+        with:
+          name: junit-reports
+          path: render-evidence/synthetic/audio-ci
+
+      - name: Collect and verify synthetic Kotlin audio evidence
+        run: python tools/collect_ci_audio_evidence.py
+
+      - name: Verify evidence completeness and no empty-artifact pass
+        run: |
+          set -euo pipefail
+          test -s render-evidence/synthetic/T3/EVIDENCE_SCOPE.json
+          test -s render-evidence/synthetic/T3/contact-sheet.jpg
+          test -s render-evidence/synthetic/T3/frame-map.csv
+          test -s render-evidence/synthetic/T3/T3_SILENT_RENDER_REPORT.json
+          test -s render-evidence/synthetic/T4/EVIDENCE_SCOPE.json
+          test -s render-evidence/synthetic/T4/contact-sheet.jpg
+          test -s render-evidence/synthetic/T4/frame-map.csv
+          test -s render-evidence/synthetic/audio/T3_SYNTHETIC_AUDIO_REPORT.json
+          test -s render-evidence/synthetic/audio/T3_SYNTHETIC_VOICE_PRIORITY.wav
+          test -s render-evidence/synthetic/SHA256SUMS.txt
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          root=Path('render-evidence/synthetic')
+          t3=json.loads((root/'T3/EVIDENCE_SCOPE.json').read_text())
+          t4=json.loads((root/'T4/EVIDENCE_SCOPE.json').read_text())
+          audio=json.loads((root/'audio/T3_SYNTHETIC_AUDIO_REPORT.json').read_text())
+          assert t3['all_transition_events_executed'] and len(t3['transition_execution_counts']) == 17
+          assert t3['all_text_groups_executed'] and t3['text_motion_groups'] == 4
+          assert t4['camera_cut_events'] == 26 and t4['text_windows'] == 7
+          assert audio['status'] == 'PASS_SYNTHETIC_DSP_ONLY'
+          assert audio['measured']['phrase_voice_music_tone_margin_db'] >= 3.8
+          assert audio['measured']['phrase_music_to_baseline_ratio'] < 0.45
+          assert audio['measured']['max_peak_dbfs'] <= -1.95
+          assert all(p.stat().st_size > 0 for p in [root/'T3/contact-sheet.jpg', root/'T4/contact-sheet.jpg', root/'T3/frame-map.csv', root/'T4/frame-map.csv', root/'audio/T3_SYNTHETIC_VOICE_PRIORITY.wav'])
+          PY
+          (cd render-evidence/synthetic && sha256sum -c SHA256SUMS.txt)
+          cat render-evidence/synthetic/T3/EVIDENCE_SCOPE.json
+          cat render-evidence/synthetic/T4/EVIDENCE_SCOPE.json
+
+      - name: Upload synthetic render and audio-independent render evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: synthetic-t3-t4-render-evidence
+          path: render-evidence/synthetic/**
+          if-no-files-found: error

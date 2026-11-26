@@ -1,0 +1,192 @@
+SOURCE vitrine-video-t5-formule-combo-offre-3036c8b648b04fa3a9e5c982c7eb1f1a6fc86e00.zip
+SHA256 a4c5a11af20565c845bfb31baf8ae787003cd23b164fdf0f5205250c5f1dd08e
+ENTRIES 176
+KEPT 23
+DROPPED 153
+
+[KEPT]
+KEEP assets/fonts/playfair-display/OFL.txt :: OFL-1.1 licence for the bundled font
+KEEP assets/fonts/playfair-display/PlayfairDisplay[wght].ttf :: declared variable Playfair Display motion font (weights 800/900)
+KEEP audio/music/t5-afrobeat-v1/BUILD_PROVENANCE.json :: instrumental derivative provenance and QC
+KEEP audio/music/t5-afrobeat-v1/SHA256SUMS.txt :: technical SHA manifest of exactly four instrumentals
+KEEP audio/music/t5-afrobeat-v1/source_manifest.json :: no-voice, no-full-source technical declaration
+KEEP capture-guide/consignes_T5.json :: approved French scene instructions and continuity rule
+KEEP config/T5_AUDIO_MIX_V1_0_0.json :: approved music/voice mix contract and delivery gates
+KEEP config/T5_CAPTURE_FLOW_V1_0_0.json :: 12 stable merchant screens, transient countdown and camera rules
+KEEP config/T5_FORMULE_COMBO_OFFRE_TEMPLATE_V1_0_0.json :: template identity, six fields and 720x1280/30fps/900-frame format
+KEEP config/T5_MUSIC_PACK_V1_0_0.json :: four approved afrobeat instrumentals, hashes and strict rotation policy
+KEEP config/T5_RUNTIME_CONTRACT_V3_0_0.json :: authoritative scene bindings, merchant bindings and transition contract
+KEEP config/T5_TEXT_MOTION_V4_0_0.json :: Playfair V4 block motion, boxes, weights and timing
+KEEP form/questions_T5.json :: six approved merchant questions and validation metadata
+KEEP montage/T5_MONTAGE_COMPLET_V3_0_0.json :: owner-approved full-frame montage source of truth
+KEEP schemas/T5_audio_mix.schema.json :: audio mix schema referenced by the mix contract
+KEEP schemas/T5_capture_flow.schema.json :: capture flow schema referenced by the flow contract
+KEEP schemas/T5_music_pack.schema.json :: music pack schema referenced by the pack contract
+KEEP schemas/T5_music_selection_state.schema.json :: persistent rotation-state schema
+KEEP schemas/T5_questions.schema.json :: six-field form schema
+KEEP schemas/T5_render_error.schema.json :: render error schema
+KEEP schemas/T5_render_job.schema.json :: render job schema
+KEEP schemas/T5_render_result.schema.json :: render result schema
+KEEP schemas/T5_text_motion_v4.schema.json :: V4 typography/motion schema
+
+[DROPPED]
+DROP  :: directory container (no file payload)
+DROP .github/ :: directory container (no file payload)
+DROP .github/workflows/ :: directory container (no file payload)
+DROP .github/workflows/ci.yml :: CI/control-plane or development metadata
+DROP .github/workflows/cloudflare-control-plane.yml :: CI/control-plane or development metadata
+DROP .github/workflows/render-runtime.yml :: CI/control-plane or development metadata
+DROP .gitignore :: not proven runtime-essential
+DROP LICENSE :: not proven runtime-essential
+DROP README.md :: development script or documentation
+DROP STATUS.json :: unreferenced development metadata or superseded revision
+DROP adapter/ :: directory container (no file payload)
+DROP adapter/__init__.py :: development/test/control-plane source, not a mobile runtime asset
+DROP adapter/t5_adapter.py :: development/test/control-plane source, not a mobile runtime asset
+DROP approvals/ :: directory container (no file payload)
+DROP approvals/APPROBATION_CORRECTION_BASELINE_SOUS_TITRES_T5_2026-11-18.json :: owner approval record; SHA verified from source archive, audit only
+DROP approvals/APPROBATION_CORRECTION_LISIBILITE_PLAYFAIR_T5_2026-11-18.json :: owner approval record; SHA verified from source archive, audit only
+DROP approvals/APPROBATION_DIRECTION_CREATIVE_T5_2026-11-18.json :: owner approval record; SHA verified from source archive, audit only
+DROP approvals/APPROBATION_MUSIQUE_ET_VOIX_T5_2026-11-18.json :: owner approval record; SHA verified from source archive, audit only
+DROP approvals/APPROBATION_QUESTIONS_ET_12_ECRANS_T5_2026-11-18.json :: owner approval record; SHA verified from source archive, audit only
+DROP approvals/APPROBATION_STYLE_EDITORIAL_BODONI_T5_2026-11-18.json :: owner approval record; SHA verified from source archive, audit only
+DROP approvals/APPROBATION_TYPOGRAPHIE_MOTION_T5_2026-11-18.json :: owner approval record; SHA verified from source archive, audit only
+DROP assets/ :: directory container (no file payload)
+DROP assets/fonts/ :: directory container (no file payload)
+DROP assets/fonts/DEJAVU-LICENSE.txt :: CI/control-plane or development metadata
+DROP assets/fonts/DejaVuSans-Bold.ttf :: not proven runtime-essential
+DROP assets/fonts/DejaVuSans.ttf :: not proven runtime-essential
+DROP assets/fonts/bodoni-moda/ :: directory container (no file payload)
+DROP assets/fonts/bodoni-moda/BodoniModa[opsz,wght].ttf :: not proven runtime-essential
+DROP assets/fonts/bodoni-moda/METADATA.pb :: not proven runtime-essential
+DROP assets/fonts/bodoni-moda/OFL.txt :: CI/control-plane or development metadata
+DROP assets/fonts/manrope/ :: directory container (no file payload)
+DROP assets/fonts/manrope/METADATA.pb :: not proven runtime-essential
+DROP assets/fonts/manrope/Manrope[wght].ttf :: not proven runtime-essential
+DROP assets/fonts/manrope/OFL.txt :: CI/control-plane or development metadata
+DROP assets/fonts/playfair-display/ :: directory container (no file payload)
+DROP assets/fonts/playfair-display/METADATA.pb :: not proven runtime-essential
+DROP audio/ :: directory container (no file payload)
+DROP audio/music/ :: directory container (no file payload)
+DROP audio/music/t5-afrobeat-v1/ :: directory container (no file payload)
+DROP audio/music/t5-afrobeat-v1/evidence/ :: directory container (no file payload)
+DROP audio/music/t5-afrobeat-v1/evidence/1_300338.json :: unreferenced development metadata or superseded revision
+DROP audio/music/t5-afrobeat-v1/evidence/2_324016.json :: unreferenced development metadata or superseded revision
+DROP audio/music/t5-afrobeat-v1/evidence/3_292156.json :: unreferenced development metadata or superseded revision
+DROP audio/music/t5-afrobeat-v1/evidence/4_345669.json :: unreferenced development metadata or superseded revision
+DROP audio/music/t5-afrobeat-v1/t5_292156_snitch_30s.mp3 :: raw/audition audio; approved instrumentals are sealed in the internal vault
+DROP audio/music/t5-afrobeat-v1/t5_300338_afrofire_30s.mp3 :: raw/audition audio; approved instrumentals are sealed in the internal vault
+DROP audio/music/t5-afrobeat-v1/t5_324016_afro_10_30s.mp3 :: raw/audition audio; approved instrumentals are sealed in the internal vault
+DROP audio/music/t5-afrobeat-v1/t5_345669_dance_fever_dreams_30s.mp3 :: raw/audition audio; approved instrumentals are sealed in the internal vault
+DROP audio/scripts/ :: directory container (no file payload)
+DROP audio/scripts/build_t5_complete_audio.py :: development script or documentation
+DROP audio/voice/ :: directory container (no file payload)
+DROP audio/voice/t5-voice-v1/ :: directory container (no file payload)
+DROP audio/voice/t5-voice-v1/SHA256SUMS.txt :: fixed Burger Atelier exemplar voice; never used as universal narration
+DROP audio/voice/t5-voice-v1/manifest.json :: fixed Burger Atelier exemplar voice; never used as universal narration
+DROP audio/voice/t5-voice-v1/source/ :: directory container (no file payload)
+DROP audio/voice/t5-voice-v1/source/scene1.mp3 :: fixed Burger Atelier exemplar voice; never used as universal narration
+DROP audio/voice/t5-voice-v1/source/scene2.mp3 :: fixed Burger Atelier exemplar voice; never used as universal narration
+DROP audio/voice/t5-voice-v1/source/scene3.mp3 :: fixed Burger Atelier exemplar voice; never used as universal narration
+DROP audio/voice/t5-voice-v1/source/scene4.mp3 :: fixed Burger Atelier exemplar voice; never used as universal narration
+DROP capture-guide/ :: directory container (no file payload)
+DROP cloudflare/ :: directory container (no file payload)
+DROP cloudflare/package-lock.json :: CI/control-plane or development metadata
+DROP cloudflare/package.json :: CI/control-plane or development metadata
+DROP cloudflare/public/ :: directory container (no file payload)
+DROP cloudflare/public/app.js :: CI/control-plane or development metadata
+DROP cloudflare/public/index.html :: CI/control-plane or development metadata
+DROP cloudflare/public/styles.css :: CI/control-plane or development metadata
+DROP cloudflare/src/ :: directory container (no file payload)
+DROP cloudflare/src/audio_mix_contract.ts :: CI/control-plane or development metadata
+DROP cloudflare/src/capture_flow_contract.ts :: CI/control-plane or development metadata
+DROP cloudflare/src/form_contract.ts :: CI/control-plane or development metadata
+DROP cloudflare/src/index.ts :: CI/control-plane or development metadata
+DROP cloudflare/src/music_pack_contract.ts :: CI/control-plane or development metadata
+DROP cloudflare/test/ :: directory container (no file payload)
+DROP cloudflare/test/control_plane_integration.py :: CI/control-plane or development metadata
+DROP cloudflare/test/mock_github_api.py :: CI/control-plane or development metadata
+DROP cloudflare/tsconfig.json :: CI/control-plane or development metadata
+DROP cloudflare/wrangler.toml :: CI/control-plane or development metadata
+DROP config/ :: directory container (no file payload)
+DROP config/T5_RUNTIME_CONTRACT_V2_0_0.json :: superseded contract revision; V3 montage / V4 text motion are authoritative
+DROP config/T5_TEXT_MOTION_V1_0_0.json :: superseded contract revision; V3 montage / V4 text motion are authoritative
+DROP config/T5_TEXT_MOTION_V2_0_0.json :: superseded contract revision; V3 montage / V4 text motion are authoritative
+DROP config/T5_TEXT_MOTION_V3_0_0.json :: superseded contract revision; V3 montage / V4 text motion are authoritative
+DROP demo/ :: directory container (no file payload)
+DROP demo/render_error_runtime_example.json :: demo/fixture/simulation artefact
+DROP demo/render_job_runtime_demo.json :: demo/fixture/simulation artefact
+DROP demo/render_result_runtime_example.json :: demo/fixture/simulation artefact
+DROP demo/reponses_runtime_demo.json :: demo/fixture/simulation artefact
+DROP docs/ :: directory container (no file payload)
+DROP docs/ARCHITECTURE_RUNTIME_V2.md :: documentation, proposal or audit report
+DROP docs/ARCHIVE_PROPOSITION_QUESTIONS_SCENES_12_ECRANS_T5.md :: documentation, proposal or audit report
+DROP docs/CONTRAT_QUESTIONS_12_ECRANS_T5.md :: documentation, proposal or audit report
+DROP docs/LICENCE_RUSH_DEMO_V2.md :: documentation, proposal or audit report
+DROP docs/LICENCE_RUSH_DEMO_V3.md :: documentation, proposal or audit report
+DROP docs/LOT_RESTAURATION_T5_V1_DIRECTION_VALIDE.md :: documentation, proposal or audit report
+DROP docs/T5_COMPLETE_AUDIO_AND_CONTROL_PLANE.md :: documentation, proposal or audit report
+DROP engine/ :: directory container (no file payload)
+DROP engine/__init__.py :: development/test/control-plane source, not a mobile runtime asset
+DROP engine/render_runtime.py :: development/test/control-plane source, not a mobile runtime asset
+DROP engine/runtime_visual.py :: development/test/control-plane source, not a mobile runtime asset
+DROP form/ :: directory container (no file payload)
+DROP montage/ :: directory container (no file payload)
+DROP proposals/ :: directory container (no file payload)
+DROP proposals/README.md :: documentation, proposal or audit report
+DROP proposals/consignes_T5_12_ECRANS_PROPOSITION.json :: documentation, proposal or audit report
+DROP proposals/questions_T5_PROPOSITION.json :: documentation, proposal or audit report
+DROP reports/ :: directory container (no file payload)
+DROP reports/T5_FINAL_AUDIT_2026-11-18.md :: documentation, proposal or audit report
+DROP requirements.txt :: CI/control-plane or development metadata
+DROP research/ :: directory container (no file payload)
+DROP research/REFERENCE_MANIFEST.json :: unreferenced development metadata or superseded revision
+DROP research/REVERSE_ENGINEERING_V1.md :: development script or documentation
+DROP rushes/ :: directory container (no file payload)
+DROP rushes/manifest.json :: raw rush source, not redistributed
+DROP schemas/ :: directory container (no file payload)
+DROP schemas/T5_rush_manifest.schema.json :: unreferenced development metadata or superseded revision
+DROP schemas/T5_text_motion.schema.json :: unreferenced development metadata or superseded revision
+DROP schemas/T5_text_motion_v2.schema.json :: unreferenced development metadata or superseded revision
+DROP schemas/T5_text_motion_v3.schema.json :: unreferenced development metadata or superseded revision
+DROP simulation/ :: directory container (no file payload)
+DROP simulation/T5_12_ECRANS_EXECUTABLE.html :: demo/fixture/simulation artefact
+DROP tests/ :: directory container (no file payload)
+DROP tests/test_t5_audio_contract.py :: development/test/control-plane source, not a mobile runtime asset
+DROP tests/test_t5_contract.py :: development/test/control-plane source, not a mobile runtime asset
+DROP tests/test_t5_dynamic_runtime.py :: development/test/control-plane source, not a mobile runtime asset
+DROP tests/test_t5_music_rotation.py :: development/test/control-plane source, not a mobile runtime asset
+DROP tests/test_t5_render_contract.py :: development/test/control-plane source, not a mobile runtime asset
+DROP tests/test_t5_schemas.py :: development/test/control-plane source, not a mobile runtime asset
+DROP tests/test_t5_simulation.py :: development/test/control-plane source, not a mobile runtime asset
+DROP tools/ :: directory container (no file payload)
+DROP tools/build_t5_capture_flow.py :: development/test/control-plane source, not a mobile runtime asset
+DROP tools/build_t5_cloudflare_contracts.py :: development/test/control-plane source, not a mobile runtime asset
+DROP tools/build_t5_runtime_visual_inputs.py :: development/test/control-plane source, not a mobile runtime asset
+DROP tools/build_t5_simulation.py :: development/test/control-plane source, not a mobile runtime asset
+DROP tools/fetch_t5_demo_captures.py :: development/test/control-plane source, not a mobile runtime asset
+DROP tools/finalize_t5_render_result.py :: development/test/control-plane source, not a mobile runtime asset
+DROP tools/generate_t5_ui_screens.py :: development/test/control-plane source, not a mobile runtime asset
+DROP tools/validate_runtime_render.py :: development/test/control-plane source, not a mobile runtime asset
+DROP ui-screens/ :: directory container (no file payload)
+DROP ui-screens/T5_CAPTURE_S1_A_GUIDE.png :: UI proof screenshot, not runtime media
+DROP ui-screens/T5_CAPTURE_S1_B_RECORDING.png :: UI proof screenshot, not runtime media
+DROP ui-screens/T5_CAPTURE_S1_C_REVIEW.png :: UI proof screenshot, not runtime media
+DROP ui-screens/T5_CAPTURE_S2_A_GUIDE.png :: UI proof screenshot, not runtime media
+DROP ui-screens/T5_CAPTURE_S2_B_RECORDING.png :: UI proof screenshot, not runtime media
+DROP ui-screens/T5_CAPTURE_S2_C_REVIEW.png :: UI proof screenshot, not runtime media
+DROP ui-screens/T5_CAPTURE_S3_A_GUIDE.png :: UI proof screenshot, not runtime media
+DROP ui-screens/T5_CAPTURE_S3_B_RECORDING.png :: UI proof screenshot, not runtime media
+DROP ui-screens/T5_CAPTURE_S3_C_REVIEW.png :: UI proof screenshot, not runtime media
+DROP ui-screens/T5_CAPTURE_S4_A_GUIDE.png :: UI proof screenshot, not runtime media
+DROP ui-screens/T5_CAPTURE_S4_B_RECORDING.png :: UI proof screenshot, not runtime media
+DROP ui-screens/T5_CAPTURE_S4_C_REVIEW.png :: UI proof screenshot, not runtime media
+DROP ui-screens/T5_PLANCHE_12_ECRANS.png :: UI proof screenshot, not runtime media
+DROP ui-screens/manifest.json :: UI proof screenshot, not runtime media
+
+[CROSS_REFERENCE_SHA_VERIFIED_AUDIT_ONLY]
+VERIFY approvals/APPROBATION_CORRECTION_BASELINE_SOUS_TITRES_T5_2026-11-18.json :: ab0119321e7cafb5b582a8da69dffa47b3a5d390cfd9b277f2dd3bdf6c7a906d
+VERIFY approvals/APPROBATION_DIRECTION_CREATIVE_T5_2026-11-18.json :: fc9acb1685eb776996288780a3d5cb25ee0ba782934e099cb435e0c43f656a83
+VERIFY approvals/APPROBATION_MUSIQUE_ET_VOIX_T5_2026-11-18.json :: fa828f22b2c3d32992cb709f1ebc9d1031b3374cfb3ca340b1c48ed1d4d84c27
+VERIFY approvals/APPROBATION_QUESTIONS_ET_12_ECRANS_T5_2026-11-18.json :: c18594a657767fea9a670d2941bf5361f156e0789c6a718d4bcef97aaa5080b0
+VERIFY audio/voice/t5-voice-v1/manifest.json :: a69b3fc92897e9270817c07d5d639a63a661fe5c691820779cdd96f299a88914

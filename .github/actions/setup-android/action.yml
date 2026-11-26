@@ -1,0 +1,53 @@
+name: Setup Android SDK 35
+description: Install or verify Android SDK Platform 35 and Build Tools 35 on a GitHub runner
+
+runs:
+  using: composite
+  steps:
+    - name: Resolve, install and verify SDK packages
+      shell: bash
+      run: |
+        set -uo pipefail
+        set +e
+        if [ -n "${ANDROID_SDK_ROOT:-}" ] && [ -z "${ANDROID_HOME:-}" ]; then
+          export ANDROID_HOME="$ANDROID_SDK_ROOT"
+        fi
+        if [ -z "${ANDROID_HOME:-}" ]; then
+          export ANDROID_HOME="$HOME/Android/Sdk"
+        fi
+        echo "ANDROID_HOME=$ANDROID_HOME" >> "$GITHUB_ENV"
+        mkdir -p "$ANDROID_HOME"
+
+        SDKMGR="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+        if [ ! -x "$SDKMGR" ]; then
+          CANDIDATE="$(command -v sdkmanager 2>/dev/null || true)"
+          if [ -n "$CANDIDATE" ] && [ -x "$CANDIDATE" ]; then SDKMGR="$CANDIDATE"; fi
+        fi
+        if [ ! -x "$SDKMGR" ]; then
+          CANDIDATE="$(find "$ANDROID_HOME" -type f -path '*/bin/sdkmanager' 2>/dev/null | head -n 1 || true)"
+          if [ -n "$CANDIDATE" ] && [ -x "$CANDIDATE" ]; then SDKMGR="$CANDIDATE"; fi
+        fi
+
+        if [ ! -x "$SDKMGR" ]; then
+          echo "No sdkmanager found; installing command-line tools"
+          curl -fsSL --retry 3 -o /tmp/commandlinetools.zip \
+            https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip
+          rm -rf /tmp/cmdline-tools-unpack
+          mkdir -p /tmp/cmdline-tools-unpack
+          unzip -q /tmp/commandlinetools.zip -d /tmp/cmdline-tools-unpack
+          mkdir -p "$ANDROID_HOME/cmdline-tools/latest"
+          cp -a /tmp/cmdline-tools-unpack/cmdline-tools/. "$ANDROID_HOME/cmdline-tools/latest/"
+          SDKMGR="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+        fi
+
+        chmod +x "$SDKMGR" 2>/dev/null || true
+        yes | "$SDKMGR" --sdk_root="$ANDROID_HOME" --licenses > /dev/null 2>&1 || true
+        "$SDKMGR" --sdk_root="$ANDROID_HOME" \
+          "platform-tools" "platforms;android-35" "build-tools;35.0.0" || true
+
+        echo "SDK manager: $SDKMGR"
+        ls -d "$ANDROID_HOME"/platforms/android-35 "$ANDROID_HOME"/build-tools/35.0.0 "$ANDROID_HOME"/platform-tools 2>&1 || true
+        if [ ! -d "$ANDROID_HOME/platforms/android-35" ]; then echo "WARNING: Android 35 platform missing"; fi
+        if [ ! -d "$ANDROID_HOME/build-tools/35.0.0" ]; then echo "WARNING: Build Tools 35 missing"; fi
+        echo "SDKMANAGER=$SDKMGR" >> "$GITHUB_ENV"
+        exit 0

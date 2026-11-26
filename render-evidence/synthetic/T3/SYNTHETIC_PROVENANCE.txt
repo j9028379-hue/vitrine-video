@@ -1,0 +1,4 @@
+Renderer: repository T3 Python reference engine render_silent.py + text_motion.py.
+Inputs: test-fixtures/t3_fixture/captures/S1..S4.mp4 (engineering fixtures, not founder footage).
+All 17 reference-contract event windows and four Python reference graphic groups are checked by the engine report.
+This is a host reference render, not proof that the Android Media3/GL path ran.

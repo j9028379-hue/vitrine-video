@@ -1,0 +1,22 @@
+{
+  "schema_version": "1.0",
+  "approval_id": "FONDATEUR-T4-MUSIQUES-2026-11-25",
+  "decision_date": "2026-11-25",
+  "declaration": "Approbation commerciale explicite du fondateur pour les trois pistes musicales effectivement fournies dans le package T4. Elle ne modifie pas l'état technique du profil audio et n'autorise aucune piste absente ou substituée.",
+  "records": [
+    {
+      "profile_id": "promo_afrobeats",
+      "template_id": "COMMERCE-T4",
+      "approved_track_numbers": [1, 3, 4],
+      "approved_files": [
+        "audio/pistes/01-Afrobeast.mp3",
+        "audio/pistes/03-Project-Runaway.mp3",
+        "audio/pistes/04-Collective-Spirit.mp3"
+      ],
+      "technical_mix_state_in_source": "mix_valide: false",
+      "technical_state_meaning": "État technique du mix livré dans le gabarit, pas un refus commercial du fondateur.",
+      "missing_track_rule": "La piste numéro 2 est référencée mais absente du package ; elle n'est ni inventée, ni téléchargée, ni substituée.",
+      "scope": "Sélection musicale T4 uniquement. Aucune dérivation vers T1 ou T3."
+    }
+  ]
+}

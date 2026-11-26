@@ -1,0 +1,53 @@
+{
+  "template_id": "COMMERCE-T2",
+  "version": "1.0.0",
+  "audio_profile": "afrobeat_arrivage_commerce",
+  "cipher": "HMAC_SHA256_CTR_V1",
+  "note": "internal resource vault; never publish plaintext MP3 in the public repository",
+  "tracks": [
+    {
+      "numero": 1,
+      "resource": "audio/pistes/01.mp3",
+      "vault": "01.mp3.vault",
+      "iv_b64": "a37alM0ZreoVrL7A",
+      "sha256": "ff3330694bb31e2bed52aacd5cc64c1e6209def6eff50cb95eba1144d13c1c42",
+      "bytes": 3297698,
+      "source_debut_s": 8,
+      "pixabay_id": 162190,
+      "titre": "Afro love 1 By Gis prod"
+    },
+    {
+      "numero": 2,
+      "resource": "audio/pistes/02.mp3",
+      "vault": "02.mp3.vault",
+      "iv_b64": "T5GeR6eCLunVoZBs",
+      "sha256": "5d05749fe4407b8d6b798030b26bf7818b640f9facca4edbe8d4b287d3ea2fdf",
+      "bytes": 5044767,
+      "source_debut_s": 12,
+      "pixabay_id": 303023,
+      "titre": "Ifunanya"
+    },
+    {
+      "numero": 3,
+      "resource": "audio/pistes/03.mp3",
+      "vault": "03.mp3.vault",
+      "iv_b64": "hBxGJV9VbAF5w3Ja",
+      "sha256": "a17d5e9d6aa358d3acbd762e24287a0546907b0c55c9944eb77142474488f450",
+      "bytes": 4306944,
+      "source_debut_s": 9,
+      "pixabay_id": 260353,
+      "titre": "Afrobeat Sunset Groove"
+    },
+    {
+      "numero": 4,
+      "resource": "audio/pistes/04.mp3",
+      "vault": "04.mp3.vault",
+      "iv_b64": "Zym8ObcZqEIdSqJD",
+      "sha256": "24e9606e14e4708e8c8ffa3a6a97429dbfc95049d388481392d72b971e932c61",
+      "bytes": 7680768,
+      "source_debut_s": 16,
+      "pixabay_id": 300338,
+      "titre": "Afrofire"
+    }
+  ]
+}

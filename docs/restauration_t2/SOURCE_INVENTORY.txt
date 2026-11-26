@@ -1,0 +1,204 @@
+SOURCE vitrine-video-t2-avant-apres-d33956670f702c968bac2a034783007568aab655.zip
+SHA256 360c01d0bd91c76614abcc1df31ddf4373eae8e360f7b3b41a891628552e820e
+ENTRIES 195
+KEPT 28
+DROPPED 167
+
+[KEPT]
+KEEP approvals/T2_MUSIC_POOL_APPROVAL_2026-11-18.json :: owner approval of A/B/C/D
+KEEP assets/fonts/DEJAVU-LICENSE.txt :: DejaVu licence
+KEEP assets/fonts/DejaVuSans-Bold.ttf :: declared bold utility font, used for price and WhatsApp
+KEEP assets/fonts/DejaVuSans.ttf :: declared utility font, used for quartier and support
+KEEP assets/fonts/OFL.txt :: font licence for Pinyon/Playfair
+KEEP assets/fonts/PINYON-SCRIPT-OFL.txt :: Pinyon Script licence
+KEEP assets/fonts/PinyonScript-Regular.ttf :: declared signature font, used for restaurant name
+KEEP assets/fonts/PlayfairDisplay[wght].ttf :: declared display font, used for dish and hook
+KEEP audio/music/t2-afrobeat-v1/SHA256SUMS.txt :: technical SHA manifest for exactly four instrumentals
+KEEP audio/music/t2-afrobeat-v1/source_manifest.json :: instrumental provenance and no-voice declaration
+KEEP capture-guide/consignes_T2.json :: four scene capture instructions
+KEEP config/T2_avant_apres_template_v0_1_0.json :: source template identity, scenes and transition budget
+KEEP config/T2_capture_flow_v1_0_0.json :: 12 stable screens, transient countdown, four captures
+KEEP config/T2_capture_media_reference_v1_0_0.json :: accepted capture media contract
+KEEP config/T2_complete_voice_mix_v1_0_0_A.json :: current production mix A
+KEEP config/T2_complete_voice_mix_v1_0_0_B.json :: current production mix B
+KEEP config/T2_complete_voice_mix_v1_0_0_C.json :: current production mix C
+KEEP config/T2_complete_voice_mix_v1_0_0_D.json :: current production mix D
+KEEP config/T2_music_pool_v1_0_0.json :: owner-approved four-track rotation and audio hashes
+KEEP config/T2_runtime_contract_v1_0_0.json :: authoritative production runtime contract
+KEEP config/T2_text_motion_v0_3_0.json :: four graphic blocks, font roles and SHA-256
+KEEP form/questions_T2.json :: six-field merchant form contract
+KEEP schemas/T2_complete_voice_mix_v1_0_0.schema.json :: source mix schema
+KEEP schemas/T2_music_pool_v1_0_0.schema.json :: source music-pool schema
+KEEP schemas/T2_music_selection_state.schema.json :: source music state schema
+KEEP schemas/render_error.schema.json :: source render-error contract
+KEEP schemas/render_job.schema.json :: source render-job contract
+KEEP schemas/render_result.schema.json :: source render-result contract
+
+[DROPPED]
+DROP  :: directory container (no file payload)
+DROP .github/ :: directory container (no file payload)
+DROP .github/workflows/ :: directory container (no file payload)
+DROP .github/workflows/cloudflare-control-plane.yml :: development/test/CI or control-plane artefact
+DROP .github/workflows/server-build-music-shortlist.yml :: development/test/CI or control-plane artefact
+DROP .github/workflows/server-render-complete-voice.yml :: development/test/CI or control-plane artefact
+DROP .github/workflows/server-render-silent.yml :: development/test/CI or control-plane artefact
+DROP .github/workflows/server-render-text-motion.yml :: development/test/CI or control-plane artefact
+DROP .github/workflows/server-render-unified.yml :: development/test/CI or control-plane artefact
+DROP .github/workflows/validate.yml :: development/test/CI or control-plane artefact
+DROP .gitignore :: not proven runtime-essential
+DROP CHANGELOG.md :: development script or immutable baseline
+DROP LICENSE :: not proven runtime-essential
+DROP README.md :: development script or immutable baseline
+DROP approvals/ :: directory container (no file payload)
+DROP assets/ :: directory container (no file payload)
+DROP assets/fonts/ :: directory container (no file payload)
+DROP audio/ :: directory container (no file payload)
+DROP audio/music/ :: directory container (no file payload)
+DROP audio/music/t2-afrobeat-v1/ :: directory container (no file payload)
+DROP audio/music/t2-afrobeat-v1/BUILD_PROVENANCE.json :: unreferenced development metadata
+DROP audio/music/t2-afrobeat-v1/evidence/ :: directory container (no file payload)
+DROP audio/music/t2-afrobeat-v1/evidence/A_300340.json :: unreferenced development metadata
+DROP audio/music/t2-afrobeat-v1/evidence/B_293956.json :: unreferenced development metadata
+DROP audio/music/t2-afrobeat-v1/evidence/C_300333.json :: unreferenced development metadata
+DROP audio/music/t2-afrobeat-v1/evidence/D_328624.json :: unreferenced development metadata
+DROP audio/music/t2-afrobeat-v1/t2_293956_savanna_beats_30s.mp3 :: not proven runtime-essential
+DROP audio/music/t2-afrobeat-v1/t2_300333_vibe_republic_30s.mp3 :: not proven runtime-essential
+DROP audio/music/t2-afrobeat-v1/t2_300340_naija_flow_30s.mp3 :: not proven runtime-essential
+DROP audio/music/t2-afrobeat-v1/t2_328624_adolescence_30s.mp3 :: not proven runtime-essential
+DROP audio/scripts/ :: directory container (no file payload)
+DROP audio/scripts/mix_t2_voice_music_v0_5.py :: development script or immutable baseline
+DROP audio/voice/ :: directory container (no file payload)
+DROP audio/voice/t2-voice-v0.5/ :: directory container (no file payload)
+DROP audio/voice/t2-voice-v0.5/README.md :: demo/synthetic voice; merchant capture is the real source, speech optional
+DROP audio/voice/t2-voice-v0.5/voix_fr_scene1.wav :: demo/synthetic voice; merchant capture is the real source, speech optional
+DROP audio/voice/t2-voice-v0.5/voix_fr_scene2.wav :: demo/synthetic voice; merchant capture is the real source, speech optional
+DROP audio/voice/t2-voice-v0.5/voix_fr_scene3.wav :: demo/synthetic voice; merchant capture is the real source, speech optional
+DROP audio/voice/t2-voice-v0.5/voix_fr_scene4.wav :: demo/synthetic voice; merchant capture is the real source, speech optional
+DROP baseline/ :: directory container (no file payload)
+DROP baseline/T1_AUDIO_REFERENCE.lock.json :: development script or immutable baseline
+DROP baseline/T1_BASELINE.lock.json :: development script or immutable baseline
+DROP baseline/T2_EXISTING_TESTS.lock.json :: development script or immutable baseline
+DROP baseline/T2_VISUAL_PIPELINE.lock.json :: development script or immutable baseline
+DROP capture-guide/ :: directory container (no file payload)
+DROP cloudflare/ :: directory container (no file payload)
+DROP cloudflare/package-lock.json :: development/test/CI or control-plane artefact
+DROP cloudflare/package.json :: development/test/CI or control-plane artefact
+DROP cloudflare/public/ :: directory container (no file payload)
+DROP cloudflare/public/app.js :: development/test/CI or control-plane artefact
+DROP cloudflare/public/index.html :: development/test/CI or control-plane artefact
+DROP cloudflare/public/styles.css :: development/test/CI or control-plane artefact
+DROP cloudflare/src/ :: directory container (no file payload)
+DROP cloudflare/src/capture_flow_contract.ts :: development/test/CI or control-plane artefact
+DROP cloudflare/src/form_contract.ts :: development/test/CI or control-plane artefact
+DROP cloudflare/src/index.ts :: development/test/CI or control-plane artefact
+DROP cloudflare/src/music_pool_contract.ts :: development/test/CI or control-plane artefact
+DROP cloudflare/src/render_job_template.ts :: development/test/CI or control-plane artefact
+DROP cloudflare/test/ :: directory container (no file payload)
+DROP cloudflare/test/control_plane_integration.py :: development/test/CI or control-plane artefact
+DROP cloudflare/test/mock_github_api.py :: development/test/CI or control-plane artefact
+DROP cloudflare/tsconfig.json :: development/test/CI or control-plane artefact
+DROP cloudflare/wrangler.toml :: development/test/CI or control-plane artefact
+DROP config/ :: directory container (no file payload)
+DROP config/T2_complete_voice_mix_v0_5_0.json :: obsolete contract superseded by v1.0.0
+DROP config/T2_complete_voice_mix_v0_7_0.json :: obsolete contract superseded by v1.0.0
+DROP config/T2_music_selection_v0_7_0.json :: obsolete contract superseded by v1.0.0
+DROP config/T2_music_source_lock_v0_4_0.json :: obsolete contract superseded by v1.0.0
+DROP config/T2_runtime_contract_v0_3_0.json :: obsolete contract superseded by v1.0.0
+DROP config/T2_runtime_contract_v0_6_0.json :: obsolete contract superseded by v1.0.0
+DROP config/T2_runtime_contract_v0_7_0.json :: obsolete contract superseded by v1.0.0
+DROP demo/ :: directory container (no file payload)
+DROP demo/input_demo.json :: demo/fixture data
+DROP demo/render_job_complete_demo.json :: demo/fixture data
+DROP demo/render_job_textes_demo.json :: demo/fixture data
+DROP demo/reponses_demo.json :: demo/fixture data
+DROP demo/reponses_textes_demo.json :: demo/fixture data
+DROP docs/ :: directory container (no file payload)
+DROP docs/ARCHITECTURE.md :: documentation/audit report
+DROP docs/CONTRAT_12_ECRANS.md :: documentation/audit report
+DROP docs/LICENCES_RUSHS.md :: documentation/audit report
+DROP docs/PROCESSUS_20_GABARITS.md :: documentation/audit report
+DROP docs/REFERENCES_TRANSITIONS.md :: documentation/audit report
+DROP docs/T2_AFROFIRE_INTEGRATION_V0_7.md :: documentation/audit report
+DROP docs/T2_COMPLETE_VOICE_MIX.md :: documentation/audit report
+DROP docs/T2_MUSIC_SHORTLIST.md :: documentation/audit report
+DROP docs/T2_TEXTES_CAMERA_AUDIO_LOGIC.md :: documentation/audit report
+DROP docs/T2_UNIFIED_RUNTIME_CLOUDFLARE.md :: documentation/audit report
+DROP engine/ :: directory container (no file payload)
+DROP engine/__init__.py :: development script or immutable baseline
+DROP engine/audio_contract.py :: development script or immutable baseline
+DROP engine/complete_adapter.py :: development script or immutable baseline
+DROP engine/media.py :: development script or immutable baseline
+DROP engine/render_silent.py :: development script or immutable baseline
+DROP engine/render_text_motion.py :: development script or immutable baseline
+DROP engine/text_motion.py :: development script or immutable baseline
+DROP engine/transitions.py :: development script or immutable baseline
+DROP fixtures/ :: directory container (no file payload)
+DROP fixtures/t2-avant-apres/ :: directory container (no file payload)
+DROP fixtures/t2-avant-apres/render_error.unsupported_media.json :: demo/fixture data
+DROP fixtures/t2-avant-apres/render_result.valid.json :: demo/fixture data
+DROP form/ :: directory container (no file payload)
+DROP music/ :: directory container (no file payload)
+DROP music/T2_music_shortlist_v0_4_0.json :: unreferenced development metadata
+DROP music/auditions/ :: directory container (no file payload)
+DROP music/auditions/v1/ :: directory container (no file payload)
+DROP music/auditions/v1/README.md :: historical audition, audit only, not a production asset
+DROP music/auditions/v1/T2_AUDITIONS_MANIFEST.json :: historical audition, audit only, not a production asset
+DROP music/auditions/v1/T2_AUDITION_A_NAIJA_FLOW.m4a :: historical audition, audit only, not a production asset
+DROP music/auditions/v1/T2_AUDITION_B_SAVANNA_BEATS.m4a :: historical audition, audit only, not a production asset
+DROP music/auditions/v1/T2_AUDITION_C_VIBE_REPUBLIC.m4a :: historical audition, audit only, not a production asset
+DROP music/auditions/v1/T2_AUDITION_D_AFROFIRE.m4a :: historical audition, audit only, not a production asset
+DROP reports/ :: directory container (no file payload)
+DROP reports/T2_AFROFIRE_INTEGRATION_QC_V0_7_0.md :: documentation/audit report
+DROP reports/T2_FINAL_AUDIT_2026-11-18.md :: documentation/audit report
+DROP reports/T2_REFERENCE_VISUAL_REPRODUCIBILITY_FIX_V0_7_0.md :: documentation/audit report
+DROP requirements.txt :: development script or immutable baseline
+DROP rushes/ :: directory container (no file payload)
+DROP rushes/manifest.json :: raw rush source, not redistributed
+DROP schemas/ :: directory container (no file payload)
+DROP schemas/T2_complete_voice_mix.schema.json :: unreferenced development metadata
+DROP schemas/T2_complete_voice_mix_v0_7_0.schema.json :: unreferenced development metadata
+DROP schemas/T2_music_selection_v0_7_0.schema.json :: unreferenced development metadata
+DROP tests/ :: directory container (no file payload)
+DROP tests/test_afrofire_integration.py :: development/test/CI or control-plane artefact
+DROP tests/test_complete_voice_mix.py :: development/test/CI or control-plane artefact
+DROP tests/test_contract.py :: development/test/CI or control-plane artefact
+DROP tests/test_dynamic_text_pipeline.py :: development/test/CI or control-plane artefact
+DROP tests/test_music_rotation_v1.py :: development/test/CI or control-plane artefact
+DROP tests/test_music_shortlist.py :: development/test/CI or control-plane artefact
+DROP tests/test_unified_runtime.py :: development/test/CI or control-plane artefact
+DROP tools/ :: directory container (no file payload)
+DROP tools/build_capture_flow_contract.py :: development script or immutable baseline
+DROP tools/build_cloudflare_contracts.py :: development script or immutable baseline
+DROP tools/build_music_shortlist.py :: development script or immutable baseline
+DROP tools/build_render_job.py :: development script or immutable baseline
+DROP tools/cloudflare_runtime.py :: development script or immutable baseline
+DROP tools/fetch_rushes.py :: development script or immutable baseline
+DROP tools/generate_ui_screens.py :: development script or immutable baseline
+DROP tools/make_text_motion_sheet.py :: development script or immutable baseline
+DROP tools/make_transition_sheet.py :: development script or immutable baseline
+DROP tools/record_t2_music_result.py :: development script or immutable baseline
+DROP tools/render_complete_job.py :: development script or immutable baseline
+DROP tools/validate_complete_voice_mix.py :: development script or immutable baseline
+DROP tools/validate_contract.py :: development script or immutable baseline
+DROP tools/validate_music_shortlist.py :: development script or immutable baseline
+DROP tools/validate_silent.py :: development script or immutable baseline
+DROP tools/validate_text_motion.py :: development script or immutable baseline
+DROP tools/verify_existing_tests_unchanged.py :: development script or immutable baseline
+DROP tools/verify_t1_audio_reference.py :: development script or immutable baseline
+DROP tools/verify_t1_baseline.py :: development script or immutable baseline
+DROP tools/verify_visual_pipeline.py :: development script or immutable baseline
+DROP ui-screens/ :: directory container (no file payload)
+DROP ui-screens/T2_CAPTURE_S1_A_GUIDE.png :: UI proof screenshot, not runtime media
+DROP ui-screens/T2_CAPTURE_S1_B_RECORDING.png :: UI proof screenshot, not runtime media
+DROP ui-screens/T2_CAPTURE_S1_C_REVIEW.png :: UI proof screenshot, not runtime media
+DROP ui-screens/T2_CAPTURE_S2_A_GUIDE.png :: UI proof screenshot, not runtime media
+DROP ui-screens/T2_CAPTURE_S2_B_RECORDING.png :: UI proof screenshot, not runtime media
+DROP ui-screens/T2_CAPTURE_S2_C_REVIEW.png :: UI proof screenshot, not runtime media
+DROP ui-screens/T2_CAPTURE_S3_A_GUIDE.png :: UI proof screenshot, not runtime media
+DROP ui-screens/T2_CAPTURE_S3_B_RECORDING.png :: UI proof screenshot, not runtime media
+DROP ui-screens/T2_CAPTURE_S3_C_REVIEW.png :: UI proof screenshot, not runtime media
+DROP ui-screens/T2_CAPTURE_S4_A_GUIDE.png :: UI proof screenshot, not runtime media
+DROP ui-screens/T2_CAPTURE_S4_B_RECORDING.png :: UI proof screenshot, not runtime media
+DROP ui-screens/T2_CAPTURE_S4_C_REVIEW.png :: UI proof screenshot, not runtime media
+DROP ui-screens/T2_PLANCHE_12_ECRANS.png :: UI proof screenshot, not runtime media
+DROP ui-screens/manifest.json :: UI proof screenshot, not runtime media

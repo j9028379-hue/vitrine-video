@@ -1,0 +1,649 @@
+/* Android WebView responsive Edge-to-Edge host stylesheet — preserves 100% of Vitrine Vidéo brand & UX */
+:root {
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+  --kb-bottom: 0px;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  width: 100% !important;
+  height: 100% !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  background: #FFF9F6 !important;
+  overflow: hidden !important;
+  -webkit-text-size-adjust: 100% !important;
+  text-size-adjust: 100% !important;
+}
+
+.stage {
+  width: 100% !important;
+  height: 100% !important;
+  display: block !important;
+  gap: 0 !important;
+}
+
+.phone-holder {
+  position: relative !important;
+  width: 100% !important;
+  height: 100% !important;
+  max-width: 100% !important;
+  display: block !important;
+  border-radius: 0 !important;
+  overflow: hidden !important;
+}
+
+.phone-holder::after {
+  display: none !important;
+}
+
+.device {
+  position: relative !important;
+  left: 0 !important;
+  top: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  transform: none !important;
+  border-radius: 0 !important;
+  overflow: hidden !important;
+}
+
+.caption {
+  display: none !important;
+}
+
+.screen {
+  overflow: hidden !important;
+}
+
+.scroll {
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  -webkit-overflow-scrolling: touch;
+  padding: calc(10px + var(--safe-top)) clamp(14px, 4.5vw, 24px) 10px !important;
+}
+
+.footer {
+  padding: 10px clamp(14px, 4.5vw, 24px) calc(14px + var(--safe-bottom)) !important;
+}
+
+/* Safe typography wrapping across all Android screen widths & accessibility font sizes */
+.h-title,
+.h-title--xl,
+.h-sub,
+.formats-heading,
+.formats-sub,
+.splash-title,
+.splash-sub,
+.lang-card__name,
+.lang-card__meta,
+.card__title,
+.card__desc,
+.format-card__title,
+.format-card__desc,
+.field label,
+.guide-intro-card h1,
+.guide-intro-card p {
+  max-width: 100% !important;
+  overflow-wrap: break-word !important;
+  word-wrap: break-word !important;
+}
+
+.hl {
+  white-space: normal !important;
+  display: inline-block !important;
+  max-width: 100%;
+}
+
+/* 1 · Splash */
+.bg-splash {
+  padding: calc(12px + var(--safe-top)) 18px calc(16px + var(--safe-bottom));
+}
+
+.splash-logo {
+  width: clamp(160px, 56vw, 248px) !important;
+  height: auto !important;
+  object-fit: contain;
+  margin-top: clamp(48px, 14vh, 140px) !important;
+}
+
+.ring-wrap {
+  margin-top: clamp(24px, 5.5vh, 62px) !important;
+}
+
+.ring {
+  width: clamp(68px, 18vw, 94px) !important;
+  height: clamp(68px, 18vw, 94px) !important;
+  min-width: 68px !important;
+  min-height: 68px !important;
+}
+
+.splash-title {
+  font-size: clamp(24px, 6.8vw, 30px) !important;
+  margin-top: clamp(22px, 5vh, 48px) !important;
+  text-align: center;
+}
+
+.splash-sub {
+  font-size: clamp(13.5px, 3.8vw, 15.5px) !important;
+}
+
+/* 2 · Language Selection */
+.brand-logo {
+  width: clamp(144px, 44vw, 200px) !important;
+  height: auto !important;
+  object-fit: contain;
+  margin: 8px auto 0 !important;
+}
+
+.brand-logo--sm {
+  width: clamp(112px, 34vw, 148px) !important;
+  margin: 0 !important;
+}
+
+.lang-hero {
+  position: relative;
+  width: 100%;
+  max-width: 350px;
+  height: clamp(140px, 21vh, 206px) !important;
+  margin: 4px auto 0 !important;
+}
+
+.phone-illu {
+  top: 4px !important;
+  width: clamp(106px, 30vw, 146px) !important;
+  height: clamp(132px, 19vh, 182px) !important;
+}
+
+.phone-illu__label {
+  font-size: clamp(16px, 4.6vw, 22px) !important;
+}
+
+.bubble--cjk {
+  right: clamp(14px, 6vw, 34px) !important;
+  top: 14px !important;
+  width: clamp(46px, 13vw, 60px) !important;
+  height: clamp(44px, 12vw, 56px) !important;
+  font-size: clamp(20px, 5.5vw, 25px) !important;
+}
+
+.bubble--lat {
+  right: 2px !important;
+  top: clamp(54px, 8vh, 72px) !important;
+  width: clamp(42px, 12vw, 54px) !important;
+  height: clamp(40px, 11vw, 50px) !important;
+  font-size: clamp(19px, 5vw, 23px) !important;
+}
+
+#s-lang .h-title {
+  font-size: clamp(23px, 6.8vw, 31px) !important;
+  line-height: 1.14 !important;
+  margin-top: 4px !important;
+}
+
+#s-lang .h-sub {
+  font-size: clamp(13.5px, 3.8vw, 16px) !important;
+  line-height: 1.4 !important;
+  margin-top: 8px !important;
+}
+
+.lang-list {
+  margin: clamp(12px, 2.2vh, 22px) 0 6px !important;
+  gap: 11px !important;
+}
+
+.lang-card {
+  padding: clamp(11px, 1.8vh, 14px) 14px !important;
+  gap: 12px !important;
+}
+
+.flag {
+  width: clamp(36px, 9.5vw, 44px) !important;
+  height: clamp(36px, 9.5vw, 44px) !important;
+  flex: 0 0 auto !important;
+}
+
+.lang-card__txt {
+  padding-left: 12px !important;
+}
+
+.lang-card__name {
+  font-size: clamp(16px, 4.6vw, 19px) !important;
+}
+
+.lang-card__meta {
+  font-size: clamp(12px, 3.4vw, 13.5px) !important;
+}
+
+.btn {
+  padding: clamp(14px, 2vh, 18px) 18px !important;
+  font-size: clamp(17px, 4.8vw, 20px) !important;
+}
+
+/* 3 · Intro / Home — unified fluid layout for FR & EN (never crops poster or misaligns CTA) */
+#s-intro {
+  display: flex !important;
+  flex-direction: column !important;
+  background: #F65A00 !important;
+}
+
+#s-intro .intro-reference-image {
+  display: none !important;
+}
+
+#s-intro .intro-refresh-bg {
+  display: block !important;
+}
+
+#s-intro .intro-refresh-scroll {
+  display: flex !important;
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: space-evenly !important;
+  padding: calc(10px + var(--safe-top)) clamp(12px, 4vw, 18px) 6px !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+}
+
+.intro-refresh-logo {
+  width: clamp(128px, 40vw, 174px) !important;
+  height: auto !important;
+  max-height: 76px !important;
+  object-fit: contain !important;
+  margin: 2px 0 !important;
+}
+
+.intro-refresh-title {
+  max-width: 100% !important;
+  font-size: clamp(19px, 5.6vw, 25px) !important;
+  line-height: 1.15 !important;
+  margin: 4px 0 0 !important;
+  padding: 0 4px !important;
+}
+
+.intro-refresh-brush {
+  width: clamp(118px, 36vw, 152px) !important;
+  height: 20px !important;
+  margin: 2px auto 4px !important;
+}
+
+.intro-refresh-collage {
+  width: min(100%, 360px) !important;
+  max-height: 45vh !important;
+  aspect-ratio: 825 / 834;
+  margin: 4px auto !important;
+  border-radius: 22px !important;
+  flex: 0 1 auto !important;
+}
+
+.intro-refresh-collage img {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover !important;
+  object-position: center !important;
+}
+
+.home-start-group {
+  position: relative !important;
+  left: auto !important;
+  right: auto !important;
+  bottom: auto !important;
+  z-index: 6 !important;
+  flex: 0 0 auto !important;
+  width: 100% !important;
+  padding: 6px clamp(14px, 4.5vw, 22px) calc(14px + var(--safe-bottom)) !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  gap: 6px !important;
+}
+
+.home-start-group .home-start-button,
+#s-intro.is-english .home-start-group .home-start-button {
+  position: static !important;
+  width: 100% !important;
+  margin-left: 0 !important;
+  height: auto !important;
+  min-height: clamp(54px, 7.6vh, 66px) !important;
+  padding: 13px 16px !important;
+  gap: 10px !important;
+  background: #14265D !important;
+  color: #FFFFFF !important;
+}
+
+.home-start-group .home-start-button span,
+#s-intro.is-english .home-start-group .home-start-button span {
+  font-size: clamp(15px, 4.3vw, 18px) !important;
+  line-height: 1.18 !important;
+  white-space: normal !important;
+  text-align: center !important;
+  color: #FFFFFF !important;
+}
+
+.home-start-subline {
+  font-size: clamp(10.5px, 2.9vw, 13px) !important;
+  line-height: 1.25 !important;
+  padding: 0 2px;
+  max-width: 100%;
+}
+
+/* 4 · Sector Selection */
+#s-sector .scroll--sector {
+  height: 100% !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  display: flex !important;
+  flex-direction: column !important;
+  padding-bottom: calc(18px + var(--safe-bottom)) !important;
+}
+
+#s-sector .tagline {
+  margin-top: 14px !important;
+}
+
+#s-sector .tagline__pill {
+  font-size: clamp(13.5px, 3.8vw, 15.5px) !important;
+  padding: 10px 14px !important;
+}
+
+#s-sector .h-title--xl {
+  font-size: clamp(24px, 6.8vw, 33px) !important;
+  line-height: 1.14 !important;
+}
+
+#s-sector .h-sub {
+  font-size: clamp(13.5px, 3.8vw, 16px) !important;
+}
+
+#s-sector .cards {
+  flex: 1 0 auto !important;
+  grid-template-columns: 1fr 1fr !important;
+  grid-template-rows: auto auto !important;
+  gap: 12px !important;
+  margin: 14px 0 8px !important;
+}
+
+#s-sector .card:not(.card--wide) .card__media {
+  height: clamp(92px, 14vh, 132px) !important;
+  flex: 0 0 auto !important;
+}
+
+#s-sector .card:not(.card--wide) .card__body {
+  flex: 1 1 auto !important;
+  min-height: 92px !important;
+  padding: 10px 10px 12px !important;
+}
+
+#s-sector .card__media img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover !important;
+  object-position: 50% 22% !important;
+}
+
+#s-sector .card[data-sector="resto"] .card__media img {
+  object-position: 50% 50% !important;
+}
+
+#s-sector .card__title {
+  font-size: clamp(14px, 3.9vw, 16px) !important;
+  padding-right: 28px !important;
+}
+
+#s-sector .card__desc {
+  font-size: clamp(11.5px, 3.2vw, 13.5px) !important;
+  line-height: 1.32 !important;
+}
+
+#s-sector .card--wide .card__media {
+  width: 42% !important;
+  flex: 0 0 42% !important;
+  min-height: 112px !important;
+}
+
+#s-sector .card--wide .card__body {
+  min-width: 0 !important;
+  padding: 24px 12px 12px 12px !important;
+}
+
+#s-sector .card--wide .card__title {
+  padding-right: 0 !important;
+  overflow-wrap: normal !important;
+}
+
+#s-sector .card--wide .card__desc {
+  padding-right: 38px !important;
+}
+
+/* 5 · Formats / Templates */
+#s-formats .scroll {
+  padding-bottom: calc(20px + var(--safe-bottom)) !important;
+}
+
+.formats-heading {
+  font-size: clamp(22px, 6.2vw, 28px) !important;
+  line-height: 1.12 !important;
+  margin-top: 10px !important;
+}
+
+.formats-sub {
+  font-size: clamp(13.5px, 3.8vw, 15.5px) !important;
+  margin: 6px 0 10px !important;
+}
+
+.formats {
+  grid-template-columns: 1fr !important;
+  gap: 10px !important;
+  margin: 10px 0 8px !important;
+}
+
+.format-card {
+  flex-direction: row !important;
+  align-items: center !important;
+  text-align: left !important;
+  min-height: 84px !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+  padding: 10px 12px !important;
+  gap: 10px !important;
+}
+
+.format-card > div:not(.format-card__media) {
+  flex: 1 1 0% !important;
+  min-width: 0 !important;
+}
+
+.format-card__media--art {
+  width: clamp(58px, 17vw, 80px) !important;
+  height: clamp(56px, 16vw, 76px) !important;
+  flex: 0 0 auto !important;
+}
+
+.format-card__media--art svg {
+  width: 82% !important;
+  height: 82% !important;
+}
+
+.formats .format-card .chev {
+  display: grid !important;
+  flex: 0 0 auto !important;
+}
+
+.format-card__title {
+  font-size: clamp(14.5px, 4.1vw, 17.5px) !important;
+  padding-right: 48px;
+  overflow-wrap: normal !important;
+}
+
+.format-card__desc {
+  font-size: clamp(12px, 3.4vw, 14.5px) !important;
+}
+
+/* 6 · Questions Form */
+#s-questions .scroll {
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: calc(14px + var(--kb-bottom)) !important;
+}
+
+#s-questions .h-title--xl {
+  font-size: clamp(22px, 6.2vw, 29px) !important;
+  line-height: 1.14 !important;
+}
+
+#s-questions .h-sub {
+  font-size: clamp(13.5px, 3.8vw, 15.5px) !important;
+}
+
+.field label {
+  display: inline-block !important;
+  white-space: normal !important;
+  font-size: clamp(12.5px, 3.5vw, 14.5px) !important;
+  line-height: 1.25 !important;
+}
+
+.field input {
+  font-size: 16px !important;
+  max-width: 100% !important;
+}
+
+/* 7 · Guide Intro */
+.guide-intro-shell {
+  padding: calc(12px + var(--safe-top)) clamp(14px, 4.5vw, 20px) calc(14px + var(--safe-bottom)) !important;
+  overflow-y: auto !important;
+}
+
+.guide-intro-header {
+  flex: 0 0 auto !important;
+  min-height: 54px;
+}
+
+.guide-intro-speaker {
+  width: clamp(72px, 20vw, 108px) !important;
+  height: clamp(72px, 20vw, 108px) !important;
+  flex-basis: auto !important;
+}
+
+.guide-intro-card {
+  padding: clamp(18px, 3.5vh, 28px) clamp(14px, 4vw, 20px) !important;
+  margin: 8px 0 12px !important;
+}
+
+.guide-intro-card h1 {
+  font-size: clamp(21px, 6vw, 28px) !important;
+}
+
+.guide-intro-card p {
+  font-size: clamp(14.5px, 4.1vw, 18px) !important;
+}
+
+.guide-intro-continue {
+  min-height: clamp(52px, 7.2vh, 62px) !important;
+  font-size: clamp(15px, 4.3vw, 18.5px) !important;
+}
+
+/* 8 · Scene Guide Screen (#s-capture) */
+.guide-readable-main {
+  padding: calc(8px + var(--safe-top)) clamp(10px, 3vw, 14px) 6px !important;
+}
+
+.guide-readable-header {
+  height: auto !important;
+  min-height: 40px !important;
+  flex: 0 0 auto !important;
+  grid-template-columns: 42px minmax(0, 1fr) auto !important;
+  font-size: clamp(15px, 4.3vw, 18px) !important;
+}
+
+.guide-readable-state {
+  font-size: clamp(13px, 3.6vw, 15.5px) !important;
+  padding: 7px 10px !important;
+}
+
+.guide-scene-image {
+  min-height: 0 !important;
+  max-height: none !important;
+  flex: 1 1 0 !important;
+  width: 100% !important;
+  overflow: hidden !important;
+}
+
+.guide-scene-image.has-audio-controls {
+  min-height: 0 !important;
+}
+
+.guide-scene-image img {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: contain !important;
+  object-position: center !important;
+}
+
+.guide-audio-button {
+  min-height: clamp(46px, 6.4vh, 56px) !important;
+  font-size: clamp(14.5px, 4.1vw, 17.5px) !important;
+}
+
+.guide-readable-footer {
+  padding: 6px clamp(10px, 3vw, 14px) calc(12px + var(--safe-bottom)) !important;
+}
+
+.guide-readable-start {
+  min-height: clamp(48px, 6.8vh, 58px) !important;
+  font-size: clamp(14.5px, 4.1vw, 17.5px) !important;
+}
+
+/* Non-operational templates/sectors marked clearly without altering founder artwork */
+.card[data-coming-soon="true"],
+.format-card[data-coming-soon="true"] {
+  opacity: 0.72;
+  position: relative;
+}
+
+.card[data-coming-soon="true"]::after,
+.format-card[data-coming-soon="true"]::after {
+  content: attr(data-soon-label);
+  position: absolute;
+  top: 10px;
+  right: 12px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: #0A1550;
+  color: #FFFFFF;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.3px;
+  pointer-events: none;
+}
+
+.vitrine-scene-saved-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 5px 12px;
+  border-radius: 999px;
+  background: #E8F8EF;
+  color: #0D7A3E;
+  font-size: 13px;
+  font-weight: 800;
+  margin: 0 auto 2px;
+  max-width: 100%;
+  text-align: center;
+}
+
+/* The 3-2-1 / ON FILME ! sequence is drawn by the native RecordingCountdown
+   component (one owner for every template), never by the web layer. */

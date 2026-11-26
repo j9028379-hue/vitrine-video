@@ -1,0 +1,18 @@
+name: Vitrine Video CI
+
+on:
+  push:
+    branches:
+      - '**'
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  pipeline:
+    uses: ./.github/workflows/_android-ci.yml
+    # Produce deterministic host-side Python-reference renders without relying on
+    # the GitHub-hosted emulator boot; these remain synthetic evidence, not phone QA.
+    with:
+      run_render: true

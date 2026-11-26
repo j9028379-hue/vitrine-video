@@ -1,0 +1,61 @@
+To honour the JVM settings for this build a single-use Daemon process will be forked. For more on this, please refer to https://docs.gradle.org/8.10.2/userguide/gradle_daemon.html#sec:disabling_the_daemon in the Gradle documentation.
+Daemon will be stopped at the end of the build 
+> Task :vitrine-render-engine:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :vitrine-render-engine:preBuild UP-TO-DATE
+> Task :vitrine-render-engine:preDebugBuild UP-TO-DATE
+> Task :vitrine-render-engine:generateDebugResValues UP-TO-DATE
+> Task :vitrine-render-engine:generateDebugResources UP-TO-DATE
+> Task :vitrine-render-engine:packageDebugResources UP-TO-DATE
+> Task :vitrine-render-engine:parseDebugLocalResources UP-TO-DATE
+> Task :vitrine-render-engine:generateDebugRFile UP-TO-DATE
+> Task :vitrine-render-engine:compileDebugKotlin UP-TO-DATE
+> Task :vitrine-render-engine:javaPreCompileDebug UP-TO-DATE
+> Task :vitrine-render-engine:compileDebugJavaWithJavac NO-SOURCE
+> Task :vitrine-render-engine:bundleLibRuntimeToJarDebug UP-TO-DATE
+> Task :vitrine-render-engine:bundleLibCompileToJarDebug UP-TO-DATE
+> Task :vitrine-render-engine:preDebugUnitTestBuild UP-TO-DATE
+> Task :vitrine-render-engine:generateDebugUnitTestStubRFile UP-TO-DATE
+
+> Task :vitrine-render-engine:compileDebugUnitTestKotlin
+w: file:///home/user/vitrine-render-engine/vitrine-render-engine/src/test/kotlin/com/vitrinevideo/engine/T4PackageIntegrationTest.kt:85:24 Java type mismatch: inferred type is 'kotlin.String?', but 'kotlin.String' was expected.
+
+> Task :vitrine-render-engine:javaPreCompileDebugUnitTest UP-TO-DATE
+> Task :vitrine-render-engine:compileDebugUnitTestJavaWithJavac NO-SOURCE
+> Task :vitrine-render-engine:processDebugJavaRes UP-TO-DATE
+> Task :vitrine-render-engine:processDebugUnitTestJavaRes UP-TO-DATE
+> Task :vitrine-render-engine:testDebugUnitTest
+> Task :vitrine-video-app:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :vitrine-render-engine:compileDebugLibraryResources UP-TO-DATE
+> Task :vitrine-render-engine:writeDebugAarMetadata UP-TO-DATE
+> Task :vitrine-video-app:preBuild UP-TO-DATE
+> Task :vitrine-video-app:preDebugBuild UP-TO-DATE
+> Task :vitrine-video-app:checkDebugAarMetadata UP-TO-DATE
+> Task :vitrine-video-app:generateDebugResValues UP-TO-DATE
+> Task :vitrine-video-app:mapDebugSourceSetPaths UP-TO-DATE
+> Task :vitrine-video-app:generateDebugResources UP-TO-DATE
+> Task :vitrine-video-app:mergeDebugResources UP-TO-DATE
+> Task :vitrine-video-app:packageDebugResources UP-TO-DATE
+> Task :vitrine-video-app:parseDebugLocalResources UP-TO-DATE
+> Task :vitrine-video-app:createDebugCompatibleScreenManifests UP-TO-DATE
+> Task :vitrine-render-engine:extractDeepLinksDebug UP-TO-DATE
+> Task :vitrine-render-engine:processDebugManifest UP-TO-DATE
+> Task :vitrine-video-app:extractDeepLinksDebug UP-TO-DATE
+> Task :vitrine-video-app:processDebugMainManifest UP-TO-DATE
+> Task :vitrine-video-app:processDebugManifest UP-TO-DATE
+> Task :vitrine-video-app:processDebugManifestForPackage UP-TO-DATE
+> Task :vitrine-video-app:processDebugResources UP-TO-DATE
+> Task :vitrine-video-app:compileDebugKotlin UP-TO-DATE
+> Task :vitrine-video-app:javaPreCompileDebug UP-TO-DATE
+> Task :vitrine-video-app:compileDebugJavaWithJavac NO-SOURCE
+> Task :vitrine-video-app:bundleDebugClassesToRuntimeJar UP-TO-DATE
+> Task :vitrine-video-app:bundleDebugClassesToCompileJar UP-TO-DATE
+> Task :vitrine-video-app:compileDebugUnitTestKotlin UP-TO-DATE
+> Task :vitrine-video-app:preDebugUnitTestBuild UP-TO-DATE
+> Task :vitrine-video-app:javaPreCompileDebugUnitTest UP-TO-DATE
+> Task :vitrine-video-app:compileDebugUnitTestJavaWithJavac NO-SOURCE
+> Task :vitrine-video-app:processDebugJavaRes UP-TO-DATE
+> Task :vitrine-video-app:processDebugUnitTestJavaRes UP-TO-DATE
+> Task :vitrine-video-app:testDebugUnitTest UP-TO-DATE
+
+BUILD SUCCESSFUL in 34s
+41 actionable tasks: 2 executed, 39 up-to-date

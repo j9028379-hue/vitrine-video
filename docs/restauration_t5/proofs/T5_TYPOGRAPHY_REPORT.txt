@@ -1,0 +1,20 @@
+RESTAURATION T5 — REAL TYPOGRAPHY PROOF
+package=vitrine-video-app/src/main/assets/packages/RESTAURATION-T5-1.0.0.zip sha256=6f3524e06f6263f36a9b5292cc8b38fd64e3849ad657449164af085edb55353a
+font_sha256=c40f2293766a503bc70cce9e512ef844a4ccb7cbcde792fe2ea31d191917d8d6 family=Playfair Display variable wght 400..900
+proof_image=docs/restauration_t5/proofs/T5_TYPOGRAPHY_PROOF.png (720x1280, real merchant strings, real declared weights)
+H ink width: 400=673/adv 757  800=753/adv 815  900=773/adv 829
+
+scene field weight size_px max_lines rendered_width_px
+S1 nom       800  60  1   586.0
+S1 offre     900  54  1   616.0
+S1 contenu   800  51  2   617.0
+S2 contenu   800  51  2   617.0
+S3 offre     900  54  1   616.0
+S3 contenu   800  51  2   617.0
+S3 prix      900  88  1   493.0
+S4 nom       800  60  1   586.0
+S4 whatsapp  900  68  1   562.0
+S4 quartier  800  59  1   613.0
+
+LIMIT: this proves the packaged font file, the declared weights and the engine code path.
+It is not a device render; the MP4 proof must be produced by the CI Release build / handset.

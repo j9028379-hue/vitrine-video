@@ -1,0 +1,52 @@
+{
+  "template_id": "COMMERCE-T3",
+  "template_version": "1.0.0",
+  "reponses": {
+    "nom": "Boutique Élégance",
+    "produit": "Lampe rechargeable",
+    "prix": "12 000 FCFA",
+    "demonstration": "Comment allumer la lampe et régler sa lumière.",
+    "quartier": "Cotonou, Akpakpa",
+    "whatsapp": "+229 XX XX XX XX"
+  },
+  "captures": [
+    {
+      "scene": "S1",
+      "valide": true,
+      "sha256": "54e186a59e25bb43aa4d75370e078ba3321f37c226259de3e5685ac37ec98a2c",
+      "fichier": "captures/S1.mp4"
+    },
+    {
+      "scene": "S2",
+      "valide": true,
+      "sha256": "2943b51a2eb28197469bc7d410643f7db6a4a489c2582c89c026fd282e84357f",
+      "fichier": "captures/S2.mp4"
+    },
+    {
+      "scene": "S3",
+      "valide": true,
+      "sha256": "880ed6f36fdf30d04574b071574ba45c09a21f3ce5507f805b0d33a0fab26b56",
+      "fichier": "captures/S3.mp4"
+    },
+    {
+      "scene": "S4",
+      "valide": true,
+      "sha256": "8a5c5a5f26a824ae7a7a04c21d2a36a94e727eaacad5679b19ce55b580924a19",
+      "fichier": "captures/S4.mp4"
+    }
+  ],
+  "ecrans": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12
+  ]
+}

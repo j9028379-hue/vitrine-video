@@ -1,0 +1,4 @@
+Renderer: COMMERCE-T4-1.0.0 package reference renderer render/film.py.
+Inputs: test-fixtures/t3_fixture/captures/S1..S4.mp4 (engineering fixtures, not founder footage).
+Uses the shipped T4 partition, cut windows, typography windows, and font resource.
+This is a host reference render, not proof that the Android Media3/GL path ran.
