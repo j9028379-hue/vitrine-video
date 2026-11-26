@@ -350,15 +350,26 @@ jobs:
         with:
           gradle-version: wrapper
 
+      - name: Check Android runner acceleration and capacity
+        run: |
+          set -euo pipefail
+          KVM=unavailable
+          if [ -c /dev/kvm ] && [ -r /dev/kvm ] && [ -w /dev/kvm ]; then KVM=available; fi
+          MEMORY_MIB=$(awk '/MemAvailable:/ {print int($2/1024)}' /proc/meminfo)
+          FREE_DISK=$(df -Pm "$RUNNER_TEMP" | awk 'NR==2 {print $4}')
+          echo "::notice::Android runner diagnostics: KVM=$KVM CPU=$(nproc) memory_available_mib=$MEMORY_MIB free_disk_mib=$FREE_DISK"
+          free -h
+          df -h "$RUNNER_TEMP"
+
       - name: Run Android instrumentation on an emulator
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 35
-          target: google_atd
+          target: default
           arch: x86_64
           profile: pixel_2
           emulator-boot-timeout: 900
-          emulator-options: -no-window -no-snapshot -gpu swiftshader_indirect -noaudio -no-boot-anim
+          emulator-options: -no-window -no-snapshot -gpu swiftshader_indirect -noaudio -no-boot-anim -memory 3072 -cores 2
           disable-animations: true
           script: |
             set -euo pipefail
