@@ -19,9 +19,11 @@ Limites de portée observées : `holdThroughFrame`, `opacityAtEnd` et le champ p
 
 ## Transitions source (17 événements)
 
-Pour chaque événement, le générateur conserve l'ID source, les frames inclusives, la durée, le profil et l'objet `source_parameters`. Le parser convertit les secondes de `sortie_s` en `startFrame`/`durationFrames`, choisit un `TransitionType` à partir de `motif`, et sérialise `source_parameters` dans `sourceParametersJson`.
+Pour chaque événement, le générateur conserve l'ID source, les frames inclusives, la durée, le profil et l'objet `source_parameters`. Il émet aussi `source_parameters_json`, une sérialisation compacte dont l'ordre des propriétés suit le JSON source officiel; cela évite toute réorganisation par `JSONObject.toString()`. Le parser transmet cette chaîne sans la réécrire dans `TransitionSpec.sourceParametersJson`.
 
-**Important : conserver un objet JSON ne signifie pas l'exécuter.** `TransitionGeometry` ne lit pas `sourceParametersJson`. Pour RESTAURATION-T3, le shader utilise les géométries/modes Android ci-dessous, choisies par le motif alias; les paramètres détaillés propres aux profils source listés dans le paquet ne sont pas consommés. Ces événements ne sont donc pas certifiés fidèles aux profils officiels.
+Le contrôle d'intégrité Python et `RestaurationT3ContractFidelityTest` vérifient les 17 profils, propriété par propriété, et la chaîne ordonnée source → plan. `T3AndroidEvaluatorTraceTest` ajoute la matrice propriété par propriété à la trace d'évaluateur, avec `retained_in_plan` et `consumed_by_renderer` distincts.
+
+**Important : conserver un objet JSON ne signifie pas l'exécuter.** `TransitionGeometry` ne lit toujours pas `sourceParametersJson`. Pour RESTAURATION-T3, le shader utilise les géométries/modes Android ci-dessous, choisies par le motif alias; les paramètres détaillés propres aux profils source listés dans le paquet ne sont pas consommés. Ces événements ne sont donc pas certifiés fidèles aux profils officiels.
 
 | # | Famille source | Frames inclusives | Motif runtime → comportement Android actuel | Éléments source non exécutés par cette branche |
 |---:|---|---:|---|---|

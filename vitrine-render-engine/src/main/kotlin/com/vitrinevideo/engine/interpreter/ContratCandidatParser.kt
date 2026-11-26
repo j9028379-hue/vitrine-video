@@ -122,7 +122,11 @@ object ContratCandidatParser {
                     (0 until frames.length()).map { frames.getInt(it) }
                 }.orEmpty(),
                 sourceDurationFrames = effect.optInt("source_duration_frames", 0),
-                sourceParametersJson = effect.optJSONObject("source_parameters")?.toString().orEmpty()
+                // Use the adapter's ordered source serialization when available;
+                // JSONObject.toString() may reorder property keys on Android.
+                sourceParametersJson = effect.optString("source_parameters_json", "").ifBlank {
+                    effect.optJSONObject("source_parameters")?.toString().orEmpty()
+                }
             )
         }
 

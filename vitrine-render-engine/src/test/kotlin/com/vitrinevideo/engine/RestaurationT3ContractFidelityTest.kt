@@ -120,15 +120,20 @@ class RestaurationT3ContractFidelityTest {
     }
 
     @Test
-    fun generatedT3TransitionsRetainDistinctSourceFamiliesInsteadOfOnlyMotifAliases() = withT3Zip { zip ->
-        val plan = ContratCandidatParser.parse(
-            zip.json("templates/restauration/restauration-t3/montage/contrat-candidat.json")
-        )
+    fun generatedT3TransitionsRetainDistinctProfilesAndOrderedSourceJsonInTheInterpretedPlan() = withT3Zip { zip ->
+        val contract = zip.json("templates/restauration/restauration-t3/montage/contrat-candidat.json")
+        val plan = ContratCandidatParser.parse(contract)
         val transitions = plan.transitions
+        val sourceEvents = contract.getJSONArray("effets")
         assertEquals(17, transitions.size)
         assertEquals(16, transitions.map { it.sourceFamily }.toSet().size)
         assertTrue(transitions.all { it.sourceParametersJson.isNotBlank() })
         assertTrue(transitions.any { JSONObject(it.sourceParametersJson).has("mask") })
         assertTrue(transitions.any { JSONObject(it.sourceParametersJson).has("easing") })
+        for (index in transitions.indices) {
+            val sourceOrderedJson = sourceEvents.getJSONObject(index).getString("source_parameters_json")
+            assertEquals("event ${index + 1} profile JSON, property order and number formatting must pass through unchanged",
+                sourceOrderedJson, transitions[index].sourceParametersJson)
+        }
     }
 }

@@ -60,6 +60,27 @@ class T3AndroidEvaluatorTraceTest {
                         put("sample_points", grid)
                     })
                 }
+                val sourceProfile = contract.getJSONArray("effets").getJSONObject(index)
+                    .getJSONObject("source_parameters")
+                val interpretedProfile = JSONObject(spec.sourceParametersJson)
+                val propertyMatrix = JSONArray()
+                val profileKeys = sourceProfile.keys()
+                while (profileKeys.hasNext()) {
+                    val key = profileKeys.next()
+                    val sourceValue = sourceProfile.get(key)
+                    val interpretedValue = interpretedProfile.get(key)
+                    val retained = sourceValue.toString() == interpretedValue.toString()
+                    assertTrue("event ${index + 1} property '$key' survives source JSON -> RenderPlan", retained)
+                    propertyMatrix.put(JSONObject().apply {
+                        put("property", key)
+                        put("source_value", sourceValue)
+                        put("plan_value", interpretedValue)
+                        put("retained_in_plan", retained)
+                        // Kept false until TransitionGeometry and the GL path
+                        // actually evaluate this declaration, not just retain it.
+                        put("consumed_by_renderer", false)
+                    })
+                }
                 traceTransitions.put(JSONObject().apply {
                     put("event_index", index + 1)
                     put("family", spec.sourceFamily)
@@ -67,7 +88,10 @@ class T3AndroidEvaluatorTraceTest {
                     put("profile", spec.sourceProfile)
                     put("runtime_type", spec.type.name)
                     put("frame_window_inclusive", JSONArray(listOf(spec.startFrame, last)))
+                    put("source_parameters_json", spec.sourceParametersJson)
                     put("source_parameters_sha256", sha(spec.sourceParametersJson.toByteArray()))
+                    put("profile_property_count", propertyMatrix.length())
+                    put("profile_property_matrix", propertyMatrix)
                     put("source_parameters_consumed_by_transition_geometry", false)
                     put("samples", samples)
                 })

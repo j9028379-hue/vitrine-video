@@ -82,6 +82,15 @@ def main() -> None:
         check("universal plan is exact 720x1280/30fps/900 frames",part["template_id"]==TEMPLATE and part["largeur"]==720 and part["hauteur"]==1280 and part["fps"]==30 and part["duree_s"]==30.0)
         check("four scenes use exact 6/8/7/9 durations",[s["capture_s"] for s in part["scenes"]]==[6.0,8.0,7.0,9.0] and [s["sortie_s"] for s in part["scenes"]]==[[0.0,6.0],[6.0,14.0],[14.0,21.0],[21.0,30.0]])
         check("17 source v0.4 transition events retain exact frame windows",len(part["effets"])==17 and all("source_frames_inclusive" in x and x["separator_lines"] is False and x["gap_px"]==x["border_px"]==0 for x in part["effets"]))
+        transition_source=json.loads(entries["contracts/reverse-engineering/T3_TRANSITIONS_30S.json"])
+        exact_profile_json=True
+        for source_event,render_event in zip(transition_source["timeline_events"],part["effets"]):
+            source_profile=transition_source["transition_parameter_profiles"][source_event["parameter_profile"]]
+            ordered_json=json.dumps(source_profile,ensure_ascii=False,separators=(",",":"))
+            exact_profile_json &= render_event.get("source_profile")==source_event["parameter_profile"]
+            exact_profile_json &= render_event.get("source_parameters")==source_profile
+            exact_profile_json &= render_event.get("source_parameters_json")==ordered_json
+        check("every transition profile property/value/order passes source JSON to the universal interpreter payload",exact_profile_json)
         text=json.loads(entries["contracts/config/T3_TEXT_MOTION_V0_4_0.json"])
         check("no separator lines declared by v0.4",text["transition_visibility_rule"].find("Aucune ligne guide")>=0 and text["transition_visibility_rule"].find("Aucune ligne")>=0)
         form=json.loads(entries["contracts/form/questions_T3.json"])

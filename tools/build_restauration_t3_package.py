@@ -306,6 +306,7 @@ def build_partition(template: dict, flow: dict, motion: dict, transitions: dict,
         duration = event["duration_frames"]
         if duration != event["frames"][1] - start + 1:
             raise SystemExit(f"transition frame/duration mismatch: {transition_id}")
+        source_parameters = transitions["transition_parameter_profiles"][event["parameter_profile"]]
         effects.append({
             "motif": motif,
             "effet": transition_id,
@@ -321,7 +322,11 @@ def build_partition(template: dict, flow: dict, motion: dict, transitions: dict,
             # declaration from the transition profile. The renderer must either
             # consume these generically or report the specific unsupported key;
             # flattening different source families to a motif loses fidelity.
-            "source_parameters": transitions["transition_parameter_profiles"][event["parameter_profile"]],
+            "source_parameters": source_parameters,
+            # Carry a compact, ordered JSON string alongside the parsed object.
+            # Android JSONObject serialization does not guarantee key order; the
+            # universal interpreter must preserve the source profile order too.
+            "source_parameters_json": json.dumps(source_parameters, ensure_ascii=False, separators=(",", ":")),
             "separator_lines": False,
             "border_px": 0,
             "gap_px": 0,
