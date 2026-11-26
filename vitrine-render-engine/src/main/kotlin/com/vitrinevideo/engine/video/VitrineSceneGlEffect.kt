@@ -450,9 +450,11 @@ private class VitrineSceneShaderProgram(
 
     private fun sourceFamilyMode(transition: com.vitrinevideo.engine.interpreter.TransitionSpec?): Int =
         when (transition?.sourceFamily) {
+            "R2_GEOMETRIC_ARROW_MASK" -> 2
             "R2_RADIAL_ZOOM" -> 3
             "R2_HARD_ACTION_MATCH_CUT" -> 5
             "R4_ORANGE_FLASH" -> 4
+            "R2_DIAGONAL_ROTATING_WIPE" -> 16
             "R4_KALEIDOSCOPE_MOSAIC" -> 10
             "R4_ROTATING_MASK" -> 12
             "R4_RADIAL_BLUR" -> 13
@@ -525,9 +527,86 @@ private class VitrineSceneShaderProgram(
         program.setFloatsUniform("uSourceMosaicRotations", floatArrayOf(-6f, -3f, 0f, 3f))
         program.setFloatsUniform("uSourceMosaicLast", floatArrayOf(0.16f, 6f, 0f, 0f))
         program.setFloatsUniform("uSourceCut", floatArrayOf(0f, 1f, 1f, 1f))
-        if ((mode != 15 && mode != 7 && mode != 8 && mode != 4 && mode != 3 && mode != 14 && mode != 12 && mode != 13 && mode != 10 && mode != 5) || transition == null) return
+        program.setFloatsUniform("uSourceArrow", floatArrayOf(0f, 1f, 0f, 0.34f))
+        program.setFloatsUniform("uSourceArrowGeometry", floatArrayOf(-28f, 0.18f, 0.002f, 0.14f))
+        program.setFloatsUniform("uSourceArrowColor", floatArrayOf(0.95f, 0.84f, 0.48f, 0.92f))
+        program.setFloatsUniform("uSourceArrowGrid", floatArrayOf(3f, 5f, 1.06f, 0.34f))
+        program.setFloatsUniform("uSourceWipe", floatArrayOf(0f, 6f, -24f, 0.24f))
+        program.setFloatsUniform("uSourceWipeGeometry", floatArrayOf(0.001f, 1f, 0f, 0f))
+        program.setFloatsUniform("uSourceWipeColor", floatArrayOf(11f / 255f, 8f / 255f, 7f / 255f, 1f))
+        program.setFloatsUniform("uSourceWipeClosure0", floatArrayOf(0f, 0f, 0f, 0f))
+        program.setFloatsUniform("uSourceWipeClosure1", floatArrayOf(0f, 0f, 0f, 0f))
+        program.setFloatsUniform("uSourceWipeReveal0", floatArrayOf(0f, 0f, 0f, 0f))
+        program.setFloatsUniform("uSourceWipeReveal1", floatArrayOf(0f, 0f, 0f, 0f))
+        if ((mode != 15 && mode != 7 && mode != 8 && mode != 4 && mode != 3 && mode != 14 && mode != 12 && mode != 13 && mode != 10 && mode != 5 && mode != 2 && mode != 16) || transition == null) return
 
         val params = JSONObject(transition.sourceParametersJson)
+        if (mode == 16) {
+            require(params.optInt("strip_count") == 6)
+            require(params.optString("destination") == "S4_hero_frame_not_black")
+            val localFrame = frame - transition.startFrame
+            val count = params.getInt("strip_count")
+            val stagger = params.optInt("strip_stagger_frames", 0)
+            val easing = params.optString("easing", "linear")
+            val rotation = sourceCurveValue(params.getJSONArray("rotation_degrees"), localFrame, easing)
+            val closure = params.getJSONArray("closure_progress")
+            val reveal = params.getJSONArray("reveal_progress")
+            val closeValues = FloatArray(count) { index ->
+                sourceCurveValue(closure, localFrame - index * stagger, easing).toFloat()
+            }
+            val revealValues = FloatArray(count) { index ->
+                sourceCurveValue(reveal, localFrame - index * stagger, easing).toFloat()
+            }
+            program.setFloatsUniform("uSourceWipe", floatArrayOf(
+                localFrame.toFloat(), count.toFloat(),
+                params.optDouble("strip_angle_degrees", 0.0).toFloat() + rotation.toFloat(),
+                params.optDouble("strip_width_normalized", 0.0).toFloat()
+            ))
+            program.setFloatsUniform("uSourceWipeGeometry", floatArrayOf(
+                params.optDouble("strip_feather_px", 0.0).toFloat() / max(outWidth, outHeight).toFloat(),
+                stagger.toFloat(), 0f, 0f
+            ))
+            program.setFloatsUniform("uSourceWipeClosure0", floatArrayOf(closeValues[0], closeValues[1], closeValues[2], closeValues[3]))
+            program.setFloatsUniform("uSourceWipeClosure1", floatArrayOf(closeValues[4], closeValues[5], 0f, 0f))
+            program.setFloatsUniform("uSourceWipeReveal0", floatArrayOf(revealValues[0], revealValues[1], revealValues[2], revealValues[3]))
+            program.setFloatsUniform("uSourceWipeReveal1", floatArrayOf(revealValues[4], revealValues[5], 0f, 0f))
+            val background = params.getString("background_color")
+            program.setFloatsUniform("uSourceWipeColor", floatArrayOf(
+                rgbComponent(background, 0), rgbComponent(background, 1), rgbComponent(background, 2), 1f
+            ))
+            return
+        }
+        if (mode == 2) {
+            require(params.optString("coordinate_space") == "normalized_0_1")
+            val grid = params.getJSONObject("background_x_grid")
+            val mask = params.getJSONObject("mask")
+            val incoming = params.getJSONObject("incoming_transform")
+            val ribbon = params.getJSONObject("ribbon")
+            val localFrame = frame - transition.startFrame
+            val easing = mask.optString("easing", "linear")
+            val progress = sourceCurveValue(mask.getJSONArray("progress"), localFrame, easing)
+            val scale = sourceCurveValue(incoming.getJSONArray("scale"), localFrame, easing)
+            val rotation = sourceCurveValue(incoming.getJSONArray("rotation_degrees"), localFrame, easing)
+            program.setFloatsUniform("uSourceArrow", floatArrayOf(
+                progress.toFloat(), scale.toFloat(), rotation.toFloat(), grid.optDouble("opacity", 0.0).toFloat()
+            ))
+            program.setFloatsUniform("uSourceArrowGeometry", floatArrayOf(
+                mask.optDouble("angle_degrees", 0.0).toFloat(),
+                mask.optDouble("arrow_tip_ratio", 0.0).toFloat(),
+                mask.optDouble("feather_px", 0.0).toFloat() / max(outWidth, outHeight).toFloat(),
+                ribbon.optDouble("width_normalized", 0.0).toFloat()
+            ))
+            val color = ribbon.getString("color")
+            program.setFloatsUniform("uSourceArrowColor", floatArrayOf(
+                rgbComponent(color, 0), rgbComponent(color, 1), rgbComponent(color, 2),
+                ribbon.optDouble("opacity", 1.0).toFloat()
+            ))
+            program.setFloatsUniform("uSourceArrowGrid", floatArrayOf(
+                grid.optInt("columns").toFloat(), grid.optInt("rows").toFloat(),
+                grid.optDouble("scale", 1.0).toFloat(), grid.optDouble("opacity", 0.0).toFloat()
+            ))
+            return
+        }
         if (mode == 5) {
             require(params.optInt("crossfade_frames", -1) == 0)
             require(params.optInt("cut_on_local_frame", -1) == 1)
@@ -927,6 +1006,17 @@ private class VitrineSceneShaderProgram(
             uniform vec4 uSourceMosaicRotations;
             uniform vec4 uSourceMosaicLast;
             uniform vec4 uSourceCut;
+            uniform vec4 uSourceArrow;
+            uniform vec4 uSourceArrowGeometry;
+            uniform vec4 uSourceArrowColor;
+            uniform vec4 uSourceArrowGrid;
+            uniform vec4 uSourceWipe;
+            uniform vec4 uSourceWipeGeometry;
+            uniform vec4 uSourceWipeColor;
+            uniform vec4 uSourceWipeClosure0;
+            uniform vec4 uSourceWipeClosure1;
+            uniform vec4 uSourceWipeReveal0;
+            uniform vec4 uSourceWipeReveal1;
             uniform vec4 uSourcePanel;
             uniform vec4 uSourcePanelPhase;
             uniform vec4 uSourcePanelRows;
@@ -972,7 +1062,56 @@ private class VitrineSceneShaderProgram(
                 vec2 topDownUv = vec2(vTexSamplingCoord.x, 1.0 - vTexSamplingCoord.y);
                 vec4 incoming = sampleScenePixel(topDownUv);
                 vec4 composed = incoming;
-                if (uSourceMode == 5) {
+                if (uSourceMode == 16) {
+                    vec2 center = vec2(0.5, 0.5);
+                    float angle = uSourceWipe.z * 0.01745329252;
+                    vec2 delta = topDownUv - center;
+                    vec2 rotated = vec2(delta.x * cos(angle) - delta.y * sin(angle), delta.x * sin(angle) + delta.y * cos(angle));
+                    float coordinate = rotated.x + rotated.y;
+                    float feather = max(uSourceWipeGeometry.x, 0.0005);
+                    vec3 layer = sampleWhipSource(topDownUv, true).rgb;
+                    for (int strip = 0; strip < 6; strip++) {
+                        float stripIndex = float(strip);
+                        float centerX = (stripIndex + 0.5) / uSourceWipe.x;
+                        float closeProgress = strip < 4 ? uSourceWipeClosure0[strip] : uSourceWipeClosure1[strip - 4];
+                        float revealProgress = strip < 4 ? uSourceWipeReveal0[strip] : uSourceWipeReveal1[strip - 4];
+                        float gate = abs(topDownUv.x - centerX) - uSourceWipe.w * 0.5;
+                        float close = 1.0 - smoothstep(closeProgress - feather, closeProgress + feather, gate);
+                        float reveal = 1.0 - smoothstep(revealProgress - feather, revealProgress + feather, gate);
+                        float stripMask = max(close, reveal);
+                        vec2 stripUv = vec2(centerX + (topDownUv.x - centerX) / max(1.0 - closeProgress * 0.92, 0.08), topDownUv.y);
+                        vec3 sourceFrame = sampleWhipSource(stripUv, reveal > close).rgb;
+                        layer = mix(layer, sourceFrame, stripMask);
+                    }
+                    float destinationFill = clamp(max(uSourceWipeReveal0.x, max(uSourceWipeReveal0.y, max(uSourceWipeReveal0.z, uSourceWipeReveal0.w))), 0.0, 1.0);
+                    destinationFill = max(destinationFill, max(uSourceWipeReveal1.x, uSourceWipeReveal1.y));
+                    composed.rgb = mix(layer, uSourceWipeColor.rgb, clamp(destinationFill * (1.0 - smoothstep(-0.01, 0.01, coordinate)), 0.0, 1.0));
+                } else if (uSourceMode == 2) {
+                    vec2 gridUv = fract(topDownUv * uSourceArrowGrid.xy);
+                    vec2 gridScaledUv = (gridUv - vec2(0.5)) / max(uSourceArrowGrid.z, 0.01) + vec2(0.5);
+                    vec3 held = sampleWhipSource(topDownUv, false).rgb;
+                    vec3 grid = sampleWhipSource(gridScaledUv, false).rgb;
+                    vec3 baseFrame = mix(held, grid, clamp(uSourceArrowGrid.w, 0.0, 1.0));
+                    vec2 center = vec2(0.5);
+                    float maskAngle = uSourceArrowGeometry.x * 0.01745329252;
+                    vec2 maskDelta = topDownUv - center;
+                    vec2 maskUv = vec2(maskDelta.x * cos(maskAngle) - maskDelta.y * sin(maskAngle), maskDelta.x * sin(maskAngle) + maskDelta.y * cos(maskAngle)) + center;
+                    float localY = maskUv.y - 0.5;
+                    float tip = uSourceArrowGeometry.y;
+                    float edge = -0.5 - tip + clamp(uSourceArrow.x, 0.0, 1.25) * (1.0 + 2.0 * tip) + tip * (1.0 - 2.0 * abs(localY));
+                    float feather = max(uSourceArrowGeometry.z, 0.0005);
+                    float reveal = 1.0 - smoothstep(edge - feather, edge + feather, maskUv.x);
+                    float incomingAngle = uSourceArrow.z * 0.01745329252;
+                    vec2 incomingDelta = topDownUv - center;
+                    vec2 incomingRotated = vec2(incomingDelta.x * cos(incomingAngle) - incomingDelta.y * sin(incomingAngle), incomingDelta.x * sin(incomingAngle) + incomingDelta.y * cos(incomingAngle));
+                    vec2 incomingUv = center + incomingRotated / max(uSourceArrow.y, 0.01);
+                    vec3 incomingFrame = sampleWhipSource(incomingUv, true).rgb;
+                    composed.rgb = mix(baseFrame, incomingFrame, clamp(reveal, 0.0, 1.0));
+                    float ribbonDistance = abs(maskUv.x - edge);
+                    float ribbon = 1.0 - smoothstep(uSourceArrowGeometry.w * 0.5, uSourceArrowGeometry.w * 0.5 + feather, ribbonDistance);
+                    vec3 ribbonScreen = 1.0 - (1.0 - composed.rgb) * (1.0 - uSourceArrowColor.rgb);
+                    composed.rgb = mix(composed.rgb, ribbonScreen, clamp(ribbon * uSourceArrowColor.a, 0.0, 1.0));
+                } else if (uSourceMode == 5) {
                     bool incomingLayer = uSourceCut.x >= uSourceCut.y;
                     composed = sampleWhipSource(topDownUv, incomingLayer);
                 } else if (uSourceMode == 10) {
