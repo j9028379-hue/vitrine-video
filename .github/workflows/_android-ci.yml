@@ -332,7 +332,7 @@ jobs:
     needs: tests
     # Prefer the Apple Silicon macOS runner so the ARM64 Android system image
     # runs natively through Hypervisor.framework rather than emulating x86_64.
-    runs-on: macos-15-arm64
+    runs-on: macos-15
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
