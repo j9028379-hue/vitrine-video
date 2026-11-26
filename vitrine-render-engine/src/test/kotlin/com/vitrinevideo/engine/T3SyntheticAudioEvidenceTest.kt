@@ -45,7 +45,7 @@ class T3SyntheticAudioEvidenceTest {
             voiceHoldMs = 180
         )
         val engine = AudioDuckingEngine(sampleRate, 2, cfg)
-        val durationSeconds = 4.0
+        val durationSeconds = 5.5
         val totalFrames = (durationSeconds * sampleRate).toInt()
         val output = ShortArray(totalFrames * 2)
         val voice = ShortArray(chunkFrames * 2)
@@ -94,9 +94,9 @@ class T3SyntheticAudioEvidenceTest {
         fun db(x: Double) = 20.0 * log10(x.coerceAtLeast(1e-9))
         fun margin(start: Double, end: Double) = db(toneAmplitude(440.0, start, end) / toneAmplitude(220.0, start, end))
 
-        // Use the fully recovered inter-phrase bed: the late tail after the final
-        // phrase still contains the declared 450 ms release and is not a baseline.
-        val baselineMusic = toneAmplitude(220.0, 2.47, 2.54)
+        // Measure a settled music-only bed after the final utterance and its
+        // 180 ms hold plus 450 ms release; the late fade itself is not a baseline.
+        val baselineMusic = toneAmplitude(220.0, 5.20, 5.45)
         val phraseMusic = toneAmplitude(220.0, 0.30, 0.80)
         val phraseMargin = margin(0.30, 0.80)
         val strongVoice = toneAmplitude(440.0, 1.20, 1.70)
@@ -137,7 +137,8 @@ class T3SyntheticAudioEvidenceTest {
                 put("true_peak_limit_dbfs", cfg.peakLimitDb)
             })
             put("voice_windows_s", listOf(listOf(0.0, 0.90), listOf(1.02, 1.82), listOf(2.55, 3.35)))
-            put("pause_windows_s", listOf(listOf(0.90, 1.02), listOf(1.82, 2.55), listOf(3.35, 4.0)))
+            put("pause_windows_s", listOf(listOf(0.90, 1.02), listOf(1.82, 2.55), listOf(3.35, 5.5)))
+            put("settled_music_baseline_window_s", listOf(5.20, 5.45))
             put("measured", JSONObject().apply {
                 put("active_ducking_hops", engine.activeDuckingHops)
                 put("min_speech_music_margin_db_over_voiced_hops", engine.minMeasuredSpeechToMusicDb)
