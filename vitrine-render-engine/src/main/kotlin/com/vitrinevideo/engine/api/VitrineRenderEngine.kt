@@ -218,7 +218,7 @@ class VitrineRenderEngine(
             var musicPcmFile: File? = null
             var selectedTrackNumber: Int? = null
             var selectedTrackCredit: String? = null
-            val mixConfig = audioProfile?.mix ?: AudioMixConfig(
+            var mixConfig = audioProfile?.mix ?: AudioMixConfig(
                 profileId = "default_silent_music",
                 includeCaptureVoice = true
             )
@@ -228,6 +228,7 @@ class VitrineRenderEngine(
                 val (track, trackFile) = rotationCoordinator.selectTrackForRender(audioProfile, preFlight.runId)
                 selectedTrackNumber = track.number
                 selectedTrackCredit = track.credit
+                mixConfig = mixConfig.copy(sourceMusicLufs = track.preMeasuredLufs)
                 musicPcmFile = File(workDir, "music_48k_stereo.pcm")
                 PcmTrackDecoder.decodeTo48kStereoPcm(
                     sourceFile = trackFile,

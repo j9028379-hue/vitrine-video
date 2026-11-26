@@ -31,10 +31,17 @@ class AudioDuckingEngine(
     private val peakLimitLinear = dbToLinear(config.peakLimitDb).toFloat()
     private val limiterKneeLinear = peakLimitLinear * 0.6f
 
-    // Pre-gain to normalize typical -14..-16 LUFS pop/afrobeat beds toward targetLufs
+    // Normalize an approved track from its catalogue-measured LUFS before applying
+    // the profile's open-bed / under-voice gains. Older packages without a measured
+    // value retain the historical reference-level compensation.
     private val musicBaseScale: Float = run {
-        val targetOffset = (config.targetLufs - (-16.0)) * 0.5
-        dbToLinear(targetOffset).toFloat()
+        val sourceLufs = config.sourceMusicLufs
+        val normalizationDb = if (sourceLufs != null && sourceLufs.isFinite()) {
+            (config.targetLufs - sourceLufs).coerceIn(-18.0, 18.0)
+        } else {
+            (config.targetLufs - (-16.0)) * 0.5
+        }
+        dbToLinear(normalizationDb).toFloat()
     }
 
     private val voiceVadThreshold = dbToLinear(config.voiceVadThresholdDbfs ?: -38.0)

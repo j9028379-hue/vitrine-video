@@ -43,8 +43,8 @@ object PcmTrackDecoder {
             require(audioTrackIndex >= 0 && format != null) { "Aucune piste audio dans ${sourceFile.name}" }
             extractor.selectTrack(audioTrackIndex)
             val mime = format.getString(MediaFormat.KEY_MIME)!!
-            val srcRate = format.getInteger(MediaFormat.KEY_SAMPLE_RATE)
-            val srcCh = format.getInteger(MediaFormat.KEY_CHANNEL_COUNT)
+            var decodedRate = format.getInteger(MediaFormat.KEY_SAMPLE_RATE)
+            var decodedChannels = format.getInteger(MediaFormat.KEY_CHANNEL_COUNT)
 
             codec = MediaCodec.createDecoderByType(mime)
             codec.configure(format, null, null, 0)
@@ -56,10 +56,10 @@ object PcmTrackDecoder {
             var inputDone = false
             var outputDone = false
             val outBytes = ByteArray(16384)
-            val resampler = if (srcCh == targetChannels && srcRate == targetSampleRate) {
+            var resampler = if (decodedChannels == targetChannels && decodedRate == targetSampleRate) {
                 null
             } else {
-                StreamingStereoResampler(srcRate, targetSampleRate)
+                StreamingStereoResampler(decodedRate, targetSampleRate)
             }
 
             BufferedOutputStream(FileOutputStream(destPcmFile), 32 * 1024).use { bos ->
@@ -90,7 +90,10 @@ object PcmTrackDecoder {
                             val shorts = ShortArray(shortCount)
                             buf.order(ByteOrder.LITTLE_ENDIAN).asShortBuffer().get(shorts)
 
-                            val resampled = resampler?.resampleStereo(shorts, srcCh) ?: shorts
+                            require(decodedChannels > 0 && shortCount % decodedChannels == 0) {
+                                "Canaux PCM incohérents dans la sortie MediaCodec de ${sourceFile.name}"
+                            }
+                            val resampled = resampler?.resampleStereo(shorts, decodedChannels) ?: shorts
                             val frameCount = resampled.size / targetChannels
                             val framesToWrite = min(frameCount.toLong(), maxFrames - writtenFrames).toInt()
                             val sampleLimit = framesToWrite * targetChannels
@@ -111,6 +114,18 @@ object PcmTrackDecoder {
                         codec.releaseOutputBuffer(outIdx, false)
                         if ((info.flags and MediaCodec.BUFFER_FLAG_END_OF_STREAM) != 0) {
                             outputDone = true
+                        }
+                    } else if (outIdx == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED) {
+                        val outputFormat = codec.outputFormat
+                        decodedRate = outputFormat.getInteger(MediaFormat.KEY_SAMPLE_RATE)
+                        decodedChannels = outputFormat.getInteger(MediaFormat.KEY_CHANNEL_COUNT)
+                        require(decodedRate > 0 && decodedChannels > 0) {
+                            "Format PCM décodé invalide dans ${sourceFile.name}"
+                        }
+                        resampler = if (decodedChannels == targetChannels && decodedRate == targetSampleRate) {
+                            null
+                        } else {
+                            StreamingStereoResampler(decodedRate, targetSampleRate)
                         }
                     }
                 }

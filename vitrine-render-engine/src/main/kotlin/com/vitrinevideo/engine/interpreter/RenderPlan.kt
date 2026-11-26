@@ -354,7 +354,9 @@ data class AudioMixConfig(
     /** Optional profile-owned VAD threshold; null preserves legacy engine defaults. */
     val voiceVadThresholdDbfs: Double? = null,
     /** Optional profile-owned silence hold before the music release envelope starts. */
-    val voiceHoldMs: Int? = null
+    val voiceHoldMs: Int? = null,
+    /** Measured integrated loudness of the selected approved music source, when declared. */
+    val sourceMusicLufs: Double? = null
 )
 
 data class ApprovedTrack(
