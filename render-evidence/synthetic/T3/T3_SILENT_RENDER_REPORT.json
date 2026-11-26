@@ -1,0 +1,505 @@
+{
+  "schema_version": "1.0.0",
+  "template_id": "RESTAURATION-T3",
+  "engine_version": "1.2.0-borderless-panels",
+  "status": "silent_candidate_v0_4_no_blue_guides_pending_owner_validation",
+  "rendered_on": "local_preflight",
+  "output": {
+    "file": "VIDEO_T3_SILENCIEUSE_SANS_TRAITS_BLEUS_V0_4_A_VALIDER.mp4",
+    "bytes": 5840473,
+    "sha256": "9139449c8f45531e61873c47e3bd4709d48ccaf04f299a5bbeef0358f7cd621b",
+    "width": 720,
+    "height": 1280,
+    "fps": 30,
+    "total_frames": 900,
+    "duration_seconds": 30,
+    "audio_streams_expected": 0
+  },
+  "source_manifest_sha256": "fa34779f40468c2418b11064f6786bd5835fbf9272131c249f16283d65e958ff",
+  "transition_contract_sha256": "94d0cd6a58fb001298b003c7bc7ae4637e9ece289e3169cc210cb5cdff807f60",
+  "render_job_sha256": "269a5d1ac88bcbd9c573441a9a9afa12012dc55d8c777b35a772c7989ab40e2f",
+  "text_motion_config_id": "T3_TEXT_MOTION_V0_4_0",
+  "text_motion_config_sha256": "c8d0cc22881bf7705df128737ff43b6702ca7eb22fd5a362b534705b71e968d9",
+  "typography_audit": {
+    "config_id": "T3_TEXT_MOTION_V0_4_0",
+    "preview_scale_floor": 0.4,
+    "required_effective_font_px": 11.0,
+    "required_contrast_ratio": 7.0,
+    "variable_font_weights_explicit": true,
+    "shadow": {
+      "offset_x_px": 3,
+      "offset_y_px": 4,
+      "opacity": 230,
+      "stroke_width_px": 2,
+      "stroke_opacity": 230
+    },
+    "roles": {
+      "merchant_name": {
+        "font": "Montserrat",
+        "weight": 700,
+        "minimum_font_size_px": 30,
+        "effective_minimum_at_preview_scale_px": 12.0,
+        "contrast_ratio": 13.06
+      },
+      "hero_product": {
+        "font": "DM Serif Display",
+        "weight": null,
+        "minimum_font_size_px": 48,
+        "effective_minimum_at_preview_scale_px": 19.2,
+        "contrast_ratio": 17.97
+      },
+      "offer_product": {
+        "font": "DM Serif Display",
+        "weight": null,
+        "minimum_font_size_px": 42,
+        "effective_minimum_at_preview_scale_px": 16.8,
+        "contrast_ratio": 17.97
+      },
+      "hook": {
+        "font": "DM Serif Display",
+        "weight": null,
+        "minimum_font_size_px": 42,
+        "effective_minimum_at_preview_scale_px": 16.8,
+        "contrast_ratio": 17.97
+      },
+      "price": {
+        "font": "Plus Jakarta Sans",
+        "weight": 700,
+        "minimum_font_size_px": 44,
+        "effective_minimum_at_preview_scale_px": 17.6,
+        "contrast_ratio": 17.97
+      },
+      "location": {
+        "font": "Plus Jakarta Sans",
+        "weight": 650,
+        "minimum_font_size_px": 28,
+        "effective_minimum_at_preview_scale_px": 11.2,
+        "contrast_ratio": 17.97
+      },
+      "cta": {
+        "font": "Montserrat",
+        "weight": 750,
+        "minimum_font_size_px": 28,
+        "effective_minimum_at_preview_scale_px": 11.2,
+        "contrast_ratio": 13.06
+      },
+      "phone": {
+        "font": "Plus Jakarta Sans",
+        "weight": 700,
+        "minimum_font_size_px": 30,
+        "effective_minimum_at_preview_scale_px": 12.0,
+        "contrast_ratio": 17.97
+      }
+    }
+  },
+  "owner_feedback_legibility_corrected": true,
+  "owner_feedback_blue_lines_corrected": true,
+  "transition_visibility_audit": {
+    "visible_transition_guides_rendered": false,
+    "R4_MULTI_PANEL_MATCH_CUT": {
+      "gap_px": 0,
+      "border_px": 0,
+      "separator_lines": false,
+      "separator_color": null,
+      "separator_policy": "forbidden_by_owner",
+      "proof_frames": [
+        771,
+        778
+      ]
+    }
+  },
+  "contact_sheet_file": "T3_TRANSITION_TEXT_PROOF_V0_4.jpg",
+  "merchant_payload_fields": [
+    "nom",
+    "produit",
+    "prix",
+    "whatsapp",
+    "quartier",
+    "accroche"
+  ],
+  "visible_text_contract": {
+    "T3_G01_IDENTITY": [
+      "Boutique Essai",
+      "Plat Test"
+    ],
+    "T3_G02_OFFER": [
+      "Plat Test",
+      "2 500 FCFA"
+    ],
+    "T3_G03_HOOK": [
+      "Saveur du jour",
+      "Boutique Essai"
+    ],
+    "T3_G04_FINAL": [
+      "Boutique Essai",
+      "Plat Test",
+      "2 500 FCFA",
+      "Quartier Test",
+      "COMMANDER MAINTENANT",
+      "+229 00 00 00 00"
+    ]
+  },
+  "forbidden_visible_strings": [
+    "SCÈNE",
+    "6 S",
+    "7 S",
+    "8 S",
+    "9 S",
+    "DÉMO",
+    "RUSHS",
+    "PEXELS",
+    "T3",
+    "INGRÉDIENTS",
+    "GESTE SIGNATURE",
+    "DRESSAGE",
+    "PRÊT À SERVIR"
+  ],
+  "technical_labels_rendered": false,
+  "graphics": [
+    {
+      "id": "T3_G01_IDENTITY",
+      "frames": [
+        18,
+        155
+      ],
+      "expected_frame_count": 138,
+      "applied_frame_count": 138,
+      "fields": [
+        "nom",
+        "produit"
+      ]
+    },
+    {
+      "id": "T3_G02_OFFER",
+      "frames": [
+        210,
+        377
+      ],
+      "expected_frame_count": 168,
+      "applied_frame_count": 168,
+      "fields": [
+        "produit",
+        "prix"
+      ]
+    },
+    {
+      "id": "T3_G03_HOOK",
+      "frames": [
+        450,
+        605
+      ],
+      "expected_frame_count": 156,
+      "applied_frame_count": 156,
+      "fields": [
+        "accroche",
+        "nom"
+      ]
+    },
+    {
+      "id": "T3_G04_FINAL",
+      "frames": [
+        660,
+        899
+      ],
+      "expected_frame_count": 240,
+      "applied_frame_count": 240,
+      "fields": [
+        "nom",
+        "produit",
+        "prix",
+        "whatsapp",
+        "quartier"
+      ]
+    }
+  ],
+  "sources": [
+    {
+      "scene": "S1",
+      "pexels_id": null,
+      "sha256": "54e186a59e25bb43aa4d75370e078ba3321f37c226259de3e5685ac37ec98a2c",
+      "raw_published": false
+    },
+    {
+      "scene": "S2",
+      "pexels_id": null,
+      "sha256": "2943b51a2eb28197469bc7d410643f7db6a4a489c2582c89c026fd282e84357f",
+      "raw_published": false
+    },
+    {
+      "scene": "S3",
+      "pexels_id": null,
+      "sha256": "880ed6f36fdf30d04574b071574ba45c09a21f3ce5507f805b0d33a0fab26b56",
+      "raw_published": false
+    },
+    {
+      "scene": "S4",
+      "pexels_id": null,
+      "sha256": "8a5c5a5f26a824ae7a7a04c21d2a36a94e727eaacad5679b19ce55b580924a19",
+      "raw_published": false
+    }
+  ],
+  "events": [
+    {
+      "event": 1,
+      "transition_id": "R4_TILED_GRID_INTRO",
+      "frames": [
+        0,
+        17
+      ],
+      "expected_frame_count": 18,
+      "applied_frame_count": 18,
+      "sample_frame_sha256": {
+        "start": "a23936c8cc0922b8cf7499669651187eda6f2381316d436b64bad2c337a4b9e2",
+        "middle": "b7bbdcabe333367533ac0b4eedf6bc00f7eb7ec3f2fb57bd4dbecd6fe37dc38f",
+        "end": "9190baead39172e51ec0b283c974647fa2cb9ad3ce251349ade03a2b64e88fdb"
+      }
+    },
+    {
+      "event": 2,
+      "transition_id": "R2_GEOMETRIC_ARROW_MASK",
+      "frames": [
+        18,
+        35
+      ],
+      "expected_frame_count": 18,
+      "applied_frame_count": 18,
+      "sample_frame_sha256": {
+        "start": "4278325903b04f21f6cac233bec4cbc4db1db95b461e904018c65b6539f1e21a",
+        "middle": "8730075ecf45e8c7ad09513e03aef1942069293058dbd6746c78ac92f9969848",
+        "end": "e5e43c7bc45ac580fe79f97a07a1c1a3ee1cfb2c8612e2534eff2afdd6c8fe0d"
+      }
+    },
+    {
+      "event": 3,
+      "transition_id": "R2_RADIAL_ZOOM",
+      "frames": [
+        78,
+        86
+      ],
+      "expected_frame_count": 9,
+      "applied_frame_count": 9,
+      "sample_frame_sha256": {
+        "start": "e32c50c3f88a8b9d59f99891fdc3197398f442c3a9a3823bae18628b3fcfe679",
+        "middle": "b549712e713cbe38f10288fd86c8829884b24f79197a5025a7337c320df3a97e",
+        "end": "14567ed6c028b670c11454a9bf81b2ab23233e863fa5d5309786016417a3ce8b"
+      }
+    },
+    {
+      "event": 4,
+      "transition_id": "R4_ORANGE_FLASH",
+      "frames": [
+        171,
+        179
+      ],
+      "expected_frame_count": 9,
+      "applied_frame_count": 9,
+      "sample_frame_sha256": {
+        "start": "1f09288f7e0912756b2a119e189e204e01e87e43f1da547209757b7d773817ae",
+        "middle": "ae54f942b2237a36af34b7c0233f92ca2f77e6acdca6b4e9e686efa2e674ac1b",
+        "end": "2f564792f8599f6aadfdb9ecc67a107751055b5084facbce93a71f75ee66eb8b"
+      }
+    },
+    {
+      "event": 5,
+      "transition_id": "R2_HARD_ACTION_MATCH_CUT",
+      "frames": [
+        224,
+        225
+      ],
+      "expected_frame_count": 2,
+      "applied_frame_count": 2,
+      "sample_frame_sha256": {
+        "middle": "95c9f96fa957d3b53e93fad2029bd9f565431ff94f41143b0b78c6c6a3522e04",
+        "end": "d7c1abd6373b24686f07923189600f2a2d178b60a64ecc927e37e34abfc4e2e6"
+      }
+    },
+    {
+      "event": 6,
+      "transition_id": "R2_SELECTIVE_COLOR_REVEAL",
+      "frames": [
+        252,
+        263
+      ],
+      "expected_frame_count": 12,
+      "applied_frame_count": 12,
+      "sample_frame_sha256": {
+        "start": "55ed678b903969251f979e3e6b370aedbda4e661809486192148fb5320fd7d5d",
+        "middle": "27fceb46d7ea960f5a8d6d7bb17a1c3e26a5b5db57fc21d21cc2303b4f583825",
+        "end": "b1a437a5c5f8af2e71bcdd3a02e36a0befcf5156115cc816f8a1ec8a7cb07b8d"
+      }
+    },
+    {
+      "event": 7,
+      "transition_id": "R2_FLASH_TRANSITION",
+      "frames": [
+        303,
+        312
+      ],
+      "expected_frame_count": 10,
+      "applied_frame_count": 10,
+      "sample_frame_sha256": {
+        "start": "b1a437a5c5f8af2e71bcdd3a02e36a0befcf5156115cc816f8a1ec8a7cb07b8d",
+        "middle": "e3c231d04177fb5309f6e2c8949d3f1548712f929da3a479a4cc596aa1614915",
+        "end": "b1a437a5c5f8af2e71bcdd3a02e36a0befcf5156115cc816f8a1ec8a7cb07b8d"
+      }
+    },
+    {
+      "event": 8,
+      "transition_id": "R4_SOFT_OVERLAY_BLEND",
+      "frames": [
+        344,
+        353
+      ],
+      "expected_frame_count": 10,
+      "applied_frame_count": 10,
+      "sample_frame_sha256": {
+        "start": "b1a437a5c5f8af2e71bcdd3a02e36a0befcf5156115cc816f8a1ec8a7cb07b8d",
+        "middle": "0e96659ae36aa5c9d1080670e8f4a8eefde556d1fa1a1ecea1ee905a704c277d",
+        "end": "b1a437a5c5f8af2e71bcdd3a02e36a0befcf5156115cc816f8a1ec8a7cb07b8d"
+      }
+    },
+    {
+      "event": 9,
+      "transition_id": "R2_FLASH_TRANSITION",
+      "frames": [
+        374,
+        383
+      ],
+      "expected_frame_count": 10,
+      "applied_frame_count": 10,
+      "sample_frame_sha256": {
+        "start": "a5b3a0c7d5acece9705dd6a3b3bd7ebef5816b8ea40226d2f27faeb649c41437",
+        "middle": "283150e93c128cbaaec1fefcc2cc96cc056cd8a0626309f2084e6a991829f067",
+        "end": "9f9888acbfca0c2fb79988905720cb83d2b26185190852e73f6d9ed44e58da0d"
+      }
+    },
+    {
+      "event": 10,
+      "transition_id": "R4_KALEIDOSCOPE_MOSAIC",
+      "frames": [
+        408,
+        419
+      ],
+      "expected_frame_count": 12,
+      "applied_frame_count": 12,
+      "sample_frame_sha256": {
+        "start": "246bdb3709feaeef26a52ccc9e28e4d2c90bf174d546b50c9a2ba49506a528c6",
+        "middle": "d0e4f6bc63959d95ea42fa569088a74ae25b551f0ae3203a1c89b7fe95804563",
+        "end": "f63734d539a57e52d94471870a54b7b4549f0f595a652a802e587d9683f293dc"
+      }
+    },
+    {
+      "event": 11,
+      "transition_id": "R2_MULTI_PANEL_SPLIT",
+      "frames": [
+        453,
+        466
+      ],
+      "expected_frame_count": 14,
+      "applied_frame_count": 14,
+      "sample_frame_sha256": {
+        "start": "b91cbd6ef7bce0cd81a9c0c96b0a123bb420a1375a8cd134b6b55644ee5b0787",
+        "middle": "98dc63875f5b3469f328c519a8991cb648c892d8ee2561906c534c2af8f28807",
+        "end": "68c795b42f238b1b629ac64b0c58c8c0f747bdb504d4e81821aa62ca8379bec9"
+      }
+    },
+    {
+      "event": 12,
+      "transition_id": "R4_ROTATING_MASK",
+      "frames": [
+        540,
+        551
+      ],
+      "expected_frame_count": 12,
+      "applied_frame_count": 12,
+      "sample_frame_sha256": {
+        "start": "9dcbf27ff61edbaf680309eeeb1227b8cf98e593dc2cfbc6a4fb3de610f83634",
+        "middle": "ae6eef46e35ee90a84d3963e44e2bd248e927a3b5a904e8f5c7affccc97d902c",
+        "end": "07e75a44b7ad41ca1c9c112b9a18c53442866bb90166a006dec132c78d3e599d"
+      }
+    },
+    {
+      "event": 13,
+      "transition_id": "R4_RADIAL_BLUR",
+      "frames": [
+        617,
+        629
+      ],
+      "expected_frame_count": 13,
+      "applied_frame_count": 13,
+      "sample_frame_sha256": {
+        "start": "f63734d539a57e52d94471870a54b7b4549f0f595a652a802e587d9683f293dc",
+        "middle": "66bc41fc79ceeb923d955a5d5681cab59648611ad22cfefb799faa01f5fd4a6a",
+        "end": "96921ad828194496038391220643cb989b67f8e60d9af74d4e4db7c3dd989e44"
+      }
+    },
+    {
+      "event": 14,
+      "transition_id": "R4_WHIP_ZOOM",
+      "frames": [
+        699,
+        710
+      ],
+      "expected_frame_count": 12,
+      "applied_frame_count": 12,
+      "sample_frame_sha256": {
+        "start": "6fb144307c3d6915b992deaf9b074f773cba722c188a593d660a64e3ff3e604a",
+        "middle": "171392f93291bc9f6582dc55d65d871968d79c76c17eba74ae0c26d98f1f6c40",
+        "end": "129b291f1bb73ae3485e7a63a4ea07ab1ab3594e9b97d9ccf3510ea93fd2c35e"
+      }
+    },
+    {
+      "event": 15,
+      "transition_id": "R4_MULTI_PANEL_MATCH_CUT",
+      "frames": [
+        768,
+        781
+      ],
+      "expected_frame_count": 14,
+      "applied_frame_count": 14,
+      "sample_frame_sha256": {
+        "start": "86d97ab49c007e881bdd0c5d965e6d3cb79fc9083527e79954605f813f99cbbb",
+        "middle": "478e3ad804d0994651fd461ac50553630a06a442ea9362e7f439349cc52e5399",
+        "end": "d1666d9dd014528bdada2f9208fe4821d62c57ea58e225fd0d8d7f5dd2dc5c73"
+      }
+    },
+    {
+      "event": 16,
+      "transition_id": "R2_DIAGONAL_ROTATING_WIPE",
+      "frames": [
+        824,
+        840
+      ],
+      "expected_frame_count": 17,
+      "applied_frame_count": 17,
+      "sample_frame_sha256": {
+        "start": "e1cf26434b72a1bfff57c770b3b26992c58d98f7e8749634e7479829c6ff1440",
+        "middle": "63d4b64c67303a09353afeb7be9342bfb91e8a28061899ce72a1b75f2614331b",
+        "end": "f939b284baf0084364e8a968221f2d60d796dc06fce11b1ef8ce5a20ff12a637"
+      }
+    },
+    {
+      "event": 17,
+      "transition_id": "R4_BACKGROUND_FADE_TO_BLACK",
+      "frames": [
+        885,
+        899
+      ],
+      "expected_frame_count": 15,
+      "applied_frame_count": 15,
+      "sample_frame_sha256": {
+        "start": "2497de47c44aa9db3f8030feb9d766537a03a4b9bb5dfa6147acf1d4e3fa6965",
+        "middle": "4d2c1f37ccfc9b1ee11ca3ce89036669a89a54a90209fc4e59a104527815941f",
+        "end": "ac2623d6a4e81dd5bbce7c7a25c55ae6c66b5d22ec6056e3a8bde7f60397375e"
+      }
+    }
+  ],
+  "all_17_events_applied": true,
+  "all_4_graphics_applied": true,
+  "references_covered": [
+    "R3-B03-REF-02",
+    "R3-B03-REF-04"
+  ],
+  "raw_rushes_embedded_as_standalone_assets": false,
+  "owner_approval_required": true
+}

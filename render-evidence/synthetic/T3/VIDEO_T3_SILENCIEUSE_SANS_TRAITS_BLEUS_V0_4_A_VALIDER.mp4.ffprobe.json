@@ -1,0 +1,23 @@
+{
+  "programs": [],
+  "streams": [
+    {
+      "index": 0,
+      "codec_name": "h264",
+      "codec_type": "video",
+      "width": 720,
+      "height": 1280,
+      "r_frame_rate": "30/1",
+      "avg_frame_rate": "30/1",
+      "duration": "30.000000",
+      "nb_frames": "900"
+    }
+  ],
+  "format": {
+    "filename": "/home/user/vitrine-video/render-evidence/synthetic/T3/VIDEO_T3_SILENCIEUSE_SANS_TRAITS_BLEUS_V0_4_A_VALIDER.mp4",
+    "format_name": "mov,mp4,m4a,3gp,3g2,mj2",
+    "duration": "30.000000",
+    "size": "5840473",
+    "bit_rate": "1557459"
+  }
+}

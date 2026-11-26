@@ -4,7 +4,7 @@ on:
   workflow_call:
     inputs:
       run_render:
-        description: "Attempt on-device render pass"
+        description: "Render synthetic T3/T4 reference proofs without requiring an emulator"
         type: boolean
         default: false
 
@@ -145,6 +145,8 @@ jobs:
           path: |
             **/build/test-results/**/*.xml
             **/build/reports/tests/**
+            vitrine-render-engine/build/outputs/audio-validation/**
+            vitrine-render-engine/build/outputs/render-validation/**
           if-no-files-found: warn
 
       - name: Upload build and test logs
@@ -245,8 +247,8 @@ jobs:
 
   delivery-package:
     name: Downloadable APK delivery package
-    needs: [tests, build]
-    if: needs.build.result == 'success'
+    needs: [tests, build, render]
+    if: needs.build.result == 'success' && needs.render.result == 'success'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -320,117 +322,78 @@ jobs:
           fi
 
   render:
-    name: Optional on-device render probe
+    name: Synthetic T3/T4 reference renders and evidence
     needs: build
     if: ${{ inputs.run_render }}
     runs-on: ubuntu-latest
-    timeout-minutes: 50
+    timeout-minutes: 35
     steps:
       - uses: actions/checkout@v4
 
-      - name: JDK 17
-        uses: actions/setup-java@v5
+      - name: Python 3.11
+        uses: actions/setup-python@v5
         with:
-          distribution: temurin
-          java-version: '17'
+          python-version: '3.11'
 
-      - name: Android SDK Platform 35 + Build Tools + Emulator
-        uses: ./.github/actions/setup-android
+      - name: Install deterministic host render dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install numpy pillow opencv-python-headless imageio-ffmpeg
+          npm install --prefix "$RUNNER_TEMP/ffprobe" --no-audit --no-fund ffprobe-static
+          FFPROBE_BIN=$(node -p "require('$RUNNER_TEMP/ffprobe/node_modules/ffprobe-static').path")
+          echo "FFPROBE_BIN=$FFPROBE_BIN" >> "$GITHUB_ENV"
 
-      - name: Emulator image
+      - name: Render synthetic T3/T4 with checked-in Python references
+        run: python tools/render_synthetic_reference_renders.py
+
+      - name: Extract control frames, frame maps, ffprobe metadata and SHA-256
+        run: python tools/build_synthetic_render_evidence.py
+
+      - name: Download JVM audio DSP evidence
+        uses: actions/download-artifact@v4
+        with:
+          name: junit-reports
+          path: render-evidence/synthetic/audio-ci
+
+      - name: Collect and verify synthetic Kotlin audio evidence
+        run: python tools/collect_ci_audio_evidence.py
+
+      - name: Verify evidence completeness and no empty-artifact pass
         run: |
           set -euo pipefail
-          yes | "$SDKMANAGER" --licenses >/dev/null 2>&1 || true
-          "$SDKMANAGER" --install "system-images;android-35;google_apis;x86_64" "system-images;android-34;google_apis;x86_64"
+          test -s render-evidence/synthetic/T3/EVIDENCE_SCOPE.json
+          test -s render-evidence/synthetic/T3/contact-sheet.jpg
+          test -s render-evidence/synthetic/T3/frame-map.csv
+          test -s render-evidence/synthetic/T3/T3_SILENT_RENDER_REPORT.json
+          test -s render-evidence/synthetic/T4/EVIDENCE_SCOPE.json
+          test -s render-evidence/synthetic/T4/contact-sheet.jpg
+          test -s render-evidence/synthetic/T4/frame-map.csv
+          test -s render-evidence/synthetic/audio/T3_SYNTHETIC_AUDIO_REPORT.json
+          test -s render-evidence/synthetic/audio/T3_SYNTHETIC_VOICE_PRIORITY.wav
+          test -s render-evidence/synthetic/SHA256SUMS.txt
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          root=Path('render-evidence/synthetic')
+          t3=json.loads((root/'T3/EVIDENCE_SCOPE.json').read_text())
+          t4=json.loads((root/'T4/EVIDENCE_SCOPE.json').read_text())
+          audio=json.loads((root/'audio/T3_SYNTHETIC_AUDIO_REPORT.json').read_text())
+          assert t3['all_transition_events_executed'] and len(t3['transition_execution_counts']) == 17
+          assert t3['all_text_groups_executed'] and t3['text_motion_groups'] == 4
+          assert t4['camera_cut_events'] == 26 and t4['text_windows'] == 7
+          assert audio['status'] == 'PASS_SYNTHETIC_DSP_ONLY'
+          assert audio['measured']['phrase_voice_music_tone_margin_db'] >= 3.8
+          assert audio['measured']['phrase_music_to_baseline_ratio'] < 0.45
+          assert audio['measured']['max_peak_dbfs'] <= -1.95
+          assert all(p.stat().st_size > 0 for p in [root/'T3/contact-sheet.jpg', root/'T4/contact-sheet.jpg', root/'T3/frame-map.csv', root/'T4/frame-map.csv', root/'audio/T3_SYNTHETIC_VOICE_PRIORITY.wav'])
+          PY
+          (cd render-evidence/synthetic && sha256sum -c SHA256SUMS.txt)
+          cat render-evidence/synthetic/T3/EVIDENCE_SCOPE.json
+          cat render-evidence/synthetic/T4/EVIDENCE_SCOPE.json
 
-      - name: local.properties
-        run: echo "sdk.dir=${ANDROID_HOME:-$ANDROID_SDK_ROOT}" > local.properties
-
-      - name: Gradle cache
-        uses: gradle/actions/setup-gradle@v4
-        with:
-          gradle-version: wrapper
-
-      - name: Prepare T3/T4 emulator render fixtures
-        run: |
-          set -euo pipefail
-          rm -rf render-fixtures
-          mkdir -p render-fixtures/t4_fixture/captures render-fixtures/t3_fixture/captures render-fixtures/t3_fixture/music
-          unzip -q vitrine-video-app/src/main/assets/packages/COMMERCE-T4-1.0.0.zip -d render-fixtures/t4_fixture
-          cp test-fixtures/t3_fixture/captures/S1.mp4 test-fixtures/t3_fixture/captures/S2.mp4 test-fixtures/t3_fixture/captures/S3.mp4 test-fixtures/t3_fixture/captures/S4.mp4 render-fixtures/t4_fixture/captures/
-          cp vitrine-video-app/src/main/assets/packages/RESTAURATION-T3-1.0.0.zip render-fixtures/t3_fixture/
-          cp -R vitrine-video-app/src/main/assets/music/RESTAURATION-T3 render-fixtures/t3_fixture/music/
-          cp test-fixtures/t3_fixture/captures/S1.mp4 test-fixtures/t3_fixture/captures/S2.mp4 test-fixtures/t3_fixture/captures/S3.mp4 test-fixtures/t3_fixture/captures/S4.mp4 render-fixtures/t3_fixture/captures/
-          find render-fixtures -maxdepth 4 -type f | sort | head -40
-
-      - name: Emulator instrumented T3/T4 render probes
-        uses: reactivecircus/android-emulator-runner@v2
-        with:
-          api-level: 34
-          target: google_apis
-          arch: x86_64
-          profile: pixel_5
-          ram-size: 2048M
-          cores: 2
-          emulator-boot-timeout: 900
-          force-avd-creation: true
-          disable-animations: true
-          script: |
-            chmod +x gradlew
-            adb shell mkdir -p /sdcard/Android/data/com.vitrinevideo.engine/files/t4_fixture
-            adb shell mkdir -p /sdcard/Android/data/com.vitrinevideo.engine/files/t3_fixture
-            adb push render-fixtures/t4_fixture/. /sdcard/Android/data/com.vitrinevideo.engine/files/t4_fixture/
-            adb push render-fixtures/t3_fixture/. /sdcard/Android/data/com.vitrinevideo.engine/files/t3_fixture/
-            adb shell find /sdcard/Android/data/com.vitrinevideo.engine/files/t3_fixture -type f | head -30
-            ./gradlew :vitrine-render-engine:connectedDebugAndroidTest --tests '*VitrineT4InstrumentedTest' --tests '*VitrineRestaurationT3InstrumentedTest' --stacktrace
-
-      - name: Collect on-device output
-        if: always()
-        run: |
-          mkdir -p render-evidence
-          adb shell find /sdcard/Android/data -name '*.mp4' -o -name 'resultat.json' 2>/dev/null || true
-          adb pull /sdcard/Android/data/com.vitrinevideo.engine/cache/t4_out/ render-evidence/t4_out/ 2>/dev/null || true
-          adb pull /sdcard/Android/data/com.vitrinevideo.engine/cache/t3_out/ render-evidence/t3_out/ 2>/dev/null || true
-          for mp4 in render-evidence/t4_out/*.mp4 render-evidence/t3_out/*.mp4; do
-            [ -f "$mp4" ] || continue
-            ffprobe -v error -show_entries format=duration:stream=codec_name,width,height,r_frame_rate,nb_frames "$mp4" > "$mp4.ffprobe.txt" 2>&1 || true
-          done
-          python3 - <<'PYFRAMES'
-          import glob, json, os, subprocess
-          root='render-evidence/t3_out'
-          probes=glob.glob(root+'/transition_probe.json')
-          videos=glob.glob(root+'/*.mp4')
-          if probes and videos:
-              data=json.load(open(probes[0]))
-              frames=set()
-              labels=[]
-              for t in data['transitions']:
-                  start=t['start_frame']; duration=t['duration_frames']
-                  for frame in {start, start+(duration-1)//2, start+duration-1}:
-                      frames.add(frame); labels.append((frame,'transition',t['source_family'],t['source_variant']))
-              for group in data['motion_groups']:
-                  for sample in group['samples']:
-                      frame=sample['frame']; frames.add(frame)
-                      labels.append((frame,'text_motion',group['id'],group['motion']))
-              ordered=sorted(frames)
-              os.makedirs(root+'/frames',exist_ok=True)
-              select='select=' + '+'.join('eq(n\\,%d)' % n for n in ordered)
-              subprocess.run(['ffmpeg','-y','-v','error','-i',videos[0],'-vf',select,'-vsync','0',root+'/frames/frame-%03d.png'],check=True)
-              with open(root+'/frame-map.csv','w') as out:
-                  out.write('frame,kind,source_family_or_group,variant_or_motion\n')
-                  for row in sorted(set(labels)):
-                      out.write(','.join(map(str,row))+'\n')
-              subprocess.run(['ffmpeg','-y','-v','error','-framerate','1','-i',root+'/frames/frame-%03d.png',
-                  '-vf','scale=180:320:force_original_aspect_ratio=decrease,pad=180:320:(ow-iw)/2:(oh-ih)/2,tile=6x0',
-                  '-frames:v','1',root+'/transition-motion-contact-sheet.png'],check=True)
-          PYFRAMES
-          find render-evidence -type f -exec sha256sum {} \; > render-evidence/SHA256SUMS.txt || true
-          cat render-evidence/SHA256SUMS.txt || true
-
-      - name: Upload render evidence
-        if: always()
+      - name: Upload synthetic render and audio-independent render evidence
         uses: actions/upload-artifact@v4
         with:
-          name: render-evidence
-          path: render-evidence/**
-          if-no-files-found: warn
+          name: synthetic-t3-t4-render-evidence
+          path: render-evidence/synthetic/**
+          if-no-files-found: error

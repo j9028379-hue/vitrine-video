@@ -12,7 +12,7 @@ permissions:
 jobs:
   pipeline:
     uses: ./.github/workflows/_android-ci.yml
-    # Run the deterministic emulator render on repository engineering fixtures;
-    # founder footage and physical-device intelligibility remain a separate check.
+    # Produce deterministic host-side Python-reference renders without relying on
+    # the GitHub-hosted emulator boot; these remain synthetic evidence, not phone QA.
     with:
       run_render: true
