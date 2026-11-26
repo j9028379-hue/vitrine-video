@@ -35,7 +35,8 @@ import kotlin.math.roundToInt
 @OptIn(UnstableApi::class)
 class VitrineTemporalFrameOverlay private constructor(
     private val plan: RenderPlan,
-    private val sources: List<TemporalSource>
+    private val sources: List<TemporalSource>,
+    private val backgroundFades: List<TransitionSpec>
 ) : BitmapOverlay() {
 
     private val timeline = TimelineEngine(plan)
@@ -46,9 +47,29 @@ class VitrineTemporalFrameOverlay private constructor(
 
     override fun getBitmap(presentationTimeUs: Long): Bitmap {
         val frame = timeline.usToFrame(presentationTimeUs)
+        val fade = backgroundFades.firstOrNull { frame in it.startFrame until it.startFrame + it.durationFrames }
         val source = sources.firstOrNull { frame in it.transition.startFrame until it.endFrameExclusive }
-            ?: return emptyBitmap
+        if (fade == null && source == null) return emptyBitmap
         canvas.drawColor(Color.TRANSPARENT, PorterDuff.Mode.CLEAR)
+        if (fade != null) {
+            // No subject/background matte exists in the approved assets. Apply only
+            // the achievable global luminance fade to footage; the dedicated text/
+            // CTA overlay runs afterwards and therefore remains opaque.
+            val parameters = JSONObject(fade.sourceParametersJson)
+            val local = frame - fade.startFrame
+            val multiplier = curveValue(
+                parameters.getJSONArray("background_luma_multiplier"),
+                local,
+                parameters.getString("easing")
+            ).coerceIn(0.0, 1.0)
+            paint.colorFilter = null
+            paint.style = Paint.Style.FILL
+            paint.color = Color.BLACK
+            paint.alpha = ((1.0 - multiplier) * 255.0).roundToInt().coerceIn(0, 255)
+            canvas.drawRect(0f, 0f, plan.width.toFloat(), plan.height.toFloat(), paint)
+            paint.alpha = 255
+        }
+        if (source == null) return frameBitmap
         val localFrame = frame - source.transition.startFrame
         when (source.transition.sourceFamily) {
             TILE_GRID -> drawTileGrid(source, localFrame)
@@ -213,15 +234,17 @@ class VitrineTemporalFrameOverlay private constructor(
     companion object {
         private const val TILE_GRID = "R4_TILED_GRID_INTRO"
         private const val MULTI_PANEL = "R2_MULTI_PANEL_SPLIT"
+        private const val BACKGROUND_FADE = "R4_BACKGROUND_FADE_TO_BLACK"
         private const val MAX_CACHE_BYTES = 64L * 1024L * 1024L
 
         fun createEffect(plan: RenderPlan, preFlight: PreFlightReport): OverlayEffect? {
             val transitions = plan.transitions.filter { it.sourceFamily in setOf(TILE_GRID, MULTI_PANEL) }
-            if (transitions.isEmpty()) return null
+            val fades = plan.transitions.filter { it.sourceFamily == BACKGROUND_FADE }
+            if (transitions.isEmpty() && fades.isEmpty()) return null
             val sources = mutableListOf<TemporalSource>()
             try {
                 transitions.forEach { transition -> sources += prepareSource(plan, preFlight, transition) }
-                return OverlayEffect(listOf(VitrineTemporalFrameOverlay(plan, sources)))
+                return OverlayEffect(listOf(VitrineTemporalFrameOverlay(plan, sources, fades)))
             } catch (failure: Throwable) {
                 sources.forEach { it.recycle() }
                 throw failure

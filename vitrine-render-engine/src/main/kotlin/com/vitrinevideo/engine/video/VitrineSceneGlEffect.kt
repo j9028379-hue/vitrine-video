@@ -466,9 +466,9 @@ private class VitrineSceneShaderProgram(
             "R2_SELECTIVE_COLOR_REVEAL" -> 17
             "R4_TILED_GRID_INTRO" -> 18
             "R2_MULTI_PANEL_SPLIT" -> 19
-            "R4_BACKGROUND_FADE_TO_BLACK" -> throw IllegalArgumentException(
-                "Transition $family requires a reliable subject matte; the T3 package declares no matte and the universal renderer must not synthesize one"
-            )
+            // The universal temporal overlay applies a luminance-only global fade.
+            // There is no declared reliable subject matte; CTA/text is composited later.
+            "R4_BACKGROUND_FADE_TO_BLACK" -> 20
             else -> if (family.startsWith("R2_") || family.startsWith("R4_")) {
                 throw IllegalArgumentException("Unsupported source transition family: $family")
             } else 0
