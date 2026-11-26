@@ -88,7 +88,9 @@ class T3SyntheticAudioEvidenceTest {
         fun db(x: Double) = 20.0 * log10(x.coerceAtLeast(1e-9))
         fun margin(start: Double, end: Double) = db(toneAmplitude(440.0, start, end) / toneAmplitude(220.0, start, end))
 
-        val baselineMusic = toneAmplitude(220.0, 0.20, 0.70)
+        // Reference the settled music bed after the final speech window; the first
+        // phrase is intentionally not a baseline because attack ramps there.
+        val baselineMusic = toneAmplitude(220.0, 3.82, 3.98)
         val phraseMusic = toneAmplitude(220.0, 0.30, 0.80)
         val phraseMargin = margin(0.30, 0.80)
         val shortPauseMusic = toneAmplitude(220.0, 0.94, 1.00)
