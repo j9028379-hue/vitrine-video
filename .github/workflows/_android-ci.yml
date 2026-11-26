@@ -254,7 +254,8 @@ jobs:
 
   delivery-package:
     name: Downloadable Release APK transfer artifact
-    needs: [tests, build, render, android-render]
+    # APK transfer is independent of emulator availability; the Android render remains a separate non-release-gating diagnostic.
+    needs: [tests, build, render]
     if: ${{ !cancelled() && inputs.allow_apk_delivery && needs.tests.result == 'success' && needs.build.result == 'success' && needs.render.result == 'success' }}
     runs-on: ubuntu-latest
     steps:
