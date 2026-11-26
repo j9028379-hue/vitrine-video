@@ -416,6 +416,25 @@ jobs:
             fi
             exit "$TEST_STATUS"
 
+      - name: Capture Android emulator boot or instrumentation diagnostics
+        if: failure()
+        run: |
+          mkdir -p ci-artifacts/android-t3
+          set +e
+          adb devices -l > ci-artifacts/android-t3/adb-devices.log 2>&1
+          "$ANDROID_HOME/emulator/emulator" -list-avds > ci-artifacts/android-t3/avd-list.log 2>&1
+          ps auxww | grep -E '[e]mulator|[q]emu|[a]db' > ci-artifacts/android-t3/emulator-processes.log
+          adb logcat -b all -d > ci-artifacts/android-t3/logcat.log 2>&1
+          {
+            echo "### Android runner failure diagnostics"
+            echo '```text'
+            cat ci-artifacts/android-t3/adb-devices.log
+            cat ci-artifacts/android-t3/avd-list.log
+            cat ci-artifacts/android-t3/emulator-processes.log
+            tail -n 150 ci-artifacts/android-t3/logcat.log
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
       - name: Upload Android-emulator render evidence
         if: always()
         uses: actions/upload-artifact@v4
