@@ -16,3 +16,4 @@ jobs:
     # the GitHub-hosted emulator boot; these remain synthetic evidence, not phone QA.
     with:
       run_render: true
+      allow_apk_delivery: true
