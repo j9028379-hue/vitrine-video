@@ -374,6 +374,90 @@ jobs:
           echo "::notice::Android runner diagnostics: host_acceleration=$ACCELERATION arch=$CPU_ARCH CPU=$CPU_COUNT memory_available_mib=$MEMORY_MIB free_disk_mib=$FREE_DISK"
           df -h "$RUNNER_TEMP"
 
+      - name: Prepare Android instrumentation runner script
+        run: |
+          cat > "$RUNNER_TEMP/android-t3-instrumentation.sh" <<'SCRIPT'
+          #!/usr/bin/env bash
+          set -euo pipefail
+          mkdir -p ci-artifacts/android-t3
+          capture_live_emulator_failure() {
+            status=$?
+            if [ "$status" -ne 0 ]; then
+              adb devices -l > ci-artifacts/android-t3/live-adb-devices.log 2>&1 || true
+              adb logcat -b all -d > ci-artifacts/android-t3/live-logcat.log 2>&1 || true
+              ps auxww | grep -E '[e]mulator|[q]emu|[a]db' > ci-artifacts/android-t3/live-emulator-processes.log || true
+              for log in ci-artifacts/android-t3/install-test-apk.log ci-artifacts/android-t3/connected-tests.log; do
+                [ -f "$log" ] || continue
+                tail -n 80 "$log" >> "$GITHUB_STEP_SUMMARY"
+                while IFS= read -r line; do
+                  safe=$(printf '%s' "$line" | sed 's/%/%25/g; s/\r//g')
+                  echo "::notice title=Live Android failure log::$safe"
+                done < <(tail -n 40 "$log")
+              done
+              for log in ci-artifacts/android-t3/live-adb-devices.log ci-artifacts/android-t3/live-emulator-processes.log; do
+                while IFS= read -r line; do
+                  safe=$(printf '%s' "$line" | sed 's/%/%25/g; s/\r//g')
+                  echo "::notice title=Live Android failure log::$safe"
+                done < "$log"
+              done
+              tail -n 100 ci-artifacts/android-t3/live-logcat.log | while IFS= read -r line; do
+                safe=$(printf '%s' "$line" | sed 's/%/%25/g; s/\r//g')
+                echo "::notice title=Live Android logcat::$safe"
+              done
+            fi
+            return "$status"
+          }
+          trap capture_live_emulator_failure EXIT
+          chmod +x gradlew
+          adb wait-for-device
+          set +e
+          ./gradlew :vitrine-render-engine:installDebugAndroidTest --stacktrace 2>&1 | tee ci-artifacts/android-t3/install-test-apk.log
+          INSTALL_STATUS=${PIPESTATUS[0]}
+          set -e
+          if [ "$INSTALL_STATUS" -ne 0 ]; then
+            tail -n 100 ci-artifacts/android-t3/install-test-apk.log | sed 's/^/::error::/'
+            exit "$INSTALL_STATUS"
+          fi
+          ROOT=/sdcard/Android/data/com.vitrinevideo.engine/files/t3_fixture
+          adb shell mkdir -p "$ROOT/captures" "$ROOT/music/RESTAURATION-T3/1.0.0"
+          adb push vitrine-video-app/src/main/assets/packages/RESTAURATION-T3-1.0.0.zip "$ROOT/RESTAURATION-T3-1.0.0.zip"
+          adb push test-fixtures/t3_fixture/captures/. "$ROOT/captures/"
+          adb push vitrine-video-app/src/main/assets/music/RESTAURATION-T3/1.0.0/. "$ROOT/music/RESTAURATION-T3/1.0.0/"
+          set +e
+          ./gradlew :vitrine-render-engine:connectedDebugAndroidTest --stacktrace 2>&1 | tee ci-artifacts/android-t3/connected-tests.log
+          TEST_STATUS=${PIPESTATUS[0]}
+          set -e
+          adb pull "$ROOT/android_evidence" ci-artifacts/android-t3/ || true
+          if [ "$TEST_STATUS" -ne 0 ]; then
+            echo "### Android instrumentation failure details" >> "$GITHUB_STEP_SUMMARY"
+            tail -n 120 ci-artifacts/android-t3/connected-tests.log >> "$GITHUB_STEP_SUMMARY"
+            tail -n 100 ci-artifacts/android-t3/connected-tests.log | sed 's/^/::error::/'
+          fi
+          if [ "$TEST_STATUS" -eq 0 ]; then
+            test -s ci-artifacts/android-t3/android_evidence/android_decoded_frame_evidence.json
+            test -s ci-artifacts/android-t3/android_evidence/transition_probe.json
+            test -s ci-artifacts/android-t3/android_evidence/source_execution_matrix.json
+            python3 -c 'import json,pathlib; r=pathlib.Path("ci-artifacts/android-t3/android_evidence"); d=json.loads((r/"android_decoded_frame_evidence.json").read_text()); m=json.loads((r/"source_execution_matrix.json").read_text()); assert d["evidence_kind"]=="android_emulator_media3_gl_mp4_decode" and d["fidelity_claim"] is False and len(d["frames"])>=45; assert all(f["decoded_width"]>0 and f["decoded_height"]>0 and len(f["sample"]["rgba_sample_sha256"])==64 for f in d["frames"]); assert len({f["sample"]["rgba_sample_sha256"] for f in d["frames"]})>5; assert m["status"]=="INCOMPLETE_PROFILE_EXECUTION" and len(m["transitions"])==17; assert all(p["android_property_execution_observed"] is False for t in m["transitions"] for p in t["source_properties"]); print("Android MP4 decoded frame samples:",len(d["frames"]))'
+          fi
+          exit "$TEST_STATUS"
+          SCRIPT
+          chmod +x "$RUNNER_TEMP/android-t3-instrumentation.sh"
+
+      - name: Prepare emulator startup logger
+        run: |
+          cat > "$RUNNER_TEMP/prepare-emulator-wrapper.sh" <<'SCRIPT'
+          #!/usr/bin/env bash
+          set -euo pipefail
+          EMULATOR_BIN="$ANDROID_HOME/emulator/emulator"
+          mv "$EMULATOR_BIN" "$EMULATOR_BIN.vitrine-real"
+          cat > "$EMULATOR_BIN" <<'WRAPPER'
+          #!/bin/bash
+          exec "$0.vitrine-real" "$@" >> "${RUNNER_TEMP}/vitrine-emulator-startup.log" 2>&1
+          WRAPPER
+          chmod +x "$EMULATOR_BIN"
+          SCRIPT
+          chmod +x "$RUNNER_TEMP/prepare-emulator-wrapper.sh"
+
       - name: Run Android instrumentation on an emulator
         uses: reactivecircus/android-emulator-runner@v2
         with:
@@ -384,78 +468,9 @@ jobs:
           emulator-boot-timeout: 900
           emulator-options: -verbose -no-window -no-snapshot -gpu swiftshader_indirect -noaudio -no-boot-anim -memory 3072 -cores 2
           disable-animations: true
-          pre-emulator-launch-script: |
-            set -euo pipefail
-            EMULATOR_BIN="$ANDROID_HOME/emulator/emulator"
-            mv "$EMULATOR_BIN" "$EMULATOR_BIN.vitrine-real"
-            cat > "$EMULATOR_BIN" <<'WRAPPER'
-            #!/bin/bash
-            exec "$0.vitrine-real" "$@" >> "${RUNNER_TEMP}/vitrine-emulator-startup.log" 2>&1
-            WRAPPER
-            chmod +x "$EMULATOR_BIN"
+          pre-emulator-launch-script: bash "$RUNNER_TEMP/prepare-emulator-wrapper.sh"
           script: |
-            set -euo pipefail
-            mkdir -p ci-artifacts/android-t3
-            capture_live_emulator_failure() {
-              status=$?
-              if [ "$status" -ne 0 ]; then
-                adb devices -l > ci-artifacts/android-t3/live-adb-devices.log 2>&1 || true
-                adb logcat -b all -d > ci-artifacts/android-t3/live-logcat.log 2>&1 || true
-                ps auxww | grep -E '[e]mulator|[q]emu|[a]db' > ci-artifacts/android-t3/live-emulator-processes.log || true
-                for log in ci-artifacts/android-t3/install-test-apk.log ci-artifacts/android-t3/connected-tests.log; do
-                  [ -f "$log" ] || continue
-                  tail -n 80 "$log" >> "$GITHUB_STEP_SUMMARY"
-                  while IFS= read -r line; do
-                    safe=$(printf '%s' "$line" | sed 's/%/%25/g; s/\r//g')
-                    echo "::notice title=Live Android failure log::$safe"
-                  done < <(tail -n 40 "$log")
-                done
-                for log in ci-artifacts/android-t3/live-adb-devices.log ci-artifacts/android-t3/live-emulator-processes.log; do
-                  while IFS= read -r line; do
-                    safe=$(printf '%s' "$line" | sed 's/%/%25/g; s/\r//g')
-                    echo "::notice title=Live Android failure log::$safe"
-                  done < "$log"
-                done
-                tail -n 100 ci-artifacts/android-t3/live-logcat.log | while IFS= read -r line; do
-                  safe=$(printf '%s' "$line" | sed 's/%/%25/g; s/\r//g')
-                  echo "::notice title=Live Android logcat::$safe"
-                done
-              fi
-              return "$status"
-            }
-            trap capture_live_emulator_failure EXIT
-            chmod +x gradlew
-            adb wait-for-device
-            set +e
-            ./gradlew :vitrine-render-engine:installDebugAndroidTest --stacktrace 2>&1 | tee ci-artifacts/android-t3/install-test-apk.log
-            INSTALL_STATUS=${PIPESTATUS[0]}
-            set -e
-            if [ "$INSTALL_STATUS" -ne 0 ]; then
-              tail -n 100 ci-artifacts/android-t3/install-test-apk.log | sed 's/^/::error::/'
-              exit "$INSTALL_STATUS"
-            fi
-            ROOT=/sdcard/Android/data/com.vitrinevideo.engine/files/t3_fixture
-            adb shell mkdir -p "$ROOT/captures" "$ROOT/music/RESTAURATION-T3/1.0.0"
-            adb push vitrine-video-app/src/main/assets/packages/RESTAURATION-T3-1.0.0.zip "$ROOT/RESTAURATION-T3-1.0.0.zip"
-            adb push test-fixtures/t3_fixture/captures/. "$ROOT/captures/"
-            adb push vitrine-video-app/src/main/assets/music/RESTAURATION-T3/1.0.0/. "$ROOT/music/RESTAURATION-T3/1.0.0/"
-            set +e
-            ./gradlew :vitrine-render-engine:connectedDebugAndroidTest --stacktrace 2>&1 | tee ci-artifacts/android-t3/connected-tests.log
-            TEST_STATUS=${PIPESTATUS[0]}
-            set -e
-            adb pull "$ROOT/android_evidence" ci-artifacts/android-t3/ || true
-            if [ "$TEST_STATUS" -ne 0 ]; then
-              echo "### Android instrumentation failure details" >> "$GITHUB_STEP_SUMMARY"
-              tail -n 120 ci-artifacts/android-t3/connected-tests.log >> "$GITHUB_STEP_SUMMARY"
-              tail -n 100 ci-artifacts/android-t3/connected-tests.log | sed 's/^/::error::/'
-            fi
-            if [ "$TEST_STATUS" -eq 0 ]; then
-              test -s ci-artifacts/android-t3/android_evidence/android_decoded_frame_evidence.json
-              test -s ci-artifacts/android-t3/android_evidence/transition_probe.json
-              test -s ci-artifacts/android-t3/android_evidence/source_execution_matrix.json
-              python3 -c 'import json,pathlib; r=pathlib.Path("ci-artifacts/android-t3/android_evidence"); d=json.loads((r/"android_decoded_frame_evidence.json").read_text()); m=json.loads((r/"source_execution_matrix.json").read_text()); assert d["evidence_kind"]=="android_emulator_media3_gl_mp4_decode" and d["fidelity_claim"] is False and len(d["frames"])>=45; assert all(f["decoded_width"]>0 and f["decoded_height"]>0 and len(f["sample"]["rgba_sample_sha256"])==64 for f in d["frames"]); assert len({f["sample"]["rgba_sample_sha256"] for f in d["frames"]})>5; assert m["status"]=="INCOMPLETE_PROFILE_EXECUTION" and len(m["transitions"])==17; assert all(p["android_property_execution_observed"] is False for t in m["transitions"] for p in t["source_properties"]); print("Android MP4 decoded frame samples:",len(d["frames"]))'
-            fi
-            exit "$TEST_STATUS"
+            exec bash "$RUNNER_TEMP/android-t3-instrumentation.sh"
 
       - name: Capture Android emulator boot or instrumentation diagnostics
         if: failure()
