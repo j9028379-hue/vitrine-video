@@ -22,6 +22,9 @@ object PcmTrackDecoder {
         targetChannels: Int = 2,
         maxDurationSec: Double = 35.0
     ) {
+        require(targetSampleRate > 0 && targetChannels == 2 && maxDurationSec > 0.0) {
+            "Le décodeur attend une cible PCM stéréo positive et une durée > 0"
+        }
         val extractor = MediaExtractor()
         var codec: MediaCodec? = null
         try {
@@ -80,6 +83,7 @@ object PcmTrackDecoder {
                     if (outIdx >= 0) {
                         val buf = codec.getOutputBuffer(outIdx)
                         if (buf != null && info.size > 0) {
+                            require(info.size % 2 == 0) { "Sortie MediaCodec PCM16 tronquée: ${info.size} octets" }
                             buf.position(info.offset)
                             buf.limit(info.offset + info.size)
                             val shortCount = info.size / 2

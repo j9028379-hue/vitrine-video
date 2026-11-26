@@ -6,6 +6,7 @@ import com.vitrinevideo.engine.interpreter.AudioMixConfig
 import com.vitrinevideo.engine.interpreter.UniversalJsonInterpreter
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.FileInputStream
@@ -107,6 +108,17 @@ class T4AudioMixFidelityTest {
 
         assertArrayEquals(shortArrayOf(-12_000, -12_000, -1, -1, 0, 0, 1, 1, 12_000, 12_000), stereo)
         assertEquals(5L, resampler.outputFrameCount)
+    }
+
+    @Test
+    fun resamplerRejectsIncompleteInterleavedFramesInsteadOfDroppingSamples() {
+        val resampler = StreamingStereoResampler(44_100, 48_000)
+        assertThrows(IllegalArgumentException::class.java) {
+            resampler.resampleStereo(shortArrayOf(1, 2, 3), sourceChannels = 2)
+        }
+        assertThrows(IllegalArgumentException::class.java) {
+            resampler.resampleStereo(shortArrayOf(1, 2), sourceChannels = 0)
+        }
     }
 
     @Test

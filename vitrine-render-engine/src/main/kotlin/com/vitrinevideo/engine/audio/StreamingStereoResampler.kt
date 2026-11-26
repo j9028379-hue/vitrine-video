@@ -22,10 +22,17 @@ class StreamingStereoResampler(
     private var hasCarry: Boolean = false
     private var producedFrames: Long = 0L
 
+    init {
+        require(sourceRateHz > 0 && targetRateHz > 0) { "Taux PCM source et cible doivent être positifs" }
+    }
+
     val outputFrameCount: Long get() = producedFrames
 
     fun resampleStereo(source: ShortArray, sourceChannels: Int): ShortArray {
-        val srcFrames = source.size / max(1, sourceChannels)
+        require(sourceChannels > 0 && source.size % sourceChannels == 0) {
+            "Flux PCM incomplet: ${source.size} échantillons pour $sourceChannels canaux"
+        }
+        val srcFrames = source.size / sourceChannels
         if (srcFrames == 0) return ShortArray(0)
 
         // Channel conversion is still required when rates already match (for
