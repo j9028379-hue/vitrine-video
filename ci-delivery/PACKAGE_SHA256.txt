@@ -1,4 +1,4 @@
-6b3b6a3ea28b79027a186d56117d97dacba2af2a0718314c3ddfb2a93c2f5096  ci-delivery/apk-chunks/VitrineVideo-debug.apk.part-00
-657461ea74b8e4b28283a9ca18a89a06a6d9a6bef9f7a5b55a7c423da473f303  ci-delivery/apk-chunks/VitrineVideo-debug.apk.part-01
-b9cd6770e1a533796e9bf16fbb07403307801a0b3efefdffdb5d1235f1da4b12  ci-delivery/apk-chunks/VitrineVideo-release-ci-signed.apk.part-00
-d23c90e459c1e1decfe675dbd67e2bc90b4d9eda66cfcda3d6d55b66af788c0e  ci-delivery/apk-chunks/VitrineVideo-release-ci-signed.apk.part-01
+82ebd0ae467c410672c0d50ef284d7875b22d13f76890d1370ee2cb453a52783  ci-delivery/apk-chunks/VitrineVideo-debug.apk.part-00
+abd3af06192c2aa976ec886baae3a87eafd80822df1a669e20d6c1562dc5df92  ci-delivery/apk-chunks/VitrineVideo-debug.apk.part-01
+bbac0fb781f6aa28fcf5ba17e35721e2fb2666731755e30d2826d2d376409f18  ci-delivery/apk-chunks/VitrineVideo-release-ci-signed.apk.part-00
+e7f0876adf33f6dff65a0498b1e9164d72b46f53dbfcb3ae050d07acf6a9bc56  ci-delivery/apk-chunks/VitrineVideo-release-ci-signed.apk.part-01
