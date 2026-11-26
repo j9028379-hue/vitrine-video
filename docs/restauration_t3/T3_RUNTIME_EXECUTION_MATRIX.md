@@ -2,6 +2,12 @@
 
 Date de l'audit : 2026-11-25. Ce document distingue les données **embarquées**, **parsées** et **consommées au rendu**. Le paquet est régénéré par `tools/build_restauration_t3_package.py`; les statuts ci-dessous décrivent le code Android de cette branche, pas un résultat de build ni une certification de fidélité.
 
+## Nouvelle preuve Android prévue dans le workflow
+
+Le workflow ajoute désormais `android-render`, qui installe sur l'émulateur les fixtures d'ingénierie marquées, lance `:vitrine-render-engine:connectedDebugAndroidTest`, rend un MP4 via le moteur Android, puis décode sur Android les images correspondant au début, milieu et fin des 17 transitions. `android_decoded_frame_evidence.json` associe chaque empreinte de pixels à la famille, au profil et au JSON source conservé; `source_execution_matrix.json` détaille les valeurs feuilles et marque explicitement `android_property_execution_observed=false` tant que le moteur ne consomme pas ces profils. Cette association est une preuve de production/décodage Android, **pas** la preuve que chaque champ source a piloté ces pixels. Le résultat n'est pas encore observé tant que ce nouveau workflow n'a pas terminé.
+
+Le transfert APK via le job `delivery-package` est désactivé par défaut (`allow_apk_delivery=false`) et ne doit être activé qu'après satisfaction de tous les critères de la mission. Les rendus Python/JVM précédents restent des éléments d'ingénierie distincts, jamais substituts à la preuve Android ou aux essais physiques du propriétaire.
+
 ## Mouvements texte
 
 La référence officielle `engine/text_motion.py` de l'archive utilise un seul rasteriseur `_animate(layer, progress, opacity, rise)` pour les quatre groupes. Ce rasteriseur applique un reveal gauche-vers-droite, un décalage vertical d'entrée et l'alpha. Les compositions (champs, placements et styles) sont différentes par groupe; l'offre déplace également son prix séparément. La référence ne contient pas d'algorithme de bloom central ni de séquencement temporel champ-par-champ, malgré les noms `center_bloom_and_signature` et `sequential_identity_contact_lockup`. Aucun effet de cette nature n'est inventé ici.
