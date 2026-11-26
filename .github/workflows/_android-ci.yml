@@ -450,10 +450,17 @@ jobs:
                   output = f"[diagnostic failed: {type(exc).__name__}: {exc}]\n"
               (root / filename).write_text(output)
           summary = ["### Android runner failure diagnostics", "```text"]
-          for filename in commands:
-              summary.append(f"--- {filename} ---")
-              text = (root / filename).read_text(errors="replace").splitlines()
+          log_files = [root / name for name in commands]
+          log_files += [root / "install-test-apk.log", root / "connected-tests.log"]
+          for path in log_files:
+              if not path.is_file():
+                  continue
+              summary.append(f"--- {path.name} ---")
+              text = path.read_text(errors="replace").splitlines()
               summary.extend(text[-150:])
+              for line in text[-30:]:
+                  safe = line.replace("%", "%25").replace("\\r", "")
+                  print(f"::notice title=Android runner diagnostic::{path.name}: {safe}")
           summary.append("```")
           with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as stream:
               stream.write("\n".join(summary) + "\n")
