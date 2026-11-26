@@ -26,7 +26,23 @@ class StreamingStereoResampler(
 
     fun resampleStereo(source: ShortArray, sourceChannels: Int): ShortArray {
         val srcFrames = source.size / max(1, sourceChannels)
-        if (srcFrames == 0 || sourceRateHz == targetRateHz) return ShortArray(0)
+        if (srcFrames == 0) return ShortArray(0)
+
+        // Channel conversion is still required when rates already match (for
+        // example, a MediaCodec that exposes a 48 kHz mono track). Returning an
+        // empty buffer here silently erased the complete music bed because the
+        // caller only bypasses this resampler when BOTH rate and channels match.
+        if (sourceRateHz == targetRateHz) {
+            val output = ShortArray(srcFrames * 2)
+            for (frame in 0 until srcFrames) {
+                val left = source[frame * sourceChannels]
+                val right = if (sourceChannels > 1) source[frame * sourceChannels + 1] else left
+                output[frame * 2] = left
+                output[frame * 2 + 1] = right
+            }
+            producedFrames += srcFrames.toLong()
+            return output
+        }
 
         var frameCount = 0
         while (phase + frameCount * step < srcFrames) frameCount++

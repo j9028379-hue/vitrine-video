@@ -35,6 +35,12 @@ class VitrineAudioProcessor(
     private var srcReadByteBuf = ByteArray(16384)
     private var srcReadShortBuf = ShortArray(8192)
 
+    init {
+        require(musicPcmFile != null || mixConfig.profileId == "default_silent_music") {
+            "Piste musicale PCM requise pour le profil ${mixConfig.profileId}"
+        }
+    }
+
     override fun onConfigure(inputAudioFormat: AudioProcessor.AudioFormat): AudioProcessor.AudioFormat {
         if (inputAudioFormat.encoding != C.ENCODING_PCM_16BIT) {
             throw AudioProcessor.UnhandledAudioFormatException(inputAudioFormat)
@@ -50,12 +56,13 @@ class VitrineAudioProcessor(
 
     private fun openMusicStream() {
         closeMusicStream()
-        val f = musicPcmFile ?: return
-        if (f.exists() && f.length() > 0L) {
-            musicRaf = RandomAccessFile(f, "r")
-            musicDataBytes = f.length()
-            musicFrameCursor = 0.0
+        val f = musicPcmFile ?: return // A null bed is valid only for profiles with no music.
+        require(f.isFile && f.length() >= 8L && f.length() % 4L == 0L) {
+            "Piste musicale PCM absente, vide ou tronquée: ${f.path}"
         }
+        musicRaf = RandomAccessFile(f, "r")
+        musicDataBytes = f.length()
+        musicFrameCursor = 0.0
     }
 
     private fun closeMusicStream() {

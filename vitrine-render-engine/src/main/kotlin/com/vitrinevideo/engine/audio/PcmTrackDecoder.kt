@@ -111,6 +111,15 @@ object PcmTrackDecoder {
                     }
                 }
             }
+            // Do not let a failed/empty decoder result flow into the mixer: the
+            // previous path treated a zero-byte PCM file as a valid silent music
+            // source, so a render could succeed while dropping the entire bed.
+            require(writtenFrames > 0L && destPcmFile.length() >= targetChannels * 2L) {
+                "Décodage musical sans échantillons PCM: ${sourceFile.name}"
+            }
+            require(destPcmFile.length() % (targetChannels * 2L) == 0L) {
+                "Flux PCM musical tronqué: ${destPcmFile.name}"
+            }
         } finally {
             try { codec?.stop() } catch (_: Throwable) {}
             try { codec?.release() } catch (_: Throwable) {}
