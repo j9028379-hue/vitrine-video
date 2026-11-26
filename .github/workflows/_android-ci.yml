@@ -328,9 +328,9 @@ jobs:
   android-render:
     name: Android emulator T3 render and decoded-frame evidence
     needs: tests
-    # GitHub-hosted Ubuntu runners in this repo have no /dev/kvm. Run the
-    # emulator on macOS, where the hosted VM exposes Hypervisor.framework.
-    runs-on: macos-14
+    # GitHub-hosted Ubuntu runners in this repo have no /dev/kvm. Use the
+    # supported Intel macOS runner, which exposes Hypervisor.framework.
+    runs-on: macos-15-intel
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
