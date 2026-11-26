@@ -4,6 +4,7 @@ import com.vitrinevideo.engine.audio.AudioDuckingEngine
 import com.vitrinevideo.engine.audio.StreamingStereoResampler
 import com.vitrinevideo.engine.interpreter.AudioMixConfig
 import com.vitrinevideo.engine.interpreter.UniversalJsonInterpreter
+import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -95,6 +96,17 @@ class T4AudioMixFidelityTest {
         var maxDelta = 0
         for (i in 1 until out.size) maxDelta = maxOf(maxDelta, abs(out[i] - out[i - 1]))
         assertTrue("Limiter must stay continuous, maxDelta=$maxDelta", maxDelta < 4000)
+    }
+
+    @Test
+    fun sameRateMonoDecodeExpandsToStereoWithoutLosingSamples() {
+        val resampler = StreamingStereoResampler(48_000, 48_000)
+        val mono = shortArrayOf(-12_000, -1, 0, 1, 12_000)
+
+        val stereo = resampler.resampleStereo(mono, sourceChannels = 1)
+
+        assertArrayEquals(shortArrayOf(-12_000, -12_000, -1, -1, 0, 0, 1, 1, 12_000, 12_000), stereo)
+        assertEquals(5L, resampler.outputFrameCount)
     }
 
     @Test
