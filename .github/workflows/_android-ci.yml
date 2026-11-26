@@ -330,9 +330,9 @@ jobs:
   android-render:
     name: Android emulator T3 render and decoded-frame evidence
     needs: tests
-    # GitHub-hosted Ubuntu runners in this repo have no /dev/kvm. Use the
-    # supported Intel macOS runner, which exposes Hypervisor.framework.
-    runs-on: macos-15-intel
+    # Prefer the Apple Silicon macOS runner so the ARM64 Android system image
+    # runs natively through Hypervisor.framework rather than emulating x86_64.
+    runs-on: macos-15-arm64
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
@@ -359,25 +359,27 @@ jobs:
           set -euo pipefail
           if [ "$RUNNER_OS" = "macOS" ]; then
             ACCELERATION=Hypervisor.framework
+            CPU_ARCH=$(uname -m)
             CPU_COUNT=$(sysctl -n hw.ncpu)
             MEMORY_MIB=$(sysctl -n hw.memsize | awk '{print int($1/1024/1024)}')
             FREE_DISK=$(df -m "$RUNNER_TEMP" | awk 'NR==2 {print $4}')
           else
+            CPU_ARCH=$(uname -m)
             ACCELERATION=unavailable
             if [ -c /dev/kvm ] && [ -r /dev/kvm ] && [ -w /dev/kvm ]; then ACCELERATION=KVM; fi
             CPU_COUNT=$(nproc)
             MEMORY_MIB=$(awk '/MemAvailable:/ {print int($2/1024)}' /proc/meminfo)
             FREE_DISK=$(df -Pm "$RUNNER_TEMP" | awk 'NR==2 {print $4}')
           fi
-          echo "::notice::Android runner diagnostics: host_acceleration=$ACCELERATION CPU=$CPU_COUNT memory_available_mib=$MEMORY_MIB free_disk_mib=$FREE_DISK"
+          echo "::notice::Android runner diagnostics: host_acceleration=$ACCELERATION arch=$CPU_ARCH CPU=$CPU_COUNT memory_available_mib=$MEMORY_MIB free_disk_mib=$FREE_DISK"
           df -h "$RUNNER_TEMP"
 
       - name: Run Android instrumentation on an emulator
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 35
-          target: default
-          arch: x86_64
+          target: google_atd
+          arch: arm64-v8a
           profile: pixel_2
           emulator-boot-timeout: 900
           emulator-options: -no-window -no-snapshot -gpu swiftshader_indirect -noaudio -no-boot-anim -memory 3072 -cores 2
