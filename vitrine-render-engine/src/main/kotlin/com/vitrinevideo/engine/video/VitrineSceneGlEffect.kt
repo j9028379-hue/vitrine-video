@@ -450,6 +450,9 @@ private class VitrineSceneShaderProgram(
 
     private fun sourceFamilyMode(transition: com.vitrinevideo.engine.interpreter.TransitionSpec?): Int =
         when (transition?.sourceFamily) {
+            "R2_RADIAL_ZOOM" -> 3
+            "R4_ORANGE_FLASH" -> 4
+            "R4_WHIP_ZOOM" -> 14
             "R2_FLASH_TRANSITION" -> 7
             "R4_SOFT_OVERLAY_BLEND" -> 8
             "R4_MULTI_PANEL_MATCH_CUT" -> 15
@@ -472,6 +475,8 @@ private class VitrineSceneShaderProgram(
                     "sine_in_out" -> 0.5 - 0.5 * cos(PI * t)
                     "cubic_in_out" -> if (t < 0.5) 4.0 * t * t * t else 1.0 - ((-2.0 * t + 2.0).let { it * it * it }) / 2.0
                     "cubic_out" -> 1.0 - (1.0 - t) * (1.0 - t) * (1.0 - t)
+                    "cubic_out_then_in" -> if (index == 1) 1.0 - (1.0 - t) * (1.0 - t) * (1.0 - t) else t * t * t
+                    "quintic_out" -> 1.0 - Math.pow(1.0 - t, 5.0)
                     else -> t
                 }
                 return a.getDouble("value") + (b.getDouble("value") - a.getDouble("value")) * t
@@ -499,9 +504,82 @@ private class VitrineSceneShaderProgram(
         program.setFloatsUniform("uSourceFlashColor2", floatArrayOf(1f, 0.5f, 0f, 0f))
         program.setFloatsUniform("uSourceSoft", floatArrayOf(1f, 0f, 1f, 0f))
         program.setFloatsUniform("uSourceSoftBlur", floatArrayOf(0f, 0f, 0f, 0f))
-        if ((mode != 15 && mode != 7 && mode != 8) || transition == null) return
+        program.setFloatsUniform("uSourceWarm", floatArrayOf(0f, 0f, 1f, 0f))
+        program.setFloatsUniform("uSourceWarmGeometry", floatArrayOf(0f, 0f, 0f, 0f))
+        program.setFloatsUniform("uSourceWarmColor", floatArrayOf(0f, 0f, 0f, 0f))
+        program.setFloatsUniform("uSourceWarmBloomColor", floatArrayOf(1f, 1f, 1f, 0f))
+        program.setFloatsUniform("uSourceRadial", floatArrayOf(1f, 1f, 0.5f, 0f))
+        program.setFloatsUniform("uSourceRadialGeometry", floatArrayOf(0.5f, 0f, 0f, 24f))
+        program.setFloatsUniform("uSourceWhip", floatArrayOf(1f, 1f, 0f, 0f))
+        program.setFloatsUniform("uSourceWhipGeometry", floatArrayOf(0f, 0f, 4f, 8f))
+        if ((mode != 15 && mode != 7 && mode != 8 && mode != 4 && mode != 3 && mode != 14) || transition == null) return
 
         val params = JSONObject(transition.sourceParametersJson)
+        if (mode == 14) {
+            require(params.optString("anchor") == "detected_plate_center_or_frame_center")
+            val localFrame = frame - transition.startFrame
+            val easing = params.optString("easing", "linear")
+            val outgoingScale = sourceCurveValue(params.getJSONArray("outgoing_scale"), localFrame, easing)
+            val incomingScale = sourceCurveValue(params.getJSONArray("incoming_scale"), localFrame, easing)
+            val spin = sourceCurveValue(params.getJSONArray("spin_degrees"), localFrame, easing)
+            val sharpStart = (transition.durationFrames - params.optInt("sharp_landing_frames", 0)).coerceAtLeast(0)
+            val profileBlur = sourceCurveValue(params.getJSONArray("directional_blur_px"), localFrame, easing)
+            val blurPx = if (localFrame >= sharpStart) 0.0 else profileBlur
+            program.setFloatsUniform("uSourceWhip", floatArrayOf(
+                outgoingScale.toFloat(), incomingScale.toFloat(), spin.toFloat(), localFrame.toFloat()
+            ))
+            program.setFloatsUniform("uSourceWhipGeometry", floatArrayOf(
+                blurPx.toFloat() / max(1, outWidth).toFloat(),
+                blurPx.toFloat() / max(1, outHeight).toFloat(),
+                params.optInt("incoming_visible_from_local_frame", 0).toFloat(), sharpStart.toFloat()
+            ))
+            return
+        }
+        if (mode == 3) {
+            require(params.optString("anchor") == "detected_product_center_or_frame_center")
+            val localFrame = frame - transition.startFrame
+            val easing = params.optString("easing", "linear")
+            val scale = sourceCurveValue(params.getJSONArray("scale"), localFrame, easing)
+            val blurPx = sourceCurveValue(params.getJSONArray("radial_blur_px"), localFrame, easing)
+            val exposure = sourceCurveValue(params.getJSONArray("exposure_ev"), localFrame, easing)
+            program.setFloatsUniform("uSourceRadial", floatArrayOf(
+                scale.toFloat(), Math.pow(2.0, exposure).toFloat(), 0.5f,
+                blurPx.toFloat() / max(outWidth, outHeight).toFloat()
+            ))
+            program.setFloatsUniform("uSourceRadialGeometry", floatArrayOf(
+                0.5f, blurPx.toFloat() / max(1, outWidth).toFloat(),
+                blurPx.toFloat() / max(1, outHeight).toFloat(), 24f
+            ))
+            return
+        }
+        if (mode == 4) {
+            require(params.optString("blend_mode") == "screen")
+            val localFrame = frame - transition.startFrame
+            val easing = params.optString("easing", "linear")
+            val orange = params.getJSONObject("orange_overlay")
+            val bloom = params.getJSONObject("white_bloom")
+            val exposure = sourceCurveValue(params.getJSONArray("exposure_ev"), localFrame, easing)
+            program.setFloatsUniform("uSourceWarm", floatArrayOf(
+                sourceCurveValue(orange.getJSONArray("opacity"), localFrame, easing).toFloat(),
+                sourceCurveValue(bloom.getJSONArray("opacity"), localFrame, easing).toFloat(),
+                Math.pow(2.0, exposure).toFloat(), localFrame.toFloat()
+            ))
+            val orangeColor = orange.getString("color")
+            val bloomColor = bloom.getString("color")
+            program.setFloatsUniform("uSourceWarmColor", floatArrayOf(
+                rgbComponent(orangeColor, 0), rgbComponent(orangeColor, 1), rgbComponent(orangeColor, 2), 0f
+            ))
+            program.setFloatsUniform("uSourceWarmBloomColor", floatArrayOf(
+                rgbComponent(bloomColor, 0), rgbComponent(bloomColor, 1), rgbComponent(bloomColor, 2), 0f
+            ))
+            val blurPx = bloom.optDouble("blur_px", 0.0)
+            program.setFloatsUniform("uSourceWarmGeometry", floatArrayOf(
+                params.optInt("incoming_layer_visible_from_local_frame", 0).toFloat(),
+                blurPx.toFloat() / max(1, outWidth).toFloat(),
+                blurPx.toFloat() / max(1, outHeight).toFloat(), 0f
+            ))
+            return
+        }
         if (mode == 8) {
             require(params.optInt("layers") == 2)
             require(params.optString("base_blend_mode") == "normal")
@@ -750,6 +828,14 @@ private class VitrineSceneShaderProgram(
             uniform vec4 uSourceFlashColor2;
             uniform vec4 uSourceSoft;
             uniform vec4 uSourceSoftBlur;
+            uniform vec4 uSourceWarm;
+            uniform vec4 uSourceWarmGeometry;
+            uniform vec4 uSourceWarmColor;
+            uniform vec4 uSourceWarmBloomColor;
+            uniform vec4 uSourceRadial;
+            uniform vec4 uSourceRadialGeometry;
+            uniform vec4 uSourceWhip;
+            uniform vec4 uSourceWhipGeometry;
             uniform vec4 uSourcePanel;
             uniform vec4 uSourcePanelPhase;
             uniform vec4 uSourcePanelRows;
@@ -771,6 +857,12 @@ private class VitrineSceneShaderProgram(
                 return p.x >= r.x && p.x <= (r.x + r.z) && p.y >= r.y && p.y <= (r.y + r.w);
             }
 
+            vec4 sampleWhipSource(vec2 topDownUv, bool incomingLayer) {
+                vec2 p = clamp(topDownUv, vec2(0.0), vec2(1.0));
+                if (incomingLayer) return sampleScenePixel(p);
+                return texture2D(uHoldSampler, vec2(p.x, 1.0 - p.y));
+            }
+
             vec4 finalizeColorGrading(vec4 baseColor, vec2 topDownUv) {
                 vec4 outCol = baseColor;
                 if (uApplyTint == 1) {
@@ -789,7 +881,54 @@ private class VitrineSceneShaderProgram(
                 vec2 topDownUv = vec2(vTexSamplingCoord.x, 1.0 - vTexSamplingCoord.y);
                 vec4 incoming = sampleScenePixel(topDownUv);
                 vec4 composed = incoming;
-                if (uSourceMode == 15) {
+                if (uSourceMode == 14) {
+                    bool incomingLayer = uSourceWhip.w >= uSourceWhipGeometry.z;
+                    float scale = incomingLayer ? uSourceWhip.y : uSourceWhip.x;
+                    float angle = uSourceWhip.z * 0.01745329252;
+                    vec2 center = vec2(0.5, 0.5);
+                    vec2 delta = topDownUv - center;
+                    vec2 rotated = vec2(delta.x * cos(angle) - delta.y * sin(angle), delta.x * sin(angle) + delta.y * cos(angle));
+                    vec2 sourceUv = center + rotated / max(scale, 0.01);
+                    vec2 blurVector = vec2(cos(angle), sin(angle)) * uSourceWhipGeometry.xy;
+                    vec4 whip = sampleWhipSource(sourceUv, incomingLayer) * 0.36;
+                    whip += sampleWhipSource(sourceUv + blurVector, incomingLayer) * 0.16;
+                    whip += sampleWhipSource(sourceUv - blurVector, incomingLayer) * 0.16;
+                    whip += sampleWhipSource(sourceUv + blurVector * 0.5, incomingLayer) * 0.16;
+                    whip += sampleWhipSource(sourceUv - blurVector * 0.5, incomingLayer) * 0.16;
+                    composed = whip;
+                } else if (uSourceMode == 3) {
+                    vec2 center = vec2(uSourceRadial.z, uSourceRadialGeometry.x);
+                    vec2 radialUv = center + (topDownUv - center) / max(uSourceRadial.x, 0.01);
+                    vec2 ray = radialUv - center;
+                    vec2 direction = ray / max(length(ray), 0.0001);
+                    vec3 radialAccum = vec3(0.0);
+                    for (int sampleIndex = 0; sampleIndex < 24; sampleIndex++) {
+                        float t = (float(sampleIndex) / 23.0 - 0.5) * 2.0;
+                        vec2 sampleUv = clamp(radialUv + direction * uSourceRadialGeometry.yz * t, vec2(0.0), vec2(1.0));
+                        radialAccum += sampleScenePixel(sampleUv).rgb;
+                    }
+                    composed.rgb = min((radialAccum / 24.0) * uSourceRadial.y, vec3(1.0));
+                } else if (uSourceMode == 4) {
+                    vec2 holdUv = clamp((vTexSamplingCoord - 0.5) / max(uHoldZoom, 0.01) + 0.5, 0.0, 1.0);
+                    vec3 baseFrame = uSourceWarm.w < uSourceWarmGeometry.x
+                        ? texture2D(uHoldSampler, holdUv).rgb : incoming.rgb;
+                    composed.rgb = min(baseFrame * uSourceWarm.z, vec3(1.0));
+                    vec3 orangeScreen = 1.0 - (1.0 - composed.rgb) * (1.0 - uSourceWarmColor.rgb);
+                    composed.rgb = mix(composed.rgb, orangeScreen, clamp(uSourceWarm.x, 0.0, 1.0));
+                    vec2 bloomRadius = uSourceWarmGeometry.yz;
+                    vec3 bloom = incoming.rgb * 4.0;
+                    bloom += sampleScenePixel(clamp(topDownUv + vec2(bloomRadius.x, 0.0), vec2(0.0), vec2(1.0))).rgb * 2.0;
+                    bloom += sampleScenePixel(clamp(topDownUv - vec2(bloomRadius.x, 0.0), vec2(0.0), vec2(1.0))).rgb * 2.0;
+                    bloom += sampleScenePixel(clamp(topDownUv + vec2(0.0, bloomRadius.y), vec2(0.0), vec2(1.0))).rgb * 2.0;
+                    bloom += sampleScenePixel(clamp(topDownUv - vec2(0.0, bloomRadius.y), vec2(0.0), vec2(1.0))).rgb * 2.0;
+                    bloom += sampleScenePixel(clamp(topDownUv + bloomRadius, vec2(0.0), vec2(1.0))).rgb;
+                    bloom += sampleScenePixel(clamp(topDownUv - bloomRadius, vec2(0.0), vec2(1.0))).rgb;
+                    bloom += sampleScenePixel(clamp(topDownUv + vec2(bloomRadius.x, -bloomRadius.y), vec2(0.0), vec2(1.0))).rgb;
+                    bloom += sampleScenePixel(clamp(topDownUv + vec2(-bloomRadius.x, bloomRadius.y), vec2(0.0), vec2(1.0))).rgb;
+                    float bloomIntensity = clamp(dot(bloom / 16.0, vec3(0.2126, 0.7152, 0.0722)), 0.0, 1.0);
+                    vec3 bloomScreen = 1.0 - (1.0 - composed.rgb) * (1.0 - uSourceWarmBloomColor.rgb * bloomIntensity);
+                    composed.rgb = mix(composed.rgb, bloomScreen, clamp(uSourceWarm.y, 0.0, 1.0));
+                } else if (uSourceMode == 15) {
                     // R4_MULTI_PANEL_MATCH_CUT uses the JSON's two ordered phases.
                     // The rows/columns have zero border and zero gap by contract.
                     vec2 panelUv = (topDownUv - vec2(0.5)) / max(uSourcePanel.y, 0.01) + vec2(0.5);
