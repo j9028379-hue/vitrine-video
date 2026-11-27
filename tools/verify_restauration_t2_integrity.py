@@ -157,9 +157,10 @@ def main() -> None:
     for selected in commerce_formats:
         active = [fmt for fmt in commerce_formats if fmt == selected]
         check(f"format selection {selected} activates exactly one card", active == [selected])
-    check("Restauration T2/T5 enabled, unavailable restaurant templates gated",
+    check("Restauration T1/T2/T3/T5 routes enabled under independent runtime IDs",
           'sector !== "commerce" && sector !== "resto"' in bridge
-          and '["t1", "t2", "t3", "t4", "r2", "r3", "r4"].includes(fmt)' in bridge
+          and '["t1", "t2", "t3", "t4", "r1", "r2", "r3", "r4"].includes(fmt)' in bridge
+          and 'fmt === "r1" ? "RESTAURATION-T1"' in bridge
           and 'fmt === "r3" ? "RESTAURATION-T3"' in bridge
           and 'fmt === "r2" ? "RESTAURATION-T2"' in bridge
           and 'fmt === "r4" ? "RESTAURATION-T5"' in bridge)

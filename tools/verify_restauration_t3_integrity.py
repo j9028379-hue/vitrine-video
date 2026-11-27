@@ -120,7 +120,7 @@ def main() -> None:
     html=Path("vitrine-video-app/src/main/assets/mockup/vitrine-video-maquette.html").read_text(encoding="utf-8")
     bridge=Path("vitrine-video-app/src/main/assets/mockup/android-bridge.js").read_text(encoding="utf-8")
     check("merchant card uses approved title",'data-i18n="formats.r3.title">Coulisses de préparation' in html)
-    check("R3 enabled, routes to RESTAURATION-T3; no soon gate",'["t1", "t2", "t3", "t4", "r2", "r3", "r4"].includes(fmt)' in bridge and 'fmt === "r3" ? "RESTAURATION-T3"' in bridge and 'data-format="r3"]' in bridge)
+    check("R3 enabled, routes to RESTAURATION-T3; R1 has a distinct route",'["t1", "t2", "t3", "t4", "r1", "r2", "r3", "r4"].includes(fmt)' in bridge and 'fmt === "r1" ? "RESTAURATION-T1"' in bridge and 'fmt === "r3" ? "RESTAURATION-T3"' in bridge and 'data-format="r3"]' in bridge)
     check("R3 field limits/pattern and exact order in WebView",'state.format==="r3"' in html and '"q-prix":[1,7,"^[0-9 .]+$"]' in html)
     check("guide image is directly after header with duration and guide",'flow.template==="r3"' in html and 's.dur+" s"' in html and 'guide-readable-header' in html and 'guide-scene-image' in html)
     check("native countdown remains sole owner",'RecordingCountdown' in Path("vitrine-video-app/src/main/kotlin/com/vitrinevideo/app/camera/RecordingCountdown.kt").read_text() and "startWithCountdown" not in bridge)
