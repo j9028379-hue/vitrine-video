@@ -255,7 +255,15 @@ data class TextWindowSpec(
     val beforePriceFontPx: Double? = null,
     val afterPriceFontPx: Double? = null,
     val conditionTextTemplate: String? = null,
-    val conditionFontPx: Double? = null
+    val conditionFontPx: Double? = null,
+    /** Contract-declared display-only price suffix; merchant payload remains unchanged. */
+    val appendCurrencyWhenAbsent: String? = null,
+    /** Contract-declared grouping for an all-numeric price display; never validates input syntax. */
+    val groupNumericPrice: Boolean = false,
+    /** Optional second typeface for a contract-declared number/currency lockup. */
+    val priceCurrencyFontRelativePath: String? = null,
+    val priceCurrencySizePx: Double? = null,
+    val priceCurrencyGapPx: Double = 0.0
 )
 
 data class ColorGradingSpec(

@@ -42,7 +42,7 @@ object TextFieldResolver {
         if (tplLines != null) {
             val rendered = tplLines.map { line ->
                 Regex("\\{([a-zA-Z0-9_]+)\\}").replace(line) { m ->
-                    responses[m.groupValues[1]]?.trim().orEmpty()
+                    displayValue(m.groupValues[1], responses[m.groupValues[1]], window)
                 }.trim()
             }.filter { it.isNotEmpty() }
             return rendered.joinToString("\n")
@@ -50,9 +50,9 @@ object TextFieldResolver {
 
         val keys = spec.fieldBindings[window.fieldKey]
         if (keys == null) {
-            return responses[window.fieldKey]?.trim().orEmpty()
+            return displayValue(window.fieldKey, responses[window.fieldKey], window)
         }
-        val values = keys.mapNotNull { k -> responses[k]?.trim()?.takeIf { it.isNotEmpty() } }
+        val values = keys.mapNotNull { k -> displayValue(k, responses[k], window).takeIf { it.isNotEmpty() } }
         if (values.isEmpty()) return ""
         val joined = values.joinToString("\n")
         return if (!window.skipAutoWhatsappPrefix && (window.fieldKey == "contact" || window.fieldKey == "whatsapp") &&
@@ -62,6 +62,25 @@ object TextFieldResolver {
         } else {
             joined
         }
+    }
+
+    /** Applies only display transforms declared on this text window; source answers are never mutated. */
+    private fun displayValue(key: String, raw: String?, window: TextWindowSpec): String {
+        var value = raw?.trim().orEmpty()
+        if (key == "prix" && window.groupNumericPrice && value.isNotEmpty()) {
+            val groupedInteger = Regex("^[0-9]+$|^[0-9]{1,3}(?:[ \u00A0,.'’][0-9]{3})+$")
+            if (groupedInteger.matches(value)) {
+                val digits = value.replace(Regex("[ \u00A0,.'’]"), "")
+                value = digits.reversed().chunked(3).joinToString("\u00A0").reversed()
+            }
+        }
+        val currency = window.appendCurrencyWhenAbsent
+        if (key == "prix" && currency != null && value.isNotEmpty() &&
+            !value.contains(currency, ignoreCase = true)
+        ) {
+            value = "$value $currency"
+        }
+        return value
     }
 
     fun layoutWindow(

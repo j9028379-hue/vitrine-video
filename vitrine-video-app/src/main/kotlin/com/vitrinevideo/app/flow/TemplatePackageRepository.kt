@@ -21,10 +21,14 @@ object TemplatePackageRepository {
         "COMMERCE-T2" to Asset("packages/COMMERCE-T2-1.0.0.zip", "1.0.0"),
         "COMMERCE-T3" to Asset("packages/COMMERCE-T3-1.0.0.zip", "1.0.0"),
         "COMMERCE-T4" to Asset("packages/COMMERCE-T4-1.0.0.zip", "1.0.0"),
+        TemplateCatalogue.RESTAURATION_T1 to Asset("packages/RESTAURATION-T1-1.0.0.zip", "1.0.0"),
         TemplateCatalogue.RESTAURATION_T2 to Asset("packages/RESTAURATION-T2-1.0.0.zip", "1.0.0"),
         TemplateCatalogue.RESTAURATION_T3 to Asset("packages/RESTAURATION-T3-1.0.0.zip", "1.0.0"),
         TemplateCatalogue.RESTAURATION_T5 to Asset("packages/RESTAURATION-T5-1.0.0.zip", "1.0.0")
     )
+
+    /** Resolves the APK asset through the same registry used by ensureLoaded. */
+    internal fun packageAssetPath(templateId: String): String? = supported[templateId]?.path
 
     @Synchronized
     fun ensureLoaded(context: Context, templateId: String): LoadedTemplatePackage {

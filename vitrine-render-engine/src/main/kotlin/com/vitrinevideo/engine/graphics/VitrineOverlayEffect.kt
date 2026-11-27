@@ -315,7 +315,31 @@ class VitrineBitmapTextOverlay(
         rw.lines.forEachIndexed { li, line ->
             val priceSettle = if (window.fieldKey == "prix") sourceMotion?.priceSettleOffsetPx ?: 0f else 0f
             val y = (rw.baseY - bandTopPx.toFloat()) + (li - centerOffsetLines) * lineStep + entryShiftY + priceSettle
-            val lineW = fillPaint.measureText(line)
+            val currency = window.appendCurrencyWhenAbsent?.takeIf {
+                window.fieldKey == "prix" && window.priceCurrencyFontRelativePath != null && line.endsWith(it)
+            }
+            val priceAmount = currency?.let { line.removeSuffix(it).trimEnd() }
+            val amountWidth = priceAmount?.let { fillPaint.measureText(it) }
+            val currencyFont = window.priceCurrencyFontRelativePath?.let { path ->
+                typefacesByPath[weightKey(path, 700)] ?: typefacesByPath[path]
+            }
+            val currencySize = window.priceCurrencySizePx?.toFloat()?.let { declared ->
+                declared * (sz / (window.overrideStyle?.fontSizePx?.toFloat() ?: sz))
+            } ?: sz
+            val currencyGap = window.priceCurrencyGapPx.toFloat() *
+                (sz / (window.overrideStyle?.fontSizePx?.toFloat() ?: sz))
+            val currencyWidth = if (currency != null && currencyFont != null) {
+                fillPaint.typeface = currencyFont
+                fillPaint.textSize = currencySize
+                fillPaint.letterSpacing = 0f
+                fillPaint.measureText(currency)
+            } else 0f
+            fillPaint.typeface = selectedTypeface
+            fillPaint.textSize = sz
+            fillPaint.letterSpacing = if (sz > 0f) (window.trackingPx / sz).toFloat() else 0f
+            val lineW = if (priceAmount != null && amountWidth != null && currencyFont != null) {
+                amountWidth + currencyGap + currencyWidth
+            } else fillPaint.measureText(line)
             val centerX = rw.spec.centerX?.toFloat() ?: bandBitmap.width * 0.5f
             val startX = window.leftXPx?.toFloat() ?: (centerX - lineW * 0.5f + entryShiftX)
             val lineSave = bandCanvas.save()
@@ -363,10 +387,38 @@ class VitrineBitmapTextOverlay(
             } else {
                 fillPaint.alpha = (baseFillAlpha * alpha).roundToInt().coerceIn(0, 255)
                 strokePaint.alpha = (baseStrokeAlpha * alpha).roundToInt().coerceIn(0, 255)
-                if (spec.relief.strokeWidthPx > 0.0) {
-                    bandCanvas.drawText(line, startX, y, strokePaint)
+                if (priceAmount != null && currency != null && currencyFont != null && amountWidth != null) {
+                    val currencyX = startX + amountWidth + currencyGap
+                    if (spec.relief.strokeWidthPx > 0.0) {
+                        strokePaint.typeface = selectedTypeface
+                        strokePaint.textSize = sz
+                        strokePaint.letterSpacing = if (sz > 0f) (window.trackingPx / sz).toFloat() else 0f
+                        bandCanvas.drawText(priceAmount, startX, y, strokePaint)
+                        strokePaint.typeface = currencyFont
+                        strokePaint.textSize = currencySize
+                        strokePaint.letterSpacing = 0f
+                        bandCanvas.drawText(currency, currencyX, y, strokePaint)
+                    }
+                    fillPaint.typeface = selectedTypeface
+                    fillPaint.textSize = sz
+                    fillPaint.letterSpacing = if (sz > 0f) (window.trackingPx / sz).toFloat() else 0f
+                    bandCanvas.drawText(priceAmount, startX, y, fillPaint)
+                    fillPaint.typeface = currencyFont
+                    fillPaint.textSize = currencySize
+                    fillPaint.letterSpacing = 0f
+                    bandCanvas.drawText(currency, currencyX, y, fillPaint)
+                    fillPaint.typeface = selectedTypeface
+                    fillPaint.textSize = sz
+                    fillPaint.letterSpacing = if (sz > 0f) (window.trackingPx / sz).toFloat() else 0f
+                    strokePaint.typeface = selectedTypeface
+                    strokePaint.textSize = sz
+                    strokePaint.letterSpacing = if (sz > 0f) (window.trackingPx / sz).toFloat() else 0f
+                } else {
+                    if (spec.relief.strokeWidthPx > 0.0) {
+                        bandCanvas.drawText(line, startX, y, strokePaint)
+                    }
+                    bandCanvas.drawText(line, startX, y, fillPaint)
                 }
-                bandCanvas.drawText(line, startX, y, fillPaint)
                 if (rw.spec.strikethrough) {
                     val strikeY = y - sz * 0.3f
                     bandCanvas.drawLine(startX - 4f, strikeY, startX + lineW + 4f, strikeY, fillPaint)

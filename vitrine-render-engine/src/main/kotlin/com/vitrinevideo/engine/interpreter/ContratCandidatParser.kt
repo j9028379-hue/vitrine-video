@@ -47,27 +47,51 @@ object ContratCandidatParser {
             require(srcOut > srcIn) { "Scène $id: intervalle source_s invalide" }
             sourceEnds += srcOut
 
-            val duration = end - start
-            val split = if (i < 3) start + (duration * 0.55).roundToInt() else end
             val shots = mutableListOf<CutSegmentSpec>()
-            val boundaries = if (split in (start + 1) until end) listOf(start, split, end) else listOf(start, end)
-            for (phase in 0 until boundaries.lastIndex) {
-                val outStart = boundaries[phase]
-                val outEnd = boundaries[phase + 1]
-                val sourcePhaseStart = srcIn + (outStart - start)
-                val sourcePhaseEnd = srcIn + (outEnd - start)
-                val isFirst = phase == 0
-                shots += CutSegmentSpec(
-                    shotId = "${id}_P${phase + 1}", sceneId = id,
-                    sourceInFrame = sourcePhaseStart, sourceOutFrame = sourcePhaseEnd,
-                    outStartFrame = outStart, outEndFrameExcluded = outEnd,
-                    viewport = ViewportSpec(0.5, 0.5, if (i < 3 && !isFirst) 1.05 else 1.0),
-                    motion = when {
-                        i < 3 && isFirst -> MotionSpec("zoom_in", startScale = 1.0, endScale = 1.05, easing = "smoothstep")
-                        i == 3 -> MotionSpec("zoom_in", startScale = 1.0, endScale = 1.05, easing = "smoothstep")
-                        else -> MotionSpec("none")
-                    }
-                )
+            val declaredPlans = json.optJSONArray("plans")
+            if (declaredPlans != null) {
+                for (pIndex in 0 until declaredPlans.length()) {
+                    val p = declaredPlans.getJSONObject(pIndex)
+                    if (p.optString("scene") != id) continue
+                    val anchor = p.optJSONArray("anchor_normalized")
+                    val zoom = p.optJSONObject("zoom")
+                    val zoomStart = zoom?.optDouble("start", 1.0) ?: 1.0
+                    val zoomEnd = zoom?.optDouble("end", zoomStart) ?: zoomStart
+                    val motion = if (kotlin.math.abs(zoomEnd - zoomStart) > 0.0001) {
+                        MotionSpec("zoom_in", startScale = zoomStart, endScale = zoomEnd,
+                            easing = zoom?.optString("easing", "easeInOutSine") ?: "easeInOutSine")
+                    } else MotionSpec("none")
+                    shots += CutSegmentSpec(
+                        shotId = p.getString("id"), sceneId = id,
+                        sourceInFrame = p.getInt("source_in_f"), sourceOutFrame = p.getInt("source_out_f_exclusive"),
+                        outStartFrame = p.getInt("out_start_f"), outEndFrameExcluded = p.getInt("out_end_f_exclusive"),
+                        viewport = ViewportSpec(anchor?.optDouble(0, 0.5) ?: 0.5, anchor?.optDouble(1, 0.5) ?: 0.5, 1.0),
+                        motion = motion
+                    )
+                }
+                require(shots.isNotEmpty()) { "Scène $id sans plans explicites" }
+            } else {
+                val duration = end - start
+                val split = if (i < 3) start + (duration * 0.55).roundToInt() else end
+                val boundaries = if (split in (start + 1) until end) listOf(start, split, end) else listOf(start, end)
+                for (phase in 0 until boundaries.lastIndex) {
+                    val outStart = boundaries[phase]
+                    val outEnd = boundaries[phase + 1]
+                    val sourcePhaseStart = srcIn + (outStart - start)
+                    val sourcePhaseEnd = srcIn + (outEnd - start)
+                    val isFirst = phase == 0
+                    shots += CutSegmentSpec(
+                        shotId = "${id}_P${phase + 1}", sceneId = id,
+                        sourceInFrame = sourcePhaseStart, sourceOutFrame = sourcePhaseEnd,
+                        outStartFrame = outStart, outEndFrameExcluded = outEnd,
+                        viewport = ViewportSpec(0.5, 0.5, if (i < 3 && !isFirst) 1.05 else 1.0),
+                        motion = when {
+                            i < 3 && isFirst -> MotionSpec("zoom_in", startScale = 1.0, endScale = 1.05, easing = "smoothstep")
+                            i == 3 -> MotionSpec("zoom_in", startScale = 1.0, endScale = 1.05, easing = "smoothstep")
+                            else -> MotionSpec("none")
+                        }
+                    )
+                }
             }
             scenes += SceneSpec(id, start, end, role = s.optString("titre", s.optString("prise", "")), shots = shots)
             cursor = end
@@ -242,7 +266,14 @@ object ContratCandidatParser {
                     twoLineBaseY = layer.optJSONArray("centre")?.optDouble(1) ?: height * 0.5,
                     singleLineBaseY = layer.optJSONArray("centre")?.optDouble(1) ?: height * 0.5,
                     emRefPx = layer.optDouble("taille_px", 60.0)
-                )
+                ),
+                appendCurrencyWhenAbsent = layer.optString("append_currency_when_absent").takeIf { it.isNotBlank() },
+                groupNumericPrice = layer.optBoolean("group_numeric_price", false),
+                priceCurrencyFontRelativePath = if (layer.optBoolean("split_price_currency", false)) {
+                    "$fontRoot/${fontFile(layer.optString("price_currency_font", "utility"))}"
+                } else null,
+                priceCurrencySizePx = layer.optDouble("price_currency_size_px", 0.0).takeIf { it > 0.0 },
+                priceCurrencyGapPx = layer.optDouble("price_currency_gap_px", 0.0)
             )
         }
         if (textWindows.isNotEmpty()) {
@@ -281,13 +312,62 @@ object ContratCandidatParser {
             required += CapabilityId.AUDIO_CYCLIC_ROTATION
         }
         require(cursor == totalFrames) { "Durée des scènes ($cursor images) != durée totale ($totalFrames)" }
+        val visualEffects = parseVisualEffects(json.optJSONArray("visual_effects"))
+        visualEffects.forEach { required += it.kind.capability }
         return RenderPlan(
             templateId = json.getString("template_id"), version = json.optString("version", "1.0.0"),
             statusLabel = json.optString("etat", ""), fps = fps, width = width, height = height,
             totalFrames = totalFrames, scenes = scenes, transitions = transitions, textOverlay = textSpec,
             colorMode = "source_native", audioProfileId = audioProfile,
-            requiredCapabilities = required, unknownCapabilities = emptyList()
+            requiredCapabilities = required, unknownCapabilities = emptyList(), visualEffects = visualEffects
         )
+    }
+
+    /** Optional generic effect declarations consumed by the shared GL renderer. */
+    private fun parseVisualEffects(arr: JSONArray?): List<VisualEffectSpec> {
+        if (arr == null) return emptyList()
+        fun pair(obj: JSONObject, key: String): Pair<Double, Double>? {
+            val values = obj.optJSONArray(key) ?: return null
+            require(values.length() >= 2) { "$key requires two values" }
+            return values.getDouble(0) to values.getDouble(1)
+        }
+        fun keys(obj: JSONObject, key: String): List<EffectKeyframe> {
+            val values = obj.optJSONArray(key) ?: return emptyList()
+            return (0 until values.length()).map { index ->
+                val point = values.getJSONArray(index)
+                EffectKeyframe(point.getInt(0), point.getDouble(1))
+            }
+        }
+        return (0 until arr.length()).map { index ->
+            val obj = arr.getJSONObject(index)
+            val kind = when (obj.getString("kind")) {
+                "ZOOM" -> EffectKind.ZOOM
+                "VEIL" -> EffectKind.VEIL
+                "GLOW" -> EffectKind.GLOW
+                "FREEZE_CROSSFADE" -> EffectKind.FREEZE_CROSSFADE
+                "BLURRED_OVERLAY" -> EffectKind.BLURRED_OVERLAY
+                "SCRIM" -> EffectKind.SCRIM
+                "FINAL_FADE" -> EffectKind.FINAL_FADE
+                else -> throw IllegalArgumentException("Type d'effet visuel inconnu: ${obj.optString("kind")}")
+            }
+            val start = obj.getInt("start_f")
+            val end = obj.getInt("end_f_exclusive")
+            require(start >= 0 && end > start) { "Fenêtre d'effet invalide: ${obj.optString("id", index.toString())}" }
+            val zoom = pair(obj, "zoom")
+            VisualEffectSpec(
+                id = obj.optString("id", "effect_$index"), operation = obj.optString("operation", "declared"),
+                kind = kind, startFrame = start, endFrameExcluded = end, zoom = zoom,
+                colorHex = obj.optString("color_hex").takeIf { it.isNotBlank() },
+                opacityKeyframes = keys(obj, "opacity_keyframes"), alphaKeyframes = keys(obj, "alpha_keyframes"),
+                centerStart = pair(obj, "center_start"), centerEnd = pair(obj, "center_end"),
+                radiusXY = pair(obj, "radius_xy"), zoomCopy = pair(obj, "zoom_copy"),
+                sigmaMaxPx = obj.optDouble("sigma_max_px", 0.0),
+                centerY = obj.optDouble("center_y", 0.5), spreadY = obj.optDouble("spread_y", 0.15),
+                strength = obj.optDouble("strength", 0.0),
+                visibilityRampFrames = obj.optInt("visibility_ramp_frames", 0),
+                stage = if (kind == EffectKind.FINAL_FADE) EffectStage.FINAL else EffectStage.COMPOSITE
+            )
+        }
     }
 
     private fun rgbHex(rgb: JSONArray?, fallback: String): String {

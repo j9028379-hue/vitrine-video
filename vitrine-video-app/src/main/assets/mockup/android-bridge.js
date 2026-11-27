@@ -138,9 +138,8 @@
         card.setAttribute("data-soon-label", label);
       }
     });
-    // Production templates: Commerce T1-T4 and the two activated Restauration
-    // templates (Avant / Après, Coulisses de préparation, and Formule, combo et offre).
-    document.querySelectorAll('.format-card[data-format="t1"], .format-card[data-format="t2"], .format-card[data-format="t3"], .format-card[data-format="t4"], .format-card[data-format="r2"], .format-card[data-format="r3"], .format-card[data-format="r4"]').forEach((card) => {
+    // Production templates: Commerce T1-T4 and activated Restauration R1/R2/R3/R4.
+    document.querySelectorAll('.format-card[data-format="t1"], .format-card[data-format="t2"], .format-card[data-format="t3"], .format-card[data-format="t4"], .format-card[data-format="r1"], .format-card[data-format="r2"], .format-card[data-format="r3"], .format-card[data-format="r4"]').forEach((card) => {
       card.removeAttribute("data-coming-soon");
       card.removeAttribute("data-soon-label");
       card.classList.remove("is-soon");
@@ -180,6 +179,14 @@
       fin: val("q-fin"),
       localisation: val("q-quartier"),
       whatsapp: val("q-whatsapp")
+    };
+    if (activeTemplateFormat === "r1") return {
+      nom: val("q-nom"),
+      produit: val("q-produit"),
+      prix: val("q-prix"),
+      whatsapp: val("q-whatsapp"),
+      quartier: val("q-quartier"),
+      accroche: val("q-accroche")
     };
     if (activeTemplateFormat === "r4") return {
       nom: val("q-nom"),
@@ -353,7 +360,7 @@
           const card = e.target.closest(".format-card");
           if (!card) return;
           const fmt = card.dataset.format || card.id.replace(/^format-/, "");
-          if (!["t1", "t2", "t3", "t4", "r2", "r3", "r4"].includes(fmt)) {
+          if (!["t1", "t2", "t3", "t4", "r1", "r2", "r3", "r4"].includes(fmt)) {
             e.preventDefault();
             e.stopImmediatePropagation();
             const fr = getCurrentLang() === "fr";
@@ -367,7 +374,8 @@
           }
           activeTemplateFormat = fmt;
           if (hasBridge()) {
-            const packageId = fmt === "r2" ? "RESTAURATION-T2"
+            const packageId = fmt === "r1" ? "RESTAURATION-T1"
+              : fmt === "r2" ? "RESTAURATION-T2"
               : fmt === "r3" ? "RESTAURATION-T3"
               : fmt === "r4" ? "RESTAURATION-T5"
               : fmt === "t1" ? "COMMERCE-T1"

@@ -236,6 +236,7 @@ jobs:
           RELEASE_DELIVERY=$(find ci-artifacts -maxdepth 1 -name 'VitrineVideo-release*.apk' -type f | head -n 1)
           test -n "$RELEASE_DELIVERY"
           python3 tools/verify_restauration_t3_apk.py "$RELEASE_DELIVERY" | tee ci-artifacts/RESTAURATION_T3_APK_AUDIT.txt
+          python3 tools/verify_restauration_t1_integrity.py "$RELEASE_DELIVERY" | tee ci-artifacts/RESTAURATION_T1_APK_AUDIT.txt
 
       - name: Upload APKs and integrity report
         uses: actions/upload-artifact@v4
@@ -274,6 +275,7 @@ jobs:
           cp "$RELEASE_APK" ci-delivery/release-only/VitrineVideo-release.apk
           cp ci-delivery/source/SHA256SUMS.txt ci-delivery/release-only/SHA256SUMS-all-apks.txt
           cp ci-delivery/source/RESTAURATION_T3_APK_AUDIT.txt ci-delivery/release-only/
+          cp ci-delivery/source/RESTAURATION_T1_APK_AUDIT.txt ci-delivery/release-only/
           {
             echo "workflow_run=$GITHUB_RUN_ID"
             echo "commit=$GITHUB_SHA"

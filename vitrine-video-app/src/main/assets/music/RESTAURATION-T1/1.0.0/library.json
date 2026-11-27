@@ -1,0 +1,70 @@
+{
+  "schema_version": "1.0.0",
+  "template_id": "RESTAURATION-T1",
+  "version": "1.0.0",
+  "audio_profile": "restaurants_maquis_T1_afrobeat_amapiano_v1_0_0",
+  "cipher": "HMAC_SHA256_CTR_V1",
+  "source_contract": "contracts/config/T1_special_menu_music_pack_v1_0_0.json",
+  "tracks": [
+    {
+      "numero": 1,
+      "candidate_id": "t1_music_239426",
+      "resource": "audio/pistes/01.mp3",
+      "vault": "01.mp3.vault",
+      "iv_b64": "e5vF8bxm1VzqQ/GC",
+      "sha256": "bc4caf2d2e34cd099801c54af24cfe6426a117b5d3e4fe9dd61679a133858d8a",
+      "bytes": 603335,
+      "source_debut_s": 0.09288,
+      "duration_s": 30.0,
+      "sample_rate_hz": 44100,
+      "channels": 2,
+      "bitrate_kbps": 160,
+      "contains_voice": false
+    },
+    {
+      "numero": 2,
+      "candidate_id": "t1_music_464383",
+      "resource": "audio/pistes/02.mp3",
+      "vault": "02.mp3.vault",
+      "iv_b64": "Fn10xzgdD2vx1DP/",
+      "sha256": "05b196f07598a9d7b26231930019b353914661fb7408536b45690377c099fbd6",
+      "bytes": 603332,
+      "source_debut_s": 0.06966,
+      "duration_s": 30.0,
+      "sample_rate_hz": 44100,
+      "channels": 2,
+      "bitrate_kbps": 160,
+      "contains_voice": false
+    },
+    {
+      "numero": 3,
+      "candidate_id": "t1_music_406552",
+      "resource": "audio/pistes/03.mp3",
+      "vault": "03.mp3.vault",
+      "iv_b64": "Lr9xtxnLOJt2y5E2",
+      "sha256": "156c7cc2927425cb407f71652579ea59af3e0212f50114d92bac97568ff9a056",
+      "bytes": 603340,
+      "source_debut_s": 0.06966,
+      "duration_s": 30.0,
+      "sample_rate_hz": 44100,
+      "channels": 2,
+      "bitrate_kbps": 160,
+      "contains_voice": false
+    },
+    {
+      "numero": 4,
+      "candidate_id": "t1_music_178406",
+      "resource": "audio/pistes/04.mp3",
+      "vault": "04.mp3.vault",
+      "iv_b64": "3eh7CJY0oGLxbySF",
+      "sha256": "08a9816f7f130919f1ac610dba9ce7fe8acc6b2e8a2acbb0b4f3b463f7eaf99b",
+      "bytes": 601666,
+      "source_debut_s": 0.05805,
+      "duration_s": 30.0,
+      "sample_rate_hz": 44100,
+      "channels": 2,
+      "bitrate_kbps": 160,
+      "contains_voice": false
+    }
+  ]
+}

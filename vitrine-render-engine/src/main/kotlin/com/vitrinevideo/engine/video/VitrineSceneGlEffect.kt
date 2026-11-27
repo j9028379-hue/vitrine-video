@@ -895,16 +895,17 @@ private class VitrineSceneShaderProgram(
             it.kind == EffectKind.ZOOM && it.stage == EffectStage.COMPOSITE &&
                 frame in it.startFrame until it.endFrameExcluded
         }?.let { EffectCurveEvaluator.rampAt(it.zoom, frame, it.startFrame, it.endFrameExcluded) }
-        val framedZoom = when {
-            shot.viewportKeyframes.isNotEmpty() -> {
-                val declared = declaredZoom ?: 1.0
-                minOf(declared, shot.maxZoom.takeIf { it > 0.0 } ?: declared)
-            }
-            else -> null
-        }
-        var scale = if (framedZoom != null) framedZoom.toFloat() * shot.viewport.zoom.toFloat()
-            else if (m.type == "none") shot.viewport.zoom.toFloat()
+        val framedZoom = if (shot.viewportKeyframes.isNotEmpty()) {
+            val declared = declaredZoom ?: 1.0
+            minOf(declared, shot.maxZoom.takeIf { it > 0.0 } ?: declared)
+        } else null
+        val shotScale = if (m.type == "none") shot.viewport.zoom.toFloat()
             else (m.startScale + (m.endScale - m.startScale) * t).toFloat() * shot.viewport.zoom.toFloat()
+        var scale = when {
+            framedZoom != null -> framedZoom.toFloat() * shot.viewport.zoom.toFloat()
+            declaredZoom != null -> shotScale * declaredZoom.toFloat()
+            else -> shotScale
+        }
         var panX = if (m.type == "none") 0f else ((m.startPanX + (m.endPanX - m.startPanX) * t) / outWidth.toDouble()).toFloat()
         var panY = if (m.type == "none") 0f else ((m.startPanY + (m.endPanY - m.startPanY) * t) / outHeight.toDouble()).toFloat()
         var angle = if (m.type == "none") 0f else (m.startAngleDeg + (m.endAngleDeg - m.startAngleDeg) * t).toFloat()

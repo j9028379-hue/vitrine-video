@@ -31,7 +31,7 @@ class RestaurationT3AppFlowTest {
         assertTrue(TemplateCatalogue.isSupported(TemplateCatalogue.RESTAURATION_T3))
         assertEquals("Coulisses de préparation", TemplateCatalogue.displayName(TemplateCatalogue.RESTAURATION_T3, true))
         assertEquals("Behind the preparation", TemplateCatalogue.displayName(TemplateCatalogue.RESTAURATION_T3, false))
-        assertEquals(7, TemplateCatalogue.SUPPORTED_IDS.size)
+        assertEquals(8, TemplateCatalogue.SUPPORTED_IDS.size)
         assertFalse(TemplateCatalogue.SUPPORTED_IDS.contains("RESTAURATION-T4"))
         val repository = File(
             listOf(File("src/main/kotlin"), File("vitrine-video-app/src/main/kotlin")).first { it.isDirectory },
