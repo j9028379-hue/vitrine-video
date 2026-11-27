@@ -38,6 +38,8 @@ class RestaurationT1PackageTest {
         assertEquals(900, pkg.renderPlan.scenes.last().shots.last().outEndFrameExcluded)
         assertEquals(12, JSONObject(pkg.resolvePackageRelative("templates/restauration/restauration-t1/capture-guide/ecrans.json").readText())
             .getJSONArray("ecrans").length())
+        assertEquals(listOf("S1","S2","S3","S4"),pkg.captureGuides.map { it.sceneId })
+        assertEquals(listOf(6,8,7,9),pkg.captureGuides.map { it.durationSec })
         assertEquals(5, pkg.formSpec.requiredKeys().size)
         assertEquals(6, pkg.formSpec.questions.size)
         assertNotNull(pkg.audioProfile)

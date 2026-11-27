@@ -152,7 +152,7 @@ def make_runtime(source: Path):
 
     screen_items=[]
     for i,s in enumerate(guide["scenes"],1):
-        common={"scene":f"S{i}","duree_s":s["secondes"],"titre":s["titre"],"parole":guide.get("mention_voix_commune","")}
+        common={"scene":i,"scene_id":f"S{i}","duree_s":s["secondes"],"titre":s["titre"],"parole":guide.get("mention_voix_commune","")}
         screen_items += [dict(common,numero=(i-1)*3+1,etat="guide",blocs={"CE QUE TU VAS FILMER":s["consigne"],"À FILMER":s["a_filmer"],"À ÉVITER":s["a_eviter"]},exemple=s.get("exemple","")),
           dict(common,numero=(i-1)*3+2,etat="enregistrement",indication=s["consigne"]),
           dict(common,numero=(i-1)*3+3,etat="verification",consigne="Vérifie que ta scène est bien enregistrée.",bouton="SCÈNE SUIVANTE" if i<4 else "VOIR MON MONTAGE")]
